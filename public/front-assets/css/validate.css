@@ -1,0 +1,85 @@
+/*Error inputs*/
+.error-input {
+    border: #ff5549 1px solid !important;
+    /*border-style: solid !important;*/
+    /*border-color: #ff3737 !important;
+    border-style: solid !important;*/
+}
+
+.error {
+    font-size: 12px !important;
+    color: #ff5549 !important;
+    text-transform: none !important;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+}
+
+.error-no-absolute {
+    font-size: 12px !important;
+    color: #ff5549 !important;
+    text-transform: none !important;
+    top: calc(100% + 5px);
+    left: 0;
+}
+
+.error-promocode {
+    margin-top: -0.7rem;
+    margin-bottom: 1.2rem;
+    font-size: 12px !important;
+    color: #ff5549  !important;
+    text-transform: none !important;
+    display: block;
+}
+
+.error-subscribe {
+    font-size: 12px !important;
+    color: #ff5549 !important;
+    text-transform: none !important;
+    position: absolute;
+    top: calc(100%);
+    left: 0;
+}
+
+.error-inline {
+    font-size: 12px !important;
+    color: #ff5549 !important;
+    text-transform: none !important;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+}
+
+.error-basket {
+    font-size: 12px !important;
+    color: #ff5549 !important;
+    text-transform: none !important;
+}
+
+.g-recaptcha {
+    margin-top: 10px;
+}
+
+.grecaptcha-badge {
+    visibility: hidden;
+}
+
+.custom-cursor-pointer{
+    cursor: pointer;
+}
+
+.custom-cursor-default{
+    cursor: default;
+}
+
+.agency-detail-map{
+    height: 40rem;
+}
+
+.agencies-map{
+    height: 40rem;
+}
+
+[id^=NotiflixNotifyWrap]>div>span.nx-message{
+    font-weight: 700 !important;
+}

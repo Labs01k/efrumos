@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Wish extends Model
+{
+    use HasFactory;
+
+    protected $table = 'wish';
+
+    protected $fillable = [
+        'wish_id', 'goods_item_id','position'
+    ];
+
+	public function goodsItemId() {
+		return $this->hasOne('App\Models\GoodsItemId', 'id', 'goods_item_id');
+	}
+
+	public function oImage() {
+		return $this->hasOne('App\Models\GoodsPhoto', 'goods_item_id', 'goods_item_id')->orderBy('position','asc');
+	}
+
+}
