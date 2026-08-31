@@ -1804,7 +1804,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                 $param_value = GetItemRSCSelectData($parametr->goods_parametr_id, $item_id);
 
                 if (!is_null($param_value) && $param_value->goods_parametr_value_id > 0) {
-                    $return[] = ['name' => $parametr->name, 'value' => IfHasName($param_value->goods_parametr_value_id, $lang_id, 'goods_parametr_value')];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => IfHasName($param_value->goods_parametr_value_id, $lang_id, 'goods_parametr_value')];
                 }
                 break;
 
@@ -1817,7 +1817,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                     foreach ($param_value as $pv) {
                         $param_value_name[] = IfHasName($pv, $lang_id, 'goods_parametr_value');
                     }
-                    $return[] = ['name' => $parametr->name, 'value' => implode(', ', $param_value_name)];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => implode(', ', $param_value_name)];
                 }
                 break;
 
@@ -1827,21 +1827,21 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                         $param_value = GetItemMeasureData($parametr->goods_parametr_id, $item_id);
 
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => !empty(IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => !empty(IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
                         }
                         break;
 
                     case 'measure_list':
                         $param_value = GetItemMeasureData($parametr->goods_parametr_id, $item_id);
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => !empty(IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => !empty(IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
                         }
                         break;
 
                     case 'no_measure':
                         $param_value = GetItemSimpleData($parametr->goods_parametr_id, $item_id, $lang_id);
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => $param_value->parametr_value];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => $param_value->parametr_value];
                         }
                         break;
 
@@ -1853,7 +1853,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
             case 'textarea':
                 $param_value = GetItemSimpleData($parametr->goods_parametr_id, $item_id, $lang_id);
                 if (!is_null($param_value) && $param_value->parametr_value) {
-                    $return[] = ['name' => $parametr->name, 'value' => $param_value->parametr_value];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => $param_value->parametr_value];
                 }
                 break;
 

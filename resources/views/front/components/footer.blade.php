@@ -182,6 +182,7 @@
 <script src="{{ asset('front-assets/js/notiflix-3.2.6.min.js') }}"></script>
 <script src="{{ asset('front-assets/js/recaptcha.js') }}"></script>
 <script src="{{ asset('front-assets/js/ajax-scripts.js?v=').config('custom.front.js_version') }}"></script>
+<script src="{{ asset('front-assets/js/product-card.js?v=').config('custom.front.js_version') }}"></script>
 <script src="https://www.google.com/recaptcha/api.js?render={{ env('RE_CAP_SECRET') }}"></script>
 
 

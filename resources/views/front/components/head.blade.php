@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="{{  asset('front-assets/css/libs.min.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{  asset('front-assets/css/main.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{ asset('front-assets/css/validate.css?v=').config('custom.front.css_version') }}">
+<link rel="stylesheet" href="{{ asset('front-assets/css/product-card.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{ asset('front-assets/css/notiflix-3.2.6.min.css') }}">
 
 <link title="Română" dir="ltr" type="text/html" rel="alternate" hreflang="ro"

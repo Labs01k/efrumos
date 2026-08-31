@@ -13,12 +13,19 @@ use FacebookAds\Object\ServerSide\UserData;
 
 class FacebookPixelConversion
 {
-     public static function pixelEvent($fb_pixel_event, $goods_collect): \FacebookAds\Object\ServerSide\EventResponse
+     public static function pixelEvent($fb_pixel_event, $goods_collect): ?\FacebookAds\Object\ServerSide\EventResponse
      {
          $user = app('global_user');
 
          $access_token = config('services.facebook_pixel.facebook_pixel_access_token');
          $pixel_id =  config('services.facebook_pixel.facebook_pixel_id');
+
+         // Без ключей пикселя (локальная разработка, тестовый стенд) событие не отправляем:
+         // иначе SDK падает на пустом pixel_id и роняет страницу товара целиком.
+         if (empty($pixel_id) || empty($access_token)) {
+             return null;
+         }
+
          $api = Api::init(null, null, $access_token);
          $api->setLogger(new CurlLogger());
 

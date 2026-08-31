@@ -22,6 +22,10 @@ use App\Models\InfoItemId;
 use App\Models\InfoLineId;
 use App\Models\MenuId;
 use App\Services\FacebookAds\FacebookPixelConversion;
+use App\Services\Product\ProductRecommendations;
+use App\Services\Product\ProductStock;
+use App\Services\Product\ProductVariants;
+use App\Services\Product\ShadePalette;
 use App\Services\GA4\GoogleEcommerce;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -285,6 +289,25 @@ class CatalogController extends Controller
             if ($goods_item->getBrand && $goods_item->getBrand->parent && $goods_item->getBrand->parent->img_palette) {
                 $brand_image_palette = $goods_item->getBrand->parent->img_palette;
             }
+        }
+
+        // Блоки страницы товара по новому макету:
+        // п.3 «С этим товаром покупают», п.4 «Похожие товары», п.6 палитра оттенков
+        $set_goods = ProductRecommendations::boughtTogether($goods_item);
+        $similar_goods = ProductRecommendations::similar($goods_item);
+        $shades = ShadePalette::for($goods_item);
+        $volumes = ProductVariants::volumes($goods_item);
+        // п.5: пока 1С не отдаёт остатки по складам, коллекция пустая и блок скрыт
+        $shops_stock = ProductStock::byShops($goods_item);
+
+        // Превью незавершённых блоков: ?preview=pending подставляет демо-данные
+        // в те блоки, под которые ещё нет источника (остатки по магазинам, вкладка
+        // «Применение»). На проде флаг не работает.
+        $preview_pending = !app()->environment('production') && request('preview') === 'pending';
+        $preview_usage = null;
+        if ($preview_pending) {
+            $shops_stock = ProductStock::demo($goods_item);
+            $preview_usage = trans('variables.product_usage_demo');
         }
 
         //For meta tags
