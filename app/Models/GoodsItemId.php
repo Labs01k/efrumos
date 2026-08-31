@@ -29,7 +29,7 @@ class GoodsItemId extends Model
     }
 
     protected $fillable = [
-        'goods_subject_id', 'other_goods_subject_id', 'brand_id', 'alias', 'active', 'deleted', 'one_c_id', 'one_c_code', 'position', 'show_on_main', 'add_date', 'popular_element', 'new_element', 'price', 'price_promo', 'in_stoc', 'articol', 'youtube_link', 'youtube_id', 'products_count', 'rating', 'barcode', 'produse_compatibile', 'produse_similare', 'b2b_type', 'goods_type_id', 'show_in_search', 'one_c_code_guid', 'price_promo_date_end'
+        'goods_subject_id', 'other_goods_subject_id', 'brand_id', 'alias', 'active', 'deleted', 'one_c_id', 'one_c_code', 'position', 'show_on_main', 'add_date', 'popular_element', 'new_element', 'price', 'price_promo', 'in_stoc', 'articol', 'youtube_link', 'youtube_id', 'products_count', 'rating', 'barcode', 'produse_compatibile', 'produse_similare', 'b2b_type', 'goods_type_id', 'show_in_search', 'one_c_code_guid', 'price_promo_date_end', 'shade_img'
     ];
 
     public function oImage()

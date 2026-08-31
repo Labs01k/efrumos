@@ -50,6 +50,7 @@ class ShadePalette
                 $one_shade->shade_code = self::shadeCode($one_shade->itemByLang->name ?? '', $one_shade->articol);
                 $one_shade->shade_name = self::shadeName($one_shade->itemByLang->name ?? '', $one_shade->shade_code);
                 $one_shade->is_current = $one_shade->id === $goods_item->id;
+                $one_shade->shade_swatch = self::swatchUrl($one_shade);
 
                 return $one_shade;
             })
@@ -97,6 +98,27 @@ class ShadePalette
         }
 
         return $goods_name;
+    }
+
+    /**
+     * Отдельное фото оттенка из CMS (п.6 ТЗ, раздел «Палитра оттенков»).
+     * null — фото не загружено, свотч режется из фотографии товара.
+     */
+    public static function swatchUrl(GoodsItemId $one_shade): ?string
+    {
+        if (!$one_shade->shade_img) {
+            return null;
+        }
+
+        if (file_exists(public_path('upfiles/goods-shades/s/' . showImg($one_shade->shade_img)))) {
+            return asset('upfiles/goods-shades/s/' . showImg($one_shade->shade_img));
+        }
+
+        if (file_exists(public_path('upfiles/goods-shades/' . $one_shade->shade_img))) {
+            return asset('upfiles/goods-shades/' . $one_shade->shade_img);
+        }
+
+        return null;
     }
 
     /** Сортировка палитры по уровню тона, затем по нюансу: 1/0, 3/11, 9/76, 10/1. */

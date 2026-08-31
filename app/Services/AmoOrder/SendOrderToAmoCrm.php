@@ -40,7 +40,8 @@ class SendOrderToAmoCrm
             $order_type = 'Comanda noua (Simplă)';
             $tags_type = 'site, orders, efrumos';
         }
-        if ($order_new->delivery_method = 'delivery') {
+        // было присваивание (=) — самовывоз всегда уходил в CRM как доставка
+        if ($order_new->delivery_method == 'delivery') {
             $delivery_type = 'Livrare la domiciliu';
             $delivery_address_info = $user_district ? $user_district->name .' '. $user_info->city .' '. $user_info->address : '';
         }else {

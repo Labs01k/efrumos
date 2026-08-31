@@ -753,10 +753,13 @@ class CatalogController extends Controller
 
         $search_array_values = explode(' ', $search_value);
 
+        // строка поиска только через биндинги — конкатенация ломалась кавычкой
         $multi_query = '';
+        $multi_bindings = [];
         if ($search_array_values) {
             foreach ($search_array_values as $one_value) {
-                $multi_query .= ' AND name LIKE "%' . $one_value . '%"';
+                $multi_query .= ' AND name LIKE ?';
+                $multi_bindings[] = '%' . $one_value . '%';
             }
 
             $multi_query = mb_substr($multi_query, 5);
@@ -776,11 +779,12 @@ class CatalogController extends Controller
         $search_goods_items = GoodsItemId::where('active', 1)
             ->where('deleted', 0)
             ->with('itemByLang')
-            ->where(function ($query) use ($multi_query, $search_value) {
-                $query->whereHas('itemByLang', function ($q) use ($search_value, $multi_query) {
-                    //$q->where('name', 'LIKE', '%' . $search_value . '%');
-                    $q->whereRaw($multi_query);
-                })->orWhere('one_c_code', 'like', '%' . $search_value . '%');
+            ->where(function ($query) use ($multi_query, $multi_bindings, $search_value) {
+                $query->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
+                    $q->whereRaw($multi_query, $multi_bindings);
+                })
+                    ->orWhere('one_c_code', 'like', '%' . $search_value . '%')
+                    ->orWhere('articol', 'like', '%' . $search_value . '%');
             })
             ->whereRaw('goods_subject_id IN(SELECT id FROM goods_subject_id WHERE active = 1 AND deleted = 0)')
             ->orderBy('position', 'asc')

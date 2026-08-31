@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Exchange;
 use App\Http\Controllers\Controller;
 use App\Models\GoodsItem;
 use App\Models\GoodsItemId;
+use App\Models\GoodsShopRest;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -237,11 +238,46 @@ class ImportFrom1C extends Controller
                         GoodsItem::create($data_ru);
                     }
                 }
+
+                // п.5 ТЗ: разрез остатков по складам. Пока 1С шлёт только главный
+                // склад — как только начнёт слать магазины, они попадут сюда сами.
+                if (!is_null($goods_item_id)) {
+                    $this->syncShopRests($goods_item_id->id, $item['Rests'] ?? []);
+                }
             }
         } else {
             var_dump('NO PRODUCTS FOUND');
         }
     }
 
+    /**
+     * Сохраняет все строки Rests обмена (склад 1С + остаток) и удаляет строки
+     * складов, которых в свежем обмене больше нет. StoreName пишется как есть —
+     * по нему админ сопоставляет склад с магазином в разделе «Магазины».
+     */
+    public function syncShopRests(int $goods_item_id, array $rests): void
+    {
+        $store_guids = [];
+
+        foreach ($rests as $one_store_rest) {
+            if (empty($one_store_rest['StoreId'])) {
+                continue;
+            }
+
+            $store_guids[] = $one_store_rest['StoreId'];
+
+            GoodsShopRest::updateOrCreate([
+                'goods_item_id' => $goods_item_id,
+                'store_guid' => $one_store_rest['StoreId'],
+            ], [
+                'store_name' => $one_store_rest['StoreName'] ?? null,
+                'qty' => $one_store_rest['Rest'] ?? 0,
+            ]);
+        }
+
+        GoodsShopRest::where('goods_item_id', $goods_item_id)
+            ->whereNotIn('store_guid', $store_guids)
+            ->delete();
+    }
 
 }

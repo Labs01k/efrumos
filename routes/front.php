@@ -29,7 +29,8 @@ Route::middleware('FrontGlobal')->group(function () {
             Route::post('/catalog/filter', 'ajaxFilterResults')->name('catalog-filter');
             Route::get('/category-page/{link}', 'categorySeoPage')->name('category-seo-page');
 
-            Route::get('/search', 'goodsSearch')->name('search');
+            // роут /search удалён: указывал на несуществующий метод goodsSearch
+            // и отдавал 500 — поиск живёт на /catalog?s=
             Route::post('/ajaxGoodSearch', 'ajaxGoodsSearch');
             Route::post('/ajaxSortPage', 'ajaxSortPage');
             Route::post('/ajaxQuickViewGoods', 'ajaxQuickViewGoods');

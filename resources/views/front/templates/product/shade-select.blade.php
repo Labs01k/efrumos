@@ -12,7 +12,12 @@
         <span class="pb-field-label">{{ trans('variables.product_shade') }}</span>
 
         <div class="pb-shade-trigger" role="combobox" tabindex="0" aria-expanded="false">
-            <span class="pb-swatch" style="background-image: url('{{ $active_shade->oImage && $active_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) ? asset('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}')"></span>
+            {{-- отдельное фото оттенка из CMS; пока его нет — кроп фото товара --}}
+            @if($active_shade->shade_swatch)
+                <span class="pb-swatch pb-swatch--photo" style="background-image: url('{{ $active_shade->shade_swatch }}')"></span>
+            @else
+                <span class="pb-swatch" style="background-image: url('{{ $active_shade->oImage && $active_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) ? asset('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}')"></span>
+            @endif
             <span class="pb-shade-value">{{ $active_shade->shade_code }}, {{ $active_shade->shade_name }}</span>
             <input type="text" class="pb-shade-search" autocomplete="off"
                    placeholder="{{ trans('variables.product_shade_search') }}"
@@ -31,7 +36,11 @@
                        role="option"
                        data-code="{{ $one_shade->shade_code }}"
                        data-name="{{ $one_shade->shade_name }}">
-                        <span class="pb-swatch" style="background-image: url('{{ $one_shade->oImage && $one_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_shade->oImage->img)) ? asset('upfiles/goods-items/s/' . showImg($one_shade->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}')"></span>
+                        @if($one_shade->shade_swatch)
+                            <span class="pb-swatch pb-swatch--photo" style="background-image: url('{{ $one_shade->shade_swatch }}')"></span>
+                        @else
+                            <span class="pb-swatch" style="background-image: url('{{ $one_shade->oImage && $one_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_shade->oImage->img)) ? asset('upfiles/goods-items/s/' . showImg($one_shade->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}')"></span>
+                        @endif
                         <span>{{ $one_shade->shade_code }}, {{ $one_shade->shade_name }}</span>
                     </a>
                 </li>

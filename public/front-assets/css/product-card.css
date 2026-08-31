@@ -357,6 +357,12 @@
     background-position: 71% 47%;
 }
 
+/* отдельное фото оттенка из CMS показывается целиком */
+.pb-swatch--photo {
+    background-size: cover;
+    background-position: center;
+}
+
 /* поле превращается в поиск по оттенку, когда список раскрыт */
 .pb-shade-search {
     display: none;
