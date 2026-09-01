@@ -33,7 +33,33 @@
 </div>
 
 <div class="basket-info pickup d-none">
-    {!! showSettingBodyByAlias('delivery-pickup-text') !!}
+    {{--
+        Выбор магазина самовывоза (п.2 ТЗ): все активные магазины без проверки
+        наличия, разовый выбор на заказ — в профиле не сохраняется.
+        Своего макета у блока нет — компактный вид по мотивам карточек магазинов.
+    --}}
+    @if(!empty($pickup_shops) && count($pickup_shops))
+        <div class="form-item checkout-pickup">
+            <label for="pickup-shop-{{ request()->input('type', 'new') }}">{{ trans('variables.checkout_pickup_shop') }}*</label>
+            <select name="pickup_shop_id" id="pickup-shop-{{ request()->input('type', 'new') }}" class="checkout-pickup-select">
+                @foreach($pickup_shops as $one_city => $city_shops)
+                    <optgroup label="{{ $one_city }}">
+                        @foreach($city_shops as $one_shop)
+                            <option value="{{ $one_shop->id }}"
+                                    data-address="{{ $one_shop->itemByLang->address ?? '' }}"
+                                    data-phone="{{ $one_shop->phone ?? '' }}"
+                                    data-schedule="{{ $one_shop->itemByLang->schedule ?? '' }}">
+                                {{ $one_shop->itemByLang->name ?? '' }}
+                            </option>
+                        @endforeach
+                    </optgroup>
+                @endforeach
+            </select>
+            <div class="checkout-pickup-details" data-pickup-details aria-live="polite"></div>
+        </div>
+    @else
+        {!! showSettingBodyByAlias('delivery-pickup-text') !!}
+    @endif
 </div>
 
 <div class="basket-info nova-courier d-none">

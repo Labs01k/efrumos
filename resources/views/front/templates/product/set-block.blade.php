@@ -64,11 +64,21 @@
                             @endif
                         </div>
                     </div>
+                    @unless($row_is_current)
+                        {{-- поштучное добавление (п.3 ТЗ); текущий товар добавляется основной кнопкой --}}
+                        <a href="javascript:;" class="rec-add-one add-to-basket"
+                           data-goods-item-id="{{ $one_row->id }}" data-show-notiflix="1"
+                           aria-label="{{ ShowLabelById(5) }}">
+                            <svg><use xlink:href="{{ asset('front-assets/svg/sprite.svg#cart') }}"></use></svg>
+                        </a>
+                    @endunless
                 </div>
             @endforeach
 
-            <a href="javascript:;" class="rec-set-add add-set-to-basket"
-               data-goods-ids="{{ $set_rows->pluck('id')->implode(',') }}">
+            <a href="javascript:;" class="rec-set-add add-set-to-basket open-add-to-cart"
+               data-goods-ids="{{ $set_rows->pluck('id')->implode(',') }}"
+               data-label-added="{{ trans('variables.product_set_added') }}"
+               data-label-partial="{{ trans('variables.product_set_partial') }}">
                 <span class="rec-set-add-text">
                     <span class="rec-set-add-caption">{{ trans('variables.product_add_set') }}</span>
                     <span class="rec-set-add-sum">

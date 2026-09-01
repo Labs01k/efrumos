@@ -37,10 +37,18 @@
         </div>
     </div>
 
-    <div class="rec-price @if($card_old) rec-price--sale @endif">
-        <span>{{ $card_current }} {{ ShowLabelById(3) }}</span>
-        @if($card_old)
-            <span class="rec-price-old">{{ $card_old }} {{ ShowLabelById(3) }}</span>
-        @endif
+    <div class="rec-card-bottom">
+        <div class="rec-price @if($card_old) rec-price--sale @endif">
+            <span>{{ $card_current }} {{ ShowLabelById(3) }}</span>
+            @if($card_old)
+                <span class="rec-price-old">{{ $card_old }} {{ ShowLabelById(3) }}</span>
+            @endif
+        </div>
+        {{-- поштучное добавление в корзину (п.3/п.4 ТЗ) --}}
+        <a href="javascript:;" class="rec-add-one add-to-basket"
+           data-goods-item-id="{{ $one_goods->id }}" data-show-notiflix="1"
+           aria-label="{{ ShowLabelById(5) }}">
+            <svg><use xlink:href="{{ asset('front-assets/svg/sprite.svg#cart') }}"></use></svg>
+        </a>
     </div>
 </div>

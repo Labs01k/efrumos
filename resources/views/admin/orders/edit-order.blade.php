@@ -76,6 +76,9 @@
                                                 class="badge bg-secondary">({{$orders->ordersData->delivery_cost ?? 0}}
                                                 )</span>
                                         @endif
+                                        @if($orders->delivery_method == 'pickup' && $orders->pickupShop && $orders->pickupShop->itemByLang)
+                                            <br><span class="badge bg-info">{{ $orders->pickupShop->itemByLang->name ?? '' }}</span>
+                                        @endif
                                     </span>
                                 </td>
                                 <td class="text-center">

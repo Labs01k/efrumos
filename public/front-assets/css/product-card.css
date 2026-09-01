@@ -902,6 +902,12 @@
 
 /* свёрнуто показываются только магазины с наличием */
 .pb-shops:not(.is-expanded) .pb-shop-item.is-out { display: none; }
+
+/* товара нет нигде: весь список видим сразу, кнопка сворачивания не рендерится */
+.pb-shops--all-out .pb-shop-item.is-out { display: flex; }
+
+/* ближайший магазин с наличием — как выбранный магазин в макете страницы магазинов */
+.pb-shop-item.is-nearest .pb-shop-title span:first-child { color: var(--pb-brand); }
 .pb-shops:not(.is-expanded) .pb-shops-toggle .pb-chevron-sm { transform: rotate(180deg); }
 .pb-shops.is-expanded .pb-shops-toggle-more,
 .pb-shops:not(.is-expanded) .pb-shops-toggle-less { display: none; }
@@ -1224,6 +1230,70 @@
 /* цены в вертикальных карточках цветные — решение заказчика */
 .rec-card .rec-price { color: var(--pb-accent); }
 .rec-card .rec-price--sale { color: var(--pb-brand); }
+
+/* ------------------------------ поштучное добавление в корзину (п.3/п.4 ТЗ) */
+
+.rec-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.rec-add-one {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.6rem;
+    height: 3.6rem;
+    border: .2rem solid var(--pb-border);
+    border-radius: .4rem;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+.rec-add-one:hover {
+    border-color: var(--pb-brand);
+    color: var(--pb-brand);
+}
+
+.rec-add-one svg {
+    width: 1.8rem;
+    height: 1.8rem;
+    fill: currentColor;
+}
+
+/* в строке комплекта кнопка прижата к правому краю по центру строки */
+.rec-set-row .rec-add-one { margin-left: auto; }
+
+/* ==================================================================
+   Checkout: компактный блок самовывоза (п.2 ТЗ, макета нет —
+   по мотивам карточек магазинов). При слиянии стилей переносится в main.css.
+   ================================================================== */
+
+.checkout-pickup-details {
+    margin-top: .8rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.checkout-pickup-details p {
+    margin: 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.checkout-pickup-address {
+    font-family: gilroy-semibold, sans-serif !important;
+}
+
+.checkout-pickup-phone,
+.checkout-pickup-schedule { color: var(--pb-muted) !important; }
 
 /* ==================================================================
    Мобильные липкие панели (фреймы 776:2974 / 785:12613)

@@ -399,5 +399,8 @@ return [
     'shades_ambiguous' => 'Multiple matches',
     'shades_back_to_list' => 'Back to shade list',
     'shop_store_guid' => '1C warehouse (StoreId from exchange)',
+    'checkout_pickup_shop' => 'Pickup store',
+    'product_set_added' => 'Set added to cart',
+    'product_set_partial' => 'Some items are unavailable, added',
     'goods_reviews' => 'review|reviews',
 ];

@@ -45,8 +45,12 @@ class SendOrderToAmoCrm
             $delivery_type = 'Livrare la domiciliu';
             $delivery_address_info = $user_district ? $user_district->name .' '. $user_info->city .' '. $user_info->address : '';
         }else {
-            $delivery_type = 'Ridicare personală din magazinul Efrumos din Chisinau';
-            $delivery_address_info = '';
+            $delivery_type = 'Ridicare personală din magazinul Efrumos';
+            // выбранный магазин самовывоза уходит в CRM адресом
+            $pickup_shop = $order_new->pickupShop;
+            $delivery_address_info = $pickup_shop && $pickup_shop->itemByLang
+                ? trim(($pickup_shop->itemByLang->name ?? '') . ', ' . ($pickup_shop->itemByLang->address ?? ''), ', ')
+                : '';
         }
 
         $ch = curl_init();

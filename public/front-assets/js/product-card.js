@@ -189,6 +189,7 @@
         '.pb-cta-row',
         '.product-end-link',
         '.pb-product-info',
+        '.pb-product-stock',
         '.pb-bar--top',
         '.pb-bar--bottom',
         '.breadcrumbs-wrapper'
@@ -228,6 +229,21 @@
                 initGallery();
                 initShadeSelect();
                 initTopBar(true);
+
+                // блок наличия у оттенков может отличаться — перевешиваем обработчики
+                // и модификатор пустого блока на сетке
+                initCitySelect();
+                initShopsToggle();
+                initNearestShop();
+
+                var pb_product = document.querySelector('.pb-product');
+                var stock_block = document.querySelector('.pb-product-stock');
+                if (pb_product && stock_block) {
+                    pb_product.classList.toggle(
+                        'pb-product--no-stock',
+                        !stock_block.querySelector('[data-city-select], [data-shops]')
+                    );
+                }
 
                 // штатный main.js активирует первую вкладку только на загрузке
                 var firstTab = document.querySelector('.product-end-tabs .product-tab');
@@ -293,24 +309,74 @@
         });
     }
 
-    /** Добавление всего комплекта: дергаем штатный обработчик корзины по каждой позиции. */
+    /**
+     * «Добавить весь комплект»: позиции добавляются ПОСЛЕДОВАТЕЛЬНО — параллельные
+     * запросы гонялись бы за создание корзины и дублировали строки. Отказ по одной
+     * позиции (кончилась между загрузкой и кликом) не прерывает остальные: в конце
+     * показываем итог и обновляем шапку корзины из последнего успешного ответа.
+     */
     function initSetAdd() {
         var buttons = document.querySelectorAll('.add-set-to-basket');
+
+        function addOne(id) {
+            var body = new FormData();
+            body.append('goods_item_id', id);
+            body.append('number', 1);
+
+            return fetch('/' + document.documentElement.lang + '/ajaxAddToCart', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="_token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: body
+            }).then(function (response) { return response.json(); });
+        }
+
+        function applyCartResponse(data) {
+            var count = document.querySelector('.header-basket-count');
+            if (count) { count.style.display = ''; count.innerHTML = data.basket_count; }
+            var price = document.querySelector('.header-basket-price');
+            if (price && window.getDefaultPriceFormat) price.innerHTML = getDefaultPriceFormat(data.total_price);
+            var header_items = document.querySelector('.render-header-basket-items');
+            if (header_items) header_items.innerHTML = data.header_basket_items_view;
+            var modal = document.querySelector('.render-modal-add-to-basket');
+            if (modal) modal.innerHTML = data.modal_add_to_basket;
+            var right = document.querySelector('.render-right-header-basket');
+            if (right) right.innerHTML = data.modal_show_basket;
+        }
 
         Array.prototype.forEach.call(buttons, function (button) {
             button.addEventListener('click', function (event) {
                 event.preventDefault();
+                if (button.dataset.pbBusy) return;
+                button.dataset.pbBusy = '1';
+
                 var ids = (button.dataset.goodsIds || '').split(',').filter(Boolean);
-                // обработчик добавления в корзину живёт в ajax-scripts.js и слушает
-                // элементы с data-goods-item-id, поэтому эмулируем клик по каждой позиции
-                ids.forEach(function (id) {
-                    var proxy = document.createElement('a');
-                    proxy.className = 'add-to-basket';
-                    proxy.setAttribute('data-goods-item-id', id);
-                    proxy.style.display = 'none';
-                    document.body.appendChild(proxy);
-                    proxy.click();
-                    document.body.removeChild(proxy);
+                var added = 0;
+                var refused = 0;
+                var last_ok = null;
+
+                var queue = ids.reduce(function (chain, id) {
+                    return chain.then(function () {
+                        return addOne(id).then(function (data) {
+                            if (data && data.status === true) { added++; last_ok = data; }
+                            else refused++;
+                        }).catch(function () { refused++; });
+                    });
+                }, Promise.resolve());
+
+                queue.then(function () {
+                    delete button.dataset.pbBusy;
+                    if (last_ok) applyCartResponse(last_ok);
+
+                    if (window.Notiflix) {
+                        if (refused === 0) {
+                            Notiflix.Notify.success((button.dataset.labelAdded || 'OK') + ' (' + added + ')', { position: 'center-top', timeout: 3000 });
+                        } else {
+                            Notiflix.Notify.warning((button.dataset.labelPartial || '!') + ' (' + added + '/' + ids.length + ')', { position: 'center-top', timeout: 4000 });
+                        }
+                    }
                 });
             });
         });
@@ -356,6 +422,50 @@
         });
     }
 
+    /**
+     * Подсветка ближайшего магазина с наличием (п.5 ТЗ). Геолокацию не запрашиваем
+     * сами — используем, только если посетитель уже дал разрешение (например, на
+     * странице магазинов): молча подсвечиваем ближайшую точку с товаром.
+     */
+    function initNearestShop() {
+        var shops = document.querySelector('[data-shops]');
+        if (!shops || !('geolocation' in navigator)) return;
+
+        function distance(lat1, lng1, lat2, lng2) {
+            var rad = Math.PI / 180;
+            var a = Math.sin((lat2 - lat1) * rad / 2) * Math.sin((lat2 - lat1) * rad / 2) +
+                Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+                Math.sin((lng2 - lng1) * rad / 2) * Math.sin((lng2 - lng1) * rad / 2);
+            return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function highlight(position) {
+            var best = null;
+            var bestDistance = Infinity;
+
+            Array.prototype.forEach.call(shops.querySelectorAll('.pb-shop-item:not(.is-out)'), function (row) {
+                var lat = parseFloat(row.dataset.lat);
+                var lng = parseFloat(row.dataset.lng);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                var d = distance(position.coords.latitude, position.coords.longitude, lat, lng);
+                if (d < bestDistance) { bestDistance = d; best = row; }
+            });
+
+            if (best) best.classList.add('is-nearest');
+        }
+
+        function locate() {
+            navigator.geolocation.getCurrentPosition(highlight, function () {}, { maximumAge: 600000 });
+        }
+
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
+                if (status.state === 'granted') locate();
+            }).catch(function () {});
+        }
+    }
+
     /** Раскрытие магазинов, где товара нет. */
     function initShopsToggle() {
         var shops = document.querySelector('[data-shops]');
@@ -378,5 +488,6 @@
         initSetAdd();
         initCitySelect();
         initShopsToggle();
+        initNearestShop();
     });
 })();

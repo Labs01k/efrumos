@@ -174,3 +174,32 @@
     </div>
 
 @stop
+
+@push('other-scripts')
+    <script>
+        /* Детали магазина самовывоза под селектом: адрес, телефон, часы работы. */
+        (function () {
+            function renderPickupDetails(select) {
+                var details = select.parentNode.querySelector('[data-pickup-details]');
+                var option = select.options[select.selectedIndex];
+                if (!details || !option) return;
+
+                var rows = [];
+                if (option.dataset.address) rows.push('<p class="checkout-pickup-address">' + option.dataset.address + '</p>');
+                if (option.dataset.phone) rows.push('<p class="checkout-pickup-phone">' + option.dataset.phone + '</p>');
+                if (option.dataset.schedule) rows.push('<p class="checkout-pickup-schedule">' + option.dataset.schedule + '</p>');
+                details.innerHTML = rows.join('');
+            }
+
+            document.addEventListener('change', function (event) {
+                if (event.target.classList && event.target.classList.contains('checkout-pickup-select')) {
+                    renderPickupDetails(event.target);
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                Array.prototype.forEach.call(document.querySelectorAll('.checkout-pickup-select'), renderPickupDetails);
+            });
+        })();
+    </script>
+@endpush

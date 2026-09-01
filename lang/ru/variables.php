@@ -438,4 +438,7 @@ return [
     'shades_ambiguous' => 'Несколько совпадений',
     'shades_back_to_list' => 'К списку оттенков',
     'shop_store_guid' => 'Склад 1С (StoreId из обмена)',
+    'checkout_pickup_shop' => 'Магазин самовывоза',
+    'product_set_added' => 'Комплект добавлен в корзину',
+    'product_set_partial' => 'Часть товаров комплекта недоступна, добавлено',
 ];

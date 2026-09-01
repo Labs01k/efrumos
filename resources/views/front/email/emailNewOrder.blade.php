@@ -39,6 +39,9 @@
                         <p style="margin: 0;"><span style="font-weight: bold;">{{ ShowLabelById(85) }}:</span> {{ getDefaultDateFormat($orders->created_at) }}</p>
                         <p style="margin: 0;"><span style="font-weight: bold;">{{ ShowLabelById(218) }}:</span> {{ getEnumValueName($orders->pay_method) }}</p>
                         <p style="margin: 0;"><span style="font-weight: bold;">{{ ShowLabelById(212) }}:</span> {{ getEnumValueName($orders->delivery_method) }}</p>
+                        @if($orders->delivery_method == 'pickup' && $orders->pickupShop && $orders->pickupShop->itemByLang)
+                            <p style="margin: 0;"><span style="font-weight: bold;">{{ trans('variables.checkout_pickup_shop') }}:</span> {{ $orders->pickupShop->itemByLang->name ?? '' }}, {{ $orders->pickupShop->itemByLang->address ?? '' }}</p>
+                        @endif
                     </td>
                     <td style="border: 1px solid #dbdbdb; padding: 15px; width: 50%;">
                         <p style="margin: 0;"><span style="font-weight: bold;">{{ ShowLabelById(34) }}:</span> <a href="mailto:{{ $user_info->email ?? '' }}">{{ $user_info->email ?? '' }}</a></p>

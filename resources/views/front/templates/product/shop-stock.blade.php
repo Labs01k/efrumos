@@ -11,6 +11,9 @@
         $stock_cities = collect($shops_stock)->pluck('city')->filter()->unique()->sort()->values();
         $stock_active_city = $stock_cities->first();
         $stock_has_empty = collect($shops_stock)->where('in_stock', false)->count() > 0;
+        // товара нет ни в одном магазине: показываем весь список сразу, без сворачивания —
+        // иначе свёрнутый вид (только магазины с наличием) был бы пустым
+        $stock_all_out = collect($shops_stock)->where('in_stock', true)->isEmpty();
     @endphp
 
     <div class="pb-field pb-field--gap-8 pb-city" data-city-select>
@@ -39,7 +42,7 @@
         </ul>
     </div>
 
-    <div class="pb-shops" data-shops>
+    <div class="pb-shops @if($stock_all_out) pb-shops--all-out @endif" data-shops>
         <div class="pb-shops-list">
             @foreach($shops_stock as $one_shop)
                 <div class="pb-shop-item @if(!$one_shop['in_stock']) is-out @endif"
@@ -59,7 +62,7 @@
             @endforeach
         </div>
 
-        @if($stock_has_empty)
+        @if($stock_has_empty && !$stock_all_out)
             <button type="button" class="pb-shops-toggle">
                 <span class="pb-shops-toggle-more">{{ trans('variables.product_shops_expand') }}</span>
                 <span class="pb-shops-toggle-less">{{ trans('variables.product_shops_collapse') }}</span>

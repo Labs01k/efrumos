@@ -442,4 +442,7 @@ return [
     'shades_ambiguous' => 'Mai multe potriviri',
     'shades_back_to_list' => 'La lista nuanțelor',
     'shop_store_guid' => 'Depozit 1C (StoreId din schimb)',
+    'checkout_pickup_shop' => 'Magazinul de ridicare',
+    'product_set_added' => 'Setul a fost adăugat în coș',
+    'product_set_partial' => 'O parte din produse nu sunt disponibile, adăugate',
 ];
