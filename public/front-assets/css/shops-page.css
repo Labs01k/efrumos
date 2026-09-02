@@ -1,0 +1,608 @@
+/* ==================================================================
+   Страница «Магазины» по макету Figma 758:168.
+   Десктоп: карта на всю ширину, панель списка 400px поверх (справа).
+   Мобайл (≤768): шапка страницы (назад/город/вид), карта во весь экран
+   с каруселью мини-карточек и шторкой магазина, либо полноэкранный список.
+   Токены совпадают с product-card.css (:root там, файл грузится глобально).
+   ================================================================== */
+
+.shp-page { padding-bottom: 0 !important; }
+
+.shp { position: relative; }
+
+/* ------------------------------------------------------------- карта */
+
+.shp-map-wrap { position: relative; }
+
+.shp-map {
+    width: 100%;
+    height: calc(100vh - 21rem);
+    min-height: 48rem;
+    background: #e8e9eb;
+    z-index: 1;
+}
+
+/* пины: капля с фирменной «E» (нода 789:20404/789:20409) */
+.shp-pin { cursor: pointer; }
+.shp-pin svg { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .15)); }
+
+/* ------------------------------------------------- панель списка (десктоп) */
+
+.shp-panel {
+    position: absolute;
+    z-index: 500;
+    top: 1.2rem;
+    right: 1.2rem;
+    width: 40rem;
+    max-width: calc(100% - 2.4rem);
+    max-height: calc(100% - 2.4rem);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: .4rem;
+    overflow: hidden;
+}
+
+.shp-panel-head {
+    flex: 0 0 auto;
+    padding: 1.2rem 2rem 0;
+    border-bottom: .1rem solid var(--pb-border);
+}
+
+/* --------------------------------------------------------- фильтр города */
+
+.shp-city { position: relative; }
+
+.shp-city-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .4rem 0;
+    border: 0;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-city-trigger .pb-chevron { stroke: var(--pb-text-dark); }
+.shp-city-trigger:hover { color: var(--pb-brand); }
+.shp-city-trigger:hover .pb-chevron { stroke: var(--pb-brand); }
+
+.shp-city .pb-dropdown { width: 24rem; max-height: 32rem; }
+.shp-city.is-open .pb-dropdown { display: block; }
+.shp-city.is-open .pb-chevron { transform: rotate(180deg); }
+.shp-city .pb-dropdown-item { line-height: 2rem; }
+
+/* ----------------------------------------------------------------- табы */
+
+.shp-tabs {
+    display: flex;
+    gap: 1.2rem;
+    margin-top: .4rem;
+}
+
+.shp-tab {
+    padding: 1rem 0;
+    border: 0;
+    border-bottom: .2rem solid transparent;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-label);
+    cursor: pointer;
+}
+
+.shp-tab:hover { color: var(--pb-brand); }
+.shp-tab.is-active { color: var(--pb-text-dark); border-bottom-color: var(--pb-text-dark); }
+
+/* --------------------------------------------------------------- список */
+
+.shp-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 0 2rem;
+}
+
+.shp-list::-webkit-scrollbar { width: .6rem; }
+.shp-list::-webkit-scrollbar-thumb { background: rgba(170, 170, 170, .5); border-radius: 10rem; }
+
+.shp-card {
+    padding: 2.4rem 0;
+    border-bottom: .1rem solid var(--pb-border);
+}
+
+.shp-card[hidden] { display: none; }
+
+.shp-card-head {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+}
+
+.shp-card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-card.is-selected .shp-card-name { color: var(--pb-brand); }
+
+.shp-chips {
+    flex: 0 0 auto;
+    display: inline-flex;
+    background: #f8f9fa;
+    border-radius: .4rem;
+}
+
+.shp-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: .2rem .6rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+
+.shp-chip[hidden] { display: none; }
+
+.shp-chip-route {
+    background: var(--pb-text-dark);
+    border-radius: .4rem;
+    color: #fff;
+}
+
+.shp-chip-route:hover { background: #000; color: #fff; }
+
+.shp-locate {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: .4rem;
+    background: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-locate:hover { background: #000; }
+
+.shp-locate svg {
+    width: 1.4rem;
+    height: 1.4rem;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 1.33;
+    stroke-linecap: round;
+}
+
+.shp-card-address {
+    margin: .8rem 0 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+/* фотогалерея магазина: в макете её нет, блок опциональный (тикет вёрстки) */
+.shp-card-gallery {
+    display: flex;
+    gap: .8rem;
+    margin-top: 1.2rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.shp-card-gallery::-webkit-scrollbar { display: none; }
+
+.shp-card-gallery img {
+    width: 6.4rem;
+    height: 6.4rem;
+    object-fit: cover;
+    border-radius: .4rem;
+}
+
+.shp-card-contacts {
+    display: flex;
+    flex-direction: column;
+    margin-top: 1.6rem;
+}
+
+.shp-card-row {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin: 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.shp-card-row a { color: inherit; }
+.shp-card-row a:hover { color: var(--pb-brand); }
+
+.shp-card-row svg {
+    flex: 0 0 auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: none;
+    stroke: var(--pb-label);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* группировка по городам без гео: заголовок города в списке */
+.shp-city-group {
+    margin: 1.6rem 0 0;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.1rem;
+    line-height: 1.6rem;
+    color: var(--pb-label);
+    text-transform: uppercase;
+}
+
+/* --------------------------------------------- мобильная шапка страницы */
+
+.shp-topbar {
+    display: none;
+    align-items: center;
+    gap: .4rem;
+    height: 5.6rem;
+    padding: 0 .4rem;
+    background: #fff;
+    border-bottom: .1rem solid var(--pb-border);
+}
+
+/* балансирует переключатель вида справа, чтобы город стоял по центру */
+.shp-topbar-spacer {
+    flex: 0 0 auto;
+    width: 5.2rem;
+}
+
+.shp-topbar-btn {
+    flex: 0 0 auto;
+    width: 5.2rem;
+    height: 5.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-topbar-btn svg {
+    width: 2rem;
+    height: 2rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.shp-topbar .shp-city {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+}
+
+.shp-topbar .shp-city-trigger { font-size: 1.4rem; }
+
+.shp-topbar .pb-dropdown {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* иконка переключателя: на карте показываем «список», в списке — «карту» */
+.shp .shp-icon-map { display: none; }
+.shp.is-list-view .shp-icon-map { display: block; }
+.shp.is-list-view .shp-icon-list { display: none; }
+
+/* ------------------------------------------- мобильная карусель мини-карточек */
+
+.shp-carousel {
+    display: none;
+    position: absolute;
+    z-index: 600;
+    left: 0;
+    right: 0;
+    bottom: 1.2rem;
+    padding: 0 1.2rem;
+    gap: 1.2rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.shp-carousel::-webkit-scrollbar { display: none; }
+
+.shp-mini {
+    flex: 0 0 auto;
+    width: 32rem;
+    max-width: 85vw;
+    scroll-snap-align: start;
+    padding: 1.2rem;
+    background: #fff;
+    border-radius: .4rem;
+    cursor: pointer;
+}
+
+.shp-mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.shp-mini-name {
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* мини-карточка, на которой защёлкнулась карусель */
+.shp-mini.is-active .shp-mini-name { color: var(--pb-brand); }
+
+.shp-mini-address {
+    margin-top: .4rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --------------------------------------------- мобильная шторка магазина */
+
+.shp-sheet {
+    position: absolute;
+    z-index: 650;
+    left: 1.2rem;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    padding: 1.6rem;
+    background: #fff;
+    border-radius: .4rem;
+    box-shadow: 0 .8rem 1.6rem rgba(0, 0, 0, .08);
+}
+
+.shp-sheet[hidden] { display: none; }
+
+.shp-sheet-head {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+}
+
+.shp-sheet-name {
+    flex: 1 1 auto;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text-dark);
+}
+
+.shp-sheet-close {
+    flex: 0 0 auto;
+    width: 3.2rem;
+    height: 3.2rem;
+    margin: -0.6rem -0.6rem 0 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: none;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-sheet-close svg { width: 1.6rem; height: 1.6rem; fill: none; stroke: currentColor; stroke-width: 1.33; }
+
+.shp-sheet-address {
+    margin: .8rem 0 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.shp-sheet .shp-card-contacts { margin-top: 1.2rem; }
+
+.shp-sheet-actions {
+    display: flex;
+    gap: .4rem;
+    margin-top: 1.6rem;
+}
+
+.shp-sheet-route {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    min-height: 3.6rem;
+    padding: 1rem 1.2rem;
+    border-radius: .4rem;
+    background: var(--pb-text-dark);
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: #fff;
+    text-decoration: none !important;
+}
+
+.shp-sheet-route:hover { background: #000; color: #fff; }
+
+.shp-sheet-locate {
+    flex: 0 0 auto;
+    width: 3.6rem;
+    height: 3.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: .4rem;
+    background: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-sheet-locate svg { width: 1.6rem; height: 1.6rem; fill: none; stroke: #fff; stroke-width: 1.33; stroke-linecap: round; }
+
+/* --------------------------------------------------- модалка геолокации */
+
+.shp-geo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+}
+
+.shp-geo-modal[hidden] { display: none; }
+
+.shp-geo-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+}
+
+.shp-geo-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36rem;
+    max-width: calc(100vw - 4.8rem);
+    padding: 2.4rem 1.6rem 1.6rem;
+    background: #fff;
+    border: .1rem solid var(--pb-border);
+    border-radius: .4rem;
+    text-align: center;
+}
+
+.shp-geo-x {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4.4rem;
+    height: 4.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: none;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.shp-geo-x svg { width: 1.6rem; height: 1.6rem; fill: none; stroke: currentColor; stroke-width: 1.33; }
+
+.shp-geo-icon { display: flex; justify-content: center; }
+.shp-geo-icon svg { width: 6.4rem; height: 6.4rem; }
+
+.shp-geo-title {
+    margin-top: 2.4rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: var(--pb-text-dark);
+}
+
+.shp-geo-text {
+    margin-top: .4rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text);
+}
+
+.shp-geo-share {
+    width: 100%;
+    margin-top: 2.4rem;
+    min-height: 3.6rem;
+    padding: 1rem 1.2rem;
+}
+
+/* ------------------------------------------------------------- мобайл */
+
+@media (max-width: 768px) {
+    .shp-topbar { display: flex; }
+
+    .shp-map { height: calc(100dvh - 18rem); min-height: 40rem; }
+
+    /* карусель и шторка прижаты к низу экрана — карта может быть выше вьюпорта */
+    .shp-carousel,
+    .shp-sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1250;
+        padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0rem));
+    }
+
+    .shp-carousel { padding-top: .8rem; }
+
+    .shp-sheet {
+        left: 1.2rem;
+        right: 1.2rem;
+        bottom: 1.2rem;
+    }
+
+    .shp-panel {
+        position: static;
+        width: auto;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        display: none;
+    }
+
+    /* панель-шапка не нужна: город и сортировка живут в топбаре/автоматике */
+    .shp-panel-head { display: none; }
+
+    .shp-carousel { display: flex; }
+
+    /* режим «список»: карта скрыта, список во всю ширину */
+    .shp.is-list-view .shp-map-wrap .shp-map,
+    .shp.is-list-view .shp-carousel,
+    .shp.is-list-view .shp-sheet { display: none; }
+    .shp.is-list-view .shp-panel { display: block; }
+    .shp.is-list-view .shp-list { padding: 0 2rem; overflow: visible; }
+
+    /* мобильный список: тап по карточке ведёт на карту — стрелка вместо locate */
+    .shp-locate { display: none; }
+
+    /* чат-кнопка Битрикс24 (грузится из CMS before-body-end) перекрывала
+       карусель и шторку — в полноэкранном режиме карты прячем её,
+       в режиме списка и на остальных страницах она на месте */
+    body:has(.shp:not(.is-list-view)) .b24-widget-button-wrapper { display: none !important; }
+}
+
+@media (min-width: 769px) {
+    .shp-carousel,
+    .shp-sheet { display: none !important; }
+}

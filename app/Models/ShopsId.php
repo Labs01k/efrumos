@@ -12,7 +12,7 @@ class ShopsId extends Model
     protected $table = 'shops_id';
 
     protected $fillable = [
-        'alias', 'active', 'phone', 'city_id', 'latitude', 'longitude', 'img', 'position', 'map_iframe'
+        'alias', 'active', 'phone', 'city_id', 'latitude', 'longitude', 'img', 'position', 'map_iframe', 'store_guid'
     ];
 
     public function itemByLang()

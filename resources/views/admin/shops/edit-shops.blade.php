@@ -91,7 +91,15 @@
                                                        id="schedule" value="{{$shops->schedule ?? ''}}">
                                             </div>
 
-                                            <div class="mb-3mb-3">
+                                            <div class="mb-3">
+                                                <label for="store_guid"
+                                                       class="form-label">{{ __('variables.shop_store_guid') }}</label>
+                                                <input type="text" name="store_guid" class="form-control"
+                                                       id="store_guid"
+                                                       value="{{ $shops_without_lang->shopsId->store_guid ?? '' }}">
+                                            </div>
+
+                                            <div class="mb-3 col-md-12">
                                                 <label for="map_iframe"
                                                        class="form-label">{{__('variables.map')}} (iframe)</label>
                                                 <input type="text" name="map_iframe" class="form-control"

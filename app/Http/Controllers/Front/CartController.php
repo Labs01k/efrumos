@@ -121,6 +121,22 @@ class CartController extends Controller
 
             $month_list = showSettingBodyByAlias('month-list') ? explode(';', showSettingBodyByAlias('month-list')) : [];
 
+            // магазины самовывоза (п.2 ТЗ): все активные, наличие товара не проверяется,
+            // сгруппированы по городам — Кишинёв первым, дальше по алфавиту
+            $pickup_shops = \App\Models\ShopsId::where('active', 1)
+                ->has('itemByLang')
+                ->with('itemByLang')
+                ->orderBy('position', 'asc')
+                ->get()
+                ->groupBy(function ($one_shop) {
+                    $name = $one_shop->itemByLang->name ?? '';
+
+                    return trim(explode(',', $name)[0], " :\t");
+                })
+                ->sortBy(function ($group, $city) {
+                    return (mb_stripos($city, 'Кишин') === false && mb_stripos($city, 'Chi') === false ? '1' : '0') . mb_strtolower($city);
+                });
+
         } else
             $view = 'front.pages.product-action.basket';
 
@@ -318,6 +334,14 @@ class CartController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => ShowLabelById(264)
+            ]);
+
+        // товар мог закончиться между загрузкой страницы и кликом (п.3 ТЗ):
+        // отказ отдаём явно, добавление остальных позиций комплекта продолжается
+        if ($goods_item->in_stoc == 0 || $goods_item->products_count <= 0)
+            return response()->json([
+                'status' => false,
+                'message' => ShowLabelById(272)
             ]);
 
         $basket = null;

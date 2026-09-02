@@ -344,6 +344,12 @@ $(document).ready(function () {
                             }
                         );
                     }
+                } else if (response.message && window.Notiflix) {
+                    // товар недоступен (кончился между загрузкой и кликом) — говорим явно
+                    Notiflix.Notify.warning(response.message, {
+                        position: 'center-top',
+                        timeout: 3000
+                    });
                 }
             }
         })

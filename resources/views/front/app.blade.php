@@ -16,6 +16,7 @@
 
     {{-- for add scripts --}}
     @stack('other-scripts')
+
 </div>
 </body>
 </html>

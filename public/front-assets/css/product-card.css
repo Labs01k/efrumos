@@ -1,0 +1,1537 @@
+/* ==================================================================
+   Новая карточка товара по макету Figma, секция 758:205
+   «6. Новая карточка товара для красок для волос — палитра оттенков».
+
+   Брейкпоинты макета: >1024 (десктоп, две колонки), ≤1024 (планшет,
+   одна колонка + грид 40/60), ≤576 (мобильные с липкими панелями).
+   Подключается в front/components/head.blade.php; при слиянии
+   с main.css версия бампается через config('custom.front.css_version').
+   ================================================================== */
+
+:root {
+    --pb-brand: #db6e97;        /* акцент, ховеры, скидка */
+    --pb-text: #465061;         /* основной текст */
+    --pb-text-dark: #21252a;    /* заголовки, кнопки, цена */
+    --pb-label: #8b8986;        /* микро-лейблы */
+    --pb-muted: #6c757d;        /* бренд, даты, старые цены */
+    --pb-success: #28b071;      /* «в наличии» */
+    --pb-border: #eeeeee;       /* границы и разделители */
+    --pb-accent: #6610f2;       /* бейдж «топ», цена в вертикальной карточке */
+    --pb-current: #007bff;      /* бейдж «текущий товар» */
+    --pb-dropdown-shadow: 0 .8rem 1.6rem rgba(0, 0, 0, .08);
+}
+
+/* ==================================================================
+   Сетка страницы. Области привязаны к блокам, порядок и колонки
+   меняются брейкпоинтами (десктоп 544/816, планшет 40/60, мобайл столбик).
+   ================================================================== */
+
+.pb-product {
+    display: grid;
+    grid-template-columns: minmax(0, 544fr) minmax(0, 816fr);
+    gap: 3.2rem;
+    align-items: start;
+    grid-template-areas:
+        'gallery content'
+        'stock   info'
+        '.       reviews'
+        '.       set'
+        'similar similar';
+}
+
+.pb-product .product-end-sliders { grid-area: gallery; min-width: 0; }
+.pb-product .product-end-content { grid-area: content; min-width: 0; }
+.pb-product .pb-product-stock { grid-area: stock; min-width: 0; }
+.pb-product .pb-product-info { grid-area: info; min-width: 0; }
+.pb-product .pb-product-reviews { grid-area: reviews; min-width: 0; }
+.pb-product .pb-product-set { grid-area: set; min-width: 0; }
+.pb-product .pb-product-similar { grid-area: similar; min-width: 0; }
+
+/* пустой блок наличия не участвует в сетке */
+.pb-product--no-stock .pb-product-stock { display: none; }
+
+/* main.css раздаёт старым классам проценты ширины — в гриде они не нужны */
+.pb-product .product-end-sliders {
+    display: block;
+    width: auto;
+    max-width: none;
+    margin: 0;
+}
+
+.pb-product .product-end-content {
+    width: auto;
+    max-width: none;
+    margin: 0;
+}
+
+.pb-product .product-end-content-inner { margin: 0; }
+
+/* вложенные .section/.container не должны приносить свои поля */
+.pb-product .pb-product-info .section,
+.pb-product .pb-product-info .container,
+.pb-product .pb-product-stock .section,
+.pb-product .pb-product-stock .container {
+    padding: 0;
+    margin: 0;
+    max-width: none;
+    width: auto;
+}
+
+/* ==================================================================
+   Галерея (десктоп — нода 786:15093, планшет/мобайл — 786:14393)
+   ================================================================== */
+
+.pb-gallery {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 2.4rem;
+    align-items: center;
+}
+
+.pb-gallery-thumbs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    align-self: center;
+}
+
+.pb-gallery-thumb-nav {
+    width: 8rem;
+    height: 3.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+}
+
+.pb-gallery-thumb-nav:hover { color: var(--pb-brand); }
+
+.pb-gallery-thumb-nav svg,
+.pb-gallery-arrow svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.33;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pb-gallery-thumbs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    max-height: 35.6rem; /* четыре превью 80 + три зазора 12, как в макете */
+    overflow: hidden;
+}
+
+.pb-gallery-thumb {
+    flex: 0 0 auto;
+    width: 8rem;
+    height: 8rem;
+    padding: 0;
+    border: 0;
+    border-radius: .4rem;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+}
+
+.pb-gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.pb-gallery-stage {
+    position: relative;
+    min-width: 0;
+}
+
+.pb-gallery-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    border-radius: .4rem;
+}
+
+.pb-gallery-track::-webkit-scrollbar { display: none; }
+
+.pb-gallery-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    max-height: 44rem;
+    background: #fff;
+    border-radius: .4rem;
+    overflow: hidden;
+}
+
+.pb-gallery-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.pb-gallery-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4rem;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+    z-index: 2;
+}
+
+.pb-gallery-arrow:hover { color: var(--pb-brand); }
+.pb-gallery-arrow--prev { left: .4rem; }
+.pb-gallery-arrow--next { right: .4rem; }
+
+.pb-gallery-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    display: none;
+    gap: .8rem;
+    padding: .8rem;
+    z-index: 2;
+}
+
+.pb-gallery-dot {
+    width: .6rem;
+    height: .6rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--pb-text-dark);
+    opacity: .2;
+    cursor: pointer;
+}
+
+.pb-gallery-dot.is-active { opacity: 1; }
+
+/* товар с одним фото: ни превью, ни стрелок, ни точек */
+.pb-gallery--single { grid-template-columns: minmax(0, 1fr); }
+.pb-gallery--single .pb-gallery-thumbs,
+.pb-gallery--single .pb-gallery-arrow,
+.pb-gallery--single .pb-gallery-dots { display: none; }
+
+/* смена оттенка: фото подменяется без мигания */
+.pb-gallery.is-switching .pb-gallery-slide img { opacity: 0; }
+.pb-gallery-slide img { transition: opacity .2s ease; }
+
+/* ==================================================================
+   Правая колонка (нода 786:15112): заголовок, объём, оттенок,
+   цена, кнопки. Бейджи над заголовком в макете скрыты.
+   ================================================================== */
+
+.pb-product .product-end-head { display: none; }
+
+.pb-product .product-end-content-inner { display: block; }
+
+.pb-product .product-end-content-inner h1 {
+    margin: 0;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 2.8rem;
+    line-height: 2.8rem;
+    color: var(--pb-text-dark);
+    text-transform: none;
+}
+
+/* ------------------------------------------------- обвязка поля выбора */
+
+.pb-field {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2.4rem;
+}
+
+.pb-field-label {
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.1rem;
+    line-height: 1.6rem;
+    color: var(--pb-label);
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+}
+
+.pb-field--gap-8 .pb-field-label { margin-bottom: .8rem; }
+
+/* --------------------------------------------------------- выбор объёма */
+
+.pb-volume {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.pb-volume-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4.4rem;
+    padding: 1.2rem;
+    border: .2rem solid var(--pb-border);
+    border-radius: .4rem;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: border-color .15s ease;
+}
+
+.pb-volume-item:hover { border-color: var(--pb-brand); }
+.pb-volume-item.is-active { border-color: var(--pb-text); }
+
+/* --------------------------------------------------------- выбор оттенка */
+
+.pb-shade { position: relative; }
+
+.pb-shade-trigger {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    width: 28rem;
+    max-width: 100%;
+    min-height: 4.4rem;
+    padding: 1.2rem;
+    border: .2rem solid var(--pb-text);
+    border-radius: .4rem;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pb-shade-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+    transition: color .15s ease, opacity .2s ease;
+}
+
+.pb-shade-trigger:hover .pb-shade-value { color: var(--pb-brand); }
+.pb-shade-trigger:hover .pb-chevron { stroke: var(--pb-brand); }
+
+/*
+   Превью оттенка. По ТЗ на бой придёт отдельное фото локона на каждый оттенок —
+   тогда достаточно background-size: cover. Пока фото нет, вырезаем кружок локона
+   из фотографии товара: он всегда в одном месте макета упаковки.
+*/
+.pb-swatch {
+    flex: 0 0 auto;
+    display: block;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background-color: var(--pb-border);
+    background-repeat: no-repeat;
+    background-size: 420%;
+    background-position: 71% 47%;
+}
+
+/* отдельное фото оттенка из CMS показывается целиком */
+.pb-swatch--photo {
+    background-size: cover;
+    background-position: center;
+}
+
+/* поле превращается в поиск по оттенку, когда список раскрыт */
+.pb-shade-search {
+    display: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: none;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text);
+    caret-color: var(--pb-brand);
+}
+
+.pb-shade-search::placeholder { color: var(--pb-label); }
+.pb-shade-search:focus { outline: none; }
+
+.pb-shade.is-open .pb-shade-search { display: block; }
+.pb-shade.is-open .pb-shade-value,
+.pb-shade.is-open .pb-shade-trigger .pb-swatch { display: none; }
+
+.pb-chevron {
+    flex: 0 0 auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    stroke: var(--pb-text);
+    stroke-width: 1.33;
+    fill: none;
+    transition: transform .15s ease;
+}
+
+.pb-shade.is-open .pb-chevron,
+.pb-city.is-open .pb-chevron { transform: rotate(180deg); }
+
+/* --------------------------------------------------- выпадающий список */
+
+.pb-dropdown {
+    display: none;
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + .8rem);
+    left: 0;
+    width: 28rem;
+    max-width: 100%;
+    max-height: 22.4rem; /* семь строк по 32, дальше скролл */
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    background: #fff;
+    border-radius: .2rem;
+    box-shadow: var(--pb-dropdown-shadow);
+}
+
+.pb-shade.is-open .pb-dropdown,
+.pb-city.is-open .pb-dropdown { display: block; }
+
+.pb-dropdown::-webkit-scrollbar { width: .6rem; }
+.pb-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(170, 170, 170, .5);
+    border-radius: 10rem;
+}
+
+.pb-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .8rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text);
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: color .15s ease;
+}
+
+.pb-dropdown-item:hover { color: var(--pb-brand); }
+
+.pb-dropdown-item.is-selected {
+    font-family: gilroy-bold, sans-serif;
+    color: var(--pb-text-dark);
+}
+
+/* оттенка нет в наличии: приглушён, но кликабелен — линейка видна целиком */
+.pb-dropdown-item.is-out { opacity: .4; }
+
+.pb-dropdown-empty {
+    padding: .8rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text);
+}
+
+/* ------------------------------------------------------------------ цена */
+
+.pb-product .product-end-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .4rem;
+    margin-top: 2.4rem;
+    text-align: left;
+}
+
+.pb-product .product-end-price-current {
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 2.4rem;
+    line-height: 2.4rem;
+    transition: opacity .2s ease;
+}
+
+.pb-product .product-end-price-old {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: var(--pb-muted);
+    text-decoration: line-through;
+}
+
+/* ---------------------------------------------------------------- кнопки */
+
+.pb-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4.4rem;
+    padding: 1.4rem 1.6rem;
+    border: .2rem solid var(--pb-text-dark);
+    border-radius: .4rem;
+    background: var(--pb-text-dark);
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    text-decoration: none !important;
+    cursor: pointer;
+}
+
+.pb-button:hover { background: #000; border-color: #000; color: #fff; }
+
+.pb-button--ghost {
+    background: none;
+    color: var(--pb-text-dark);
+    font-family: gilroy-semibold, sans-serif;
+}
+
+.pb-button--ghost:hover {
+    background: none;
+    border-color: var(--pb-brand);
+    color: var(--pb-brand);
+}
+
+.pb-product .pb-cta-row {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin-top: 2.4rem;
+}
+
+.pb-product .product-end-cta { margin: 0; }
+.pb-product .product-quantity { display: none; }
+
+/* «Добавить в корзину» — 280×44 из макета */
+.pb-product .product-end-cta .button {
+    width: 28rem;
+    min-height: 4.4rem;
+    padding: 1.4rem 1.6rem;
+    border-radius: .4rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+}
+
+/* избранное — квадратная кнопка 44×44 рядом с корзиной */
+.pb-product .product-end-favorite {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.pb-product .product-end-favorite p { display: none; }
+
+.pb-product .product-end-favorite a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.4rem;
+    height: 4.4rem;
+    border: .2rem solid var(--pb-border);
+    border-radius: .4rem;
+}
+
+.pb-product .product-end-favorite a:hover { border-color: var(--pb-brand); }
+
+/* «Купить в один клик» — 280×44, обводка без заливки */
+.pb-product .product-end-link { margin-top: .8rem; }
+
+.pb-product .product-end-link .button {
+    width: 28rem;
+    min-height: 4.4rem;
+    padding: 1.4rem 1.6rem;
+    border: .2rem solid var(--pb-text-dark);
+    border-radius: .4rem;
+    background: none;
+    color: var(--pb-text-dark);
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+}
+
+/* ==================================================================
+   Блок описания (нода 786:15247): вкладки, доставка,
+   характеристики, преимущества
+   ================================================================== */
+
+.pb-info { padding: 2rem 0; }
+
+.pb-info .product-tabs {
+    border-bottom: .1rem solid var(--pb-border);
+    margin-bottom: 2.4rem;
+}
+
+.pb-info .product-tab {
+    padding: .8rem 0;
+    border: 0;
+    border-bottom: .2rem solid transparent;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-label);
+    cursor: pointer;
+}
+
+.pb-info .product-tab:hover { color: var(--pb-brand); }
+
+.pb-info .product-tab.active {
+    color: var(--pb-text);
+    border-bottom-color: var(--pb-text-dark);
+}
+
+.pb-info .product-tabs-content .common-text {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.pb-info-delivery {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    margin-top: 2.4rem;
+}
+
+.pb-info-delivery-text {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.pb-info-delivery-text p { margin: 0; }
+
+/* --------------------------------------------------------- характеристики */
+
+.pb-specs {
+    display: grid;
+    grid-template-columns: minmax(8rem, 16rem) minmax(0, 1fr);
+    gap: .8rem;
+    margin: 2.4rem 0 0;
+}
+
+.pb-specs dt {
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.1rem;
+    line-height: 2rem;
+    color: var(--pb-label);
+    text-transform: uppercase;
+}
+
+.pb-specs dd {
+    margin: 0;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.pb-specs dd a { color: inherit; }
+.pb-specs dd a:hover { color: var(--pb-brand); }
+
+/* ------------------------------------------------------------ преимущества */
+
+.pb-benefits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.4rem;
+    margin-top: 2.4rem;
+}
+
+.pb-benefit {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.6rem;
+    color: var(--pb-text);
+    white-space: nowrap;
+}
+
+.pb-benefit-icon {
+    flex: 0 0 auto;
+    width: 3.2rem;
+    height: 3.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: .1rem solid var(--pb-text);
+    border-radius: 50%;
+    color: var(--pb-text);
+}
+
+.pb-benefit-icon svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ==================================================================
+   Отзывы (нода 786:15392)
+   ================================================================== */
+
+.pb-product-reviews {
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+    padding: 2rem 0;
+}
+
+.pb-reviews-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 3.2rem;
+    padding-bottom: 2.4rem;
+    border-bottom: .1rem solid var(--pb-border);
+}
+
+.pb-reviews-metric {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.pb-reviews-score {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 2.4rem;
+    line-height: 2.4rem;
+    color: var(--pb-text-dark);
+    white-space: nowrap;
+}
+
+.pb-reviews-write { width: 28rem; margin-left: auto; }
+
+.pb-stars {
+    display: inline-flex;
+    gap: .3rem;
+    color: var(--pb-text-dark);
+}
+
+.pb-stars svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: currentColor;
+}
+
+.pb-stars .is-empty { opacity: .2; }
+
+.pb-reviews-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.pb-review {
+    display: flex;
+    flex-direction: column;
+    padding: 2.4rem 0;
+    border-bottom: .1rem solid var(--pb-border);
+}
+
+.pb-review:first-child { padding-top: 0; }
+
+.pb-review-author {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: var(--pb-text-dark);
+}
+
+.pb-review-date {
+    margin-top: .4rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-muted);
+}
+
+.pb-review-text {
+    margin-top: 1.2rem;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.pb-review-text p { margin: 0; }
+
+.pb-reviews-empty {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-muted);
+}
+
+/* ==================================================================
+   Наличие в городах (ноды 785:11439, 785:11323, 785:11337)
+   ================================================================== */
+
+.pb-city { position: relative; }
+
+.pb-city-trigger {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    width: 24rem;
+    max-width: 100%;
+    min-height: 3.6rem;
+    padding: .8rem 0;
+    border: 0;
+    border-bottom: .1rem solid var(--pb-text-dark);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pb-city-value {
+    flex: 1 1 auto;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.pb-city-trigger:hover .pb-city-value { color: var(--pb-brand); }
+.pb-city-trigger:hover .pb-chevron { stroke: var(--pb-brand); }
+.pb-city .pb-chevron { stroke: var(--pb-text-dark); }
+.pb-city .pb-dropdown { width: 24rem; max-height: 32rem; }
+.pb-city .pb-dropdown-item { line-height: 2rem; }
+
+.pb-shops { margin-top: 2.4rem; }
+
+.pb-shops-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem 2.4rem;
+}
+
+.pb-shop-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.pb-shop-item.is-out { opacity: .6; }
+
+.pb-shop-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.3rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+    text-transform: uppercase;
+}
+
+.pb-shop-status { color: var(--pb-success); }
+.pb-shop-item.is-out .pb-shop-status { color: var(--pb-label); }
+
+.pb-shop-address {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.2rem;
+    line-height: 2rem;
+    color: var(--pb-muted);
+}
+
+.pb-shops-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: .8rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+    cursor: pointer;
+}
+
+.pb-shops-toggle:hover { color: var(--pb-brand); }
+.pb-shops-toggle:hover .pb-chevron-sm { stroke: var(--pb-brand); }
+
+.pb-chevron-sm {
+    width: 1.2rem;
+    height: 1.2rem;
+    stroke: var(--pb-text);
+    stroke-width: 1.5;
+    fill: none;
+    transition: transform .15s ease;
+}
+
+/* свёрнуто показываются только магазины с наличием */
+.pb-shops:not(.is-expanded) .pb-shop-item.is-out { display: none; }
+
+/* товара нет нигде: весь список видим сразу, кнопка сворачивания не рендерится */
+.pb-shops--all-out .pb-shop-item.is-out { display: flex; }
+
+/* ближайший магазин с наличием — как выбранный магазин в макете страницы магазинов */
+.pb-shop-item.is-nearest .pb-shop-title span:first-child { color: var(--pb-brand); }
+.pb-shops:not(.is-expanded) .pb-shops-toggle .pb-chevron-sm { transform: rotate(180deg); }
+.pb-shops.is-expanded .pb-shops-toggle-more,
+.pb-shops:not(.is-expanded) .pb-shops-toggle-less { display: none; }
+
+/* ==================================================================
+   Блоки рекомендаций: общие элементы карточек
+   ================================================================== */
+
+.rec-title {
+    margin: 0;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 2.4rem;
+    line-height: 2.4rem;
+    color: var(--pb-text);
+}
+
+.rec-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.rec-badge {
+    display: inline-block;
+    padding: .2rem .4rem 0;
+    border-radius: .4rem;
+    font-family: gilroy-extrabold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.6rem;
+    letter-spacing: .04em;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.rec-badge--top { background: var(--pb-accent); }
+.rec-badge--sale { background: var(--pb-brand); }
+.rec-badge--current { background: var(--pb-current); }
+
+.rec-brand {
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-muted);
+}
+
+.rec-name {
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.rec-name a { color: inherit; text-decoration: none !important; }
+.rec-name a:hover { color: var(--pb-brand); }
+
+.rec-price {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: var(--pb-text);
+}
+
+.rec-price--sale { color: var(--pb-brand); }
+
+.rec-price-old {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: var(--pb-muted);
+    text-decoration: line-through;
+}
+
+/* =============================================== С ЭТИМ ТОВАРОМ ПОКУПАЮТ */
+
+.rec-set {
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+    padding: 2rem 0;
+}
+
+.rec-set-list {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* линия, связывающая позиции комплекта: по центру колонки фото (96 / 2) */
+.rec-set-list::before {
+    content: '';
+    position: absolute;
+    left: 4.8rem;
+    top: 4.8rem;
+    bottom: 0;
+    width: .1rem;
+    background: var(--pb-border);
+}
+
+.rec-set-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1.6rem;
+}
+
+.rec-set-photo {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: 9.6rem;
+    height: 9.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: .1rem solid var(--pb-border);
+    border-radius: .4rem;
+    overflow: hidden;
+}
+
+.rec-set-photo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.rec-set-info {
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+    min-width: 0;
+}
+
+/* бейджи, бренд и название идут без промежутка — как в макете */
+.rec-set-head {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ------------------------------------------- кнопка «весь комплект» */
+
+.rec-set-add {
+    align-self: flex-start;
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: .8rem;
+    padding: 1.2rem;
+    border: 0;
+    border-radius: .4rem;
+    background: var(--pb-text-dark);
+    color: #fff;
+    text-decoration: none !important;
+    cursor: pointer;
+}
+
+.rec-set-add:hover { background: #000; color: #fff; }
+
+.rec-set-add-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.rec-set-add-caption {
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 2rem;
+    text-transform: uppercase;
+}
+
+.rec-set-add-sum {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+}
+
+.rec-set-add-old {
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+    text-decoration: line-through;
+    opacity: .6;
+}
+
+.rec-set-add-aside {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.rec-set-avatars { display: flex; align-items: center; }
+
+.rec-set-avatars img {
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 50%;
+    border: .2rem solid var(--pb-text-dark);
+    background: #fff;
+    object-fit: contain;
+    margin-left: -.8rem;
+}
+
+.rec-set-avatars img:first-child { margin-left: 0; }
+
+.rec-set-more {
+    padding-top: .4rem;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.6rem;
+    line-height: 2rem;
+}
+
+/* ======================================================= ПОХОЖИЕ ТОВАРЫ */
+
+.rec-similar {
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+    padding: 2rem 0;
+}
+
+.rec-similar-head {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.rec-similar-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.2rem;
+    height: 2.4rem;
+    padding: .4rem .8rem;
+    border: 0;
+    background: none;
+    color: var(--pb-text);
+    cursor: pointer;
+}
+
+.rec-similar-nav:hover { color: var(--pb-brand); }
+
+.rec-similar-nav svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.33;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.rec-similar-track {
+    display: flex;
+    gap: 2.4rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+.rec-similar-track::-webkit-scrollbar { display: none; }
+
+/* ------------------------------------------------------- карточка товара */
+
+.rec-card {
+    flex: 0 0 auto;
+    width: 27.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    padding: 1.6rem;
+    background: #fff;
+    border-radius: .8rem;
+}
+
+.rec-card-photo {
+    position: relative;
+    width: 24rem;
+    height: 24rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.rec-card-photo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.rec-card-photo .rec-badges {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.rec-card-info {
+    display: flex;
+    flex-direction: column;
+}
+
+/* название всегда в три строки — высота карточек в ряду не должна плясать */
+.rec-card .rec-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    height: 6rem;
+}
+
+/* цены в вертикальных карточках цветные — решение заказчика */
+.rec-card .rec-price { color: var(--pb-accent); }
+.rec-card .rec-price--sale { color: var(--pb-brand); }
+
+/* ------------------------------ поштучное добавление в корзину (п.3/п.4 ТЗ) */
+
+.rec-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.rec-add-one {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.6rem;
+    height: 3.6rem;
+    border: .2rem solid var(--pb-border);
+    border-radius: .4rem;
+    color: var(--pb-text-dark);
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+.rec-add-one:hover {
+    border-color: var(--pb-brand);
+    color: var(--pb-brand);
+}
+
+.rec-add-one svg {
+    width: 1.8rem;
+    height: 1.8rem;
+    fill: currentColor;
+}
+
+/* в строке комплекта кнопка прижата к правому краю по центру строки */
+.rec-set-row .rec-add-one { margin-left: auto; }
+
+/* ==================================================================
+   Виджет чата Битрикс24 (грузится из CMS-настройки before-body-end).
+   Глобальное svg{width:100%;height:100%} из main.css раздувало иконку
+   чата на весь круг — возвращаем ей штатные 24px и центрируем.
+   ================================================================== */
+
+.b24-widget-button-wrapper svg.b24-crm-button-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+}
+
+.b24-widget-button-inner-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* на мобильных кнопка чата висела поверх липкой панели покупки —
+   на страницах с панелью поднимаем её выше */
+@media (max-width: 576px) {
+    body:has(.pb-bar--bottom) .b24-widget-button-wrapper {
+        bottom: 9.6rem !important;
+    }
+}
+
+/* ==================================================================
+   Checkout: компактный блок самовывоза (п.2 ТЗ, макета нет —
+   по мотивам карточек магазинов). При слиянии стилей переносится в main.css.
+   ================================================================== */
+
+.checkout-pickup-details {
+    margin-top: .8rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.checkout-pickup-details p {
+    margin: 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+}
+
+.checkout-pickup-address {
+    font-family: gilroy-semibold, sans-serif !important;
+}
+
+.checkout-pickup-phone,
+.checkout-pickup-schedule { color: var(--pb-muted) !important; }
+
+/* ==================================================================
+   Мобильные липкие панели (фреймы 776:2974 / 785:12613)
+   ================================================================== */
+
+.pb-bar {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    background: #fff;
+    align-items: center;
+}
+
+.pb-bar--top {
+    top: 0;
+    height: 5.6rem;
+    gap: .4rem;
+    padding: 0 .4rem 0 1.6rem;
+    border-bottom: .1rem solid var(--pb-border);
+    transform: translateY(-100%);
+    transition: transform .25s ease;
+}
+
+.pb-bar--top.is-visible { transform: translateY(0); }
+
+.pb-bar-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+}
+
+.pb-bar-heart {
+    flex: 0 0 auto;
+    width: 5.2rem;
+    height: 5.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pb-bar-heart svg { width: 2rem; height: 2rem; }
+.pb-bar-heart svg use:last-child { display: none; }
+.pb-bar-heart.active svg use:first-child { display: none; }
+.pb-bar-heart.active svg use:last-child { display: inline; }
+
+/* макет не рисует границу нижней панели, но без неё она сливается со страницей */
+.pb-bar--bottom {
+    bottom: 0;
+    gap: .4rem;
+    padding: 1.2rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom, .8rem));
+    border-top: .1rem solid var(--pb-border);
+}
+
+.pb-bar--bottom .pb-button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 1.2rem .4rem;
+}
+
+/* ==================================================================
+   Планшет и ноутбук (фреймы 786:14212 и 785:13007): одна колонка,
+   галерея сверху, под ней грид «наличие 40% / информация 60%»
+   ================================================================== */
+
+@media (max-width: 1024px) {
+    .pb-product {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        gap: 2.4rem;
+        grid-template-areas:
+            'gallery gallery'
+            'stock   content'
+            'info    info'
+            'reviews reviews'
+            'set     set'
+            'similar similar';
+    }
+
+    /* пока «наличия по магазинам» нет (блок за флагом), контент без дыры слева */
+    .pb-product--no-stock {
+        grid-template-areas:
+            'gallery gallery'
+            'content content'
+            'info    info'
+            'reviews reviews'
+            'set     set'
+            'similar similar';
+    }
+
+    .pb-gallery { grid-template-columns: minmax(0, 1fr); }
+    .pb-gallery-thumbs,
+    .pb-gallery-arrow { display: none; }
+    .pb-gallery-dots { display: flex; }
+    .pb-gallery-slide { aspect-ratio: auto; height: 36rem; max-height: none; }
+
+    .pb-product .product-end-content-inner h1 {
+        font-size: 2rem;
+        line-height: 2.4rem;
+    }
+
+    /* заголовок слева, стрелки прижаты к правому краю — как в планшетном макете */
+    .rec-similar-head .rec-title { flex: 1 1 auto; }
+
+    .rec-card { width: 21.2rem; }
+    .rec-card-photo { width: 18rem; height: 18rem; }
+
+    .pb-shops-list { gap: 1.2rem 1.6rem; }
+}
+
+/* ==================================================================
+   Мобильные (фреймы 785:12613 и 776:2974): столбик, панели,
+   порядок блоков как в макете — вкладки выше «наличия»
+   ================================================================== */
+
+@media (max-width: 576px) {
+    .pb-product {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2.4rem;
+        grid-template-areas:
+            'gallery'
+            'content'
+            'info'
+            'stock'
+            'reviews'
+            'set'
+            'similar';
+    }
+
+    .pb-product--no-stock {
+        grid-template-areas:
+            'gallery'
+            'content'
+            'info'
+            'reviews'
+            'set'
+            'similar';
+    }
+
+    .pb-page .breadcrumbs-wrapper { display: none; }
+
+    /* место под нижнюю панель с кнопками */
+    .pb-page { padding-bottom: 8rem; }
+
+    .pb-bar { display: flex; }
+
+    /* кнопки уезжают в нижнюю панель, сердце — в верхнюю */
+    .pb-product .pb-cta-row,
+    .pb-product .product-end-link { display: none; }
+
+    .pb-product .product-end-content-inner h1 {
+        font-size: 1.8rem;
+        line-height: 2.4rem;
+    }
+
+    .pb-gallery-slide { height: 32rem; }
+
+    .pb-shade-trigger,
+    .pb-shade .pb-dropdown { width: 100%; }
+
+    .pb-benefits {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        margin-right: -1.5rem;
+        padding-right: 1.5rem;
+    }
+
+    .pb-benefits::-webkit-scrollbar { display: none; }
+
+    .pb-specs { grid-template-columns: minmax(7rem, 30%) minmax(0, 1fr); }
+
+    .pb-reviews-summary { flex-wrap: wrap; gap: 2.4rem 3.2rem; }
+    .pb-reviews-write { width: 100%; margin-left: 0; }
+
+    .pb-shops-list { flex-direction: column; gap: 1.2rem; }
+
+    /* в строке комплекта название в одну строку, как в макете */
+    .rec-set-row .rec-name,
+    .rec-set-row .rec-brand {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .rec-set-add {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+
+    /* слайдер похожих на мобильных без стрелок — свайп */
+    .rec-similar-nav { display: none; }
+
+    .rec-card { width: 27.2rem; }
+    .rec-card-photo { width: 24rem; height: 24rem; }
+}
+
+/* мобильные поменьше: карточка чуть уже, заголовок мельче */
+@media (max-width: 380px) {
+    .pb-product .product-end-content-inner h1 {
+        font-size: 1.6rem;
+        line-height: 2.4rem;
+    }
+}
+
+/* десктоп: заголовок «Похожих товаров» по центру, как в макете 1440 */
+@media (min-width: 1025px) {
+    .rec-similar-head { justify-content: center; }
+}

@@ -13,7 +13,7 @@ Breadcrumbs::for ('/', function ($trail) {
 //так же исключаем те страницы которые не относятся к parent_menu,
 //что бы избежать ошибку (Breadcrumb name "catalog" has already been registered)
 
-Breadcrumbs::for (Request::segment(2), function ($trail, $parent_menu) {
+Breadcrumbs::for ((string) Request::segment(2), function ($trail, $parent_menu) {
     $trail->parent('/');
     $trail->push($parent_menu->itemByLang->name, Request::segment(2));
 });

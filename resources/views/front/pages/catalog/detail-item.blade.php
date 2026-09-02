@@ -56,7 +56,32 @@
 
 @section('container')
 
-    <div class="page-content">
+    <div class="page-content pb-page">
+
+        {{--
+            Мобильные панели по макету (фреймы 776:2974 и 785:12613): сверху название
+            и избранное (без кнопки «назад» — решение заказчика), снизу кнопки покупки.
+            Видны только на мобильных, верхняя появляется после прокрутки заголовка.
+        --}}
+        <div class="pb-bar pb-bar--top" data-pb-topbar>
+            <span class="pb-bar-title">{{ $goods_item->itemByLang->name ?? '' }}</span>
+            <a href="javascript:;"
+               class="pb-bar-heart {{ $global_user ? 'add-to-wish' : 'open-login-modal' }}{{ $global_user && $goods_item->checkIfWishItemExist ? ' active' : '' }}"
+               data-goods-item-id="{{ $goods_item->id ?? '' }}"
+               aria-label="{{ ShowLabelById(105) }}">
+                <svg>
+                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#heart') }}"></use>
+                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#heart-active') }}"></use>
+                </svg>
+            </a>
+        </div>
+        @if($goods_item->in_stoc == 1)
+            <div class="pb-bar pb-bar--bottom">
+                <a href="javascript:;" class="pb-button pb-button--ghost open-one-click">{{ ShowLabelById(252) }}</a>
+                <a href="javascript:;" class="pb-button open-add-to-cart product-end-add-to-basket"
+                   data-goods-item-id="{{ $goods_item->id ?? '' }}">{{ ShowLabelById(5) }}</a>
+            </div>
+        @endif
 
         <div class="breadcrumbs-wrapper">
             <div class="container">
@@ -64,55 +89,82 @@
             </div>
         </div>
 
+        @php
+        // Вкладки по макету: Описание / Состав / Применение / Характеристики.
+        // «Состав» и «Применение» — отдельные параметры товара; если параметр
+        // не заполнен или ещё не заведён в CMS, вкладка не показывается.
+        $composition_id = config('custom.front.composition_parametr_id');
+        $usage_id = config('custom.front.usage_parametr_id');
+
+        $tab_composition = collect($goods_parameters)->firstWhere('id', $composition_id)['value'] ?? null;
+        $tab_usage = $usage_id ? (collect($goods_parameters)->firstWhere('id', $usage_id)['value'] ?? null) : null;
+        $tab_usage = $tab_usage ?: ($preview_usage ?? null);
+
+        // в «Характеристиках» состав и применение не дублируем
+        $tab_parameters = collect($goods_parameters)
+        ->reject(fn ($one) => in_array($one['id'] ?? null, array_filter([$composition_id, $usage_id])))
+        ->values();
+        @endphp
+
         <div class="section pt-0 product-end">
             <div class="container">
-                <div class="product-end-inner">
+                <div class="product-end-inner pb-product @if(empty($shops_stock) || !count($shops_stock)) pb-product--no-stock @endif">
                     <div class="product-end-sliders">
-                        @if($goods_item->oImages->isNotEmpty())
-                            <div class="product-end-thumbs">
-                                <div class="swiper-container">
-                                    <div class="swiper-wrapper">
-                                        @foreach($goods_item->oImages as $one_image)
-                                            <div class="swiper-slide">
-                                                <img
-                                                    src="{{ file_exists('upfiles/goods-items/s/' . showImg($one_image->img)) ? asset('upfiles/goods-items/s/'. showImg($one_image->img)) : asset('front-assets/img/no-image-xs.png') }}"
-                                                    alt="{{ $one_image->itemByLang->name ?? '' }} - thumbs image {{ $loop->iteration }}">
-                                            </div>
-                                        @endforeach
-                                    </div>
+                        {{--
+                            Галерея по макету: на десктопе столбик превью 80×80 со стрелками
+                            и фото 440×440 (нода 786:15093), на ≤1024 — слайдер с точками
+                            (нода 786:14393). Своя разметка, чтобы Swiper из main.js её не трогал.
+                        --}}
+                        <div class="pb-gallery @if($goods_item->oImages->count() <= 1) pb-gallery--single @endif" data-pb-gallery>
+                            <div class="pb-gallery-thumbs">
+                                <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-prev
+                                        aria-label="{{ trans('variables.product_slider_prev') }}">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>
+                                </button>
+                                <div class="pb-gallery-thumbs-list" data-pb-thumbs>
+                                    @foreach($goods_item->oImages as $one_image)
+                                        <button type="button" class="pb-gallery-thumb @if($loop->first) is-active @endif"
+                                                data-pb-go="{{ $loop->index }}"
+                                                aria-label="{{ $goods_item->itemByLang->name ?? '' }} — {{ $loop->iteration }}">
+                                            <img src="{{ file_exists('upfiles/goods-items/s/' . showImg($one_image->img)) ? asset('upfiles/goods-items/s/'. showImg($one_image->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                                 width="80" height="80" loading="lazy"
+                                                 alt="{{ $one_image->itemByLang->name ?? '' }} - thumbs image {{ $loop->iteration }}">
+                                        </button>
+                                    @endforeach
                                 </div>
-                                <div class="product-end-navs">
-                                    <button type="button" class="product-nav product-nav--prev">
-                                        <svg>
-                                            <use
-                                                xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                        </svg>
-                                    </button>
-                                    <button type="button" class="product-nav product-nav--next">
-                                        <svg>
-                                            <use
-                                                xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                        </svg>
-                                    </button>
-                                </div>
+                                <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-next
+                                        aria-label="{{ trans('variables.product_slider_next') }}">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+                                </button>
                             </div>
-                            <div class="product-end-gallery">
-                                <div class="swiper-container">
-                                    <div class="swiper-wrapper">
-                                        @foreach($goods_item->oImages as $one_image)
-                                            <div class="swiper-slide">
-                                                <a href="{{ file_exists('upfiles/goods-items/' . $one_image->img) ? asset('upfiles/goods-items/' . $one_image->img) : asset('front-assets/img/no-image-l.png') }}"
-                                                   data-fancybox="quick-view-gallery">
-                                                    <img
-                                                        src="{{ file_exists('upfiles/goods-items/' . $one_image->img) ? asset('upfiles/goods-items/'. $one_image->img) : asset('front-assets/img/no-image-l.png') }}"
-                                                        alt="{{ $one_image->itemByLang->name ?? '' }} - image {{ $loop->iteration }}">
-                                                </a>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                            <div class="pb-gallery-stage">
+                                <div class="pb-gallery-track" data-pb-track>
+                                    @forelse($goods_item->oImages as $one_image)
+                                        <a class="pb-gallery-slide"
+                                           href="{{ file_exists('upfiles/goods-items/' . $one_image->img) ? asset('upfiles/goods-items/' . $one_image->img) : asset('front-assets/img/no-image-l.png') }}"
+                                           data-fancybox="pb-gallery">
+                                            <img src="{{ file_exists('upfiles/goods-items/' . $one_image->img) ? asset('upfiles/goods-items/'. $one_image->img) : asset('front-assets/img/no-image-l.png') }}"
+                                                 width="440" height="440" @if(!$loop->first) loading="lazy" @endif
+                                                 alt="{{ $one_image->itemByLang->name ?? '' }} - image {{ $loop->iteration }}">
+                                        </a>
+                                    @empty
+                                        <span class="pb-gallery-slide">
+                                            <img src="{{ asset('front-assets/img/no-image-l.png') }}" width="440" height="440"
+                                                 alt="{{ $goods_item->itemByLang->name ?? '' }}">
+                                        </span>
+                                    @endforelse
                                 </div>
+                                <button type="button" class="pb-gallery-arrow pb-gallery-arrow--prev" data-pb-prev
+                                        aria-label="{{ trans('variables.product_slider_prev') }}">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 3.5 3 8l3.5 4.5"/></svg>
+                                </button>
+                                <button type="button" class="pb-gallery-arrow pb-gallery-arrow--next" data-pb-next
+                                        aria-label="{{ trans('variables.product_slider_next') }}">
+                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9.5 3.5 13 8l-3.5 4.5"/></svg>
+                                </button>
+                                <div class="pb-gallery-dots" data-pb-dots aria-hidden="true"></div>
                             </div>
-                        @endif
+                        </div>
                     </div>
                     <div class="product-end-content">
                         <div class="product-end-head">
@@ -137,96 +189,21 @@
                                 @endif
                             </div>
                         </div>
+                        {{--
+                            Правая колонка по макету (нода 786:15112): только заголовок,
+                            объём, оттенок, цена, кнопки. Артикул, код, бренд и тип переехали
+                            в «Характеристики» под описанием, индикатор остатка и рейтинг
+                            в макете отсутствуют.
+                        --}}
                         <div class="product-end-content-inner">
-                            <div class="product-end-content-left">
-                                <h1>{{ $goods_item->itemByLang->name ?? '' }}</h1>
-                                <div class="product-end-info">
-                                    <div class="product-info-row">
-                                        @if($goods_item->articol)
-                                            <div class="product-info-item">
-                                                <p>{{ ShowLabelById(9) }}: <span>{{ $goods_item->articol ?? '' }}</span>
-                                                </p>
-                                            </div>
-                                        @endif
-                                        @if($goods_item->one_c_code)
-                                            <div class="product-info-item">
-                                                <p>{{ ShowLabelById(13) }}:
-                                                    <span>{{ $goods_item->one_c_code ?? '' }}</span></p>
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    @if($goods_item->getBrand && $goods_item->getBrand->parent)
-                                        <div class="product-info-item product-info--border">
-                                            <p>{{ ShowLabelById(8) }}: <span><a
-                                                        href="{{ route('brands', $goods_item->getBrand->parent->alias) }}"><b>{{ $goods_item->getBrand->parent->itemByLang->name ?? '' }}</b></a></span>
-                                                / <span><a
-                                                        href="{{ route('brands', $goods_item->getBrand->alias) }}">{{ $goods_item->getBrand->itemByLang->name ?? '' }}</a></span>
-                                            </p>
-                                        </div>
-                                    @elseif($goods_item->getBrand)
-                                        <p>
-                                            {{ ShowLabelById(8) }}:
-                                            <span><a
-                                                    href="{{ route('brands', $goods_item->getBrand->alias) }}">{{ $goods_item->getBrand->itemByLang->name ?? '' }}</a></span>
-                                        </p>
-                                    @endif
-                                    @if($goods_item->getType && $goods_item->getType->itemByLang)
-                                        <div class="product-info-item">
-                                            <p>{{ ShowLabelById(14) }}:
-                                                <span>{{ $goods_item->getType->itemByLang->name ?? '' }}</span></p>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="product-end-content-right">
-                                <div class="product-end-stock">
-                                    {{--<a href="javascript:;" class="product-stock-check open-stock-modal">--}}
-                                    <div class="product-stock-check">
-                                        @if($goods_item->products_count == 0 || $goods_item->in_stoc == 0)
-                                            {{ ShowLabelById(20) }}
-                                        @elseif($goods_item->products_count > 5)
-                                            {{ ShowLabelById(19) }}
-                                        @elseif($goods_item->products_count <= 5)
-                                            {{ ShowLabelById(21) }}
-                                        @endif
-                                    </div>
-                                    {{--</a>--}}
-                                    <div class="product-stock-status">
-                                        <ul>
-                                            @if($goods_item->products_count == 0 || $goods_item->in_stoc == 0)
-                                                <li style="color: #F94F4F; "></li>
-                                                <li></li>
-                                                <li></li>
-                                            @elseif($goods_item->products_count > 5)
-                                                <li style="color: #3FCB99; "></li>
-                                                <li style="color: #3FCB99; "></li>
-                                                <li style="color: #3FCB99; "></li>
-                                            @elseif($goods_item->products_count <= 5)
-                                                <li style="color: #F39200; "></li>
-                                                <li style="color: #F39200; "></li>
-                                                <li></li>
-                                            @endif
-                                        </ul>
-                                    </div>
-                                </div>
-                                <div class="product-info-right">
-                                    <div class="goods-item-grade">
-                                        @php
-                                            $stars = $reviews_count == 0 ? 0 : round($goods_item->rating);
-                                            $no_stars = 5 - $stars;
-                                        @endphp
-                                        @include('front.templates.goods-rating')
-                                        <p>({{ $reviews_count ?? '' }})</p>
-                                    </div>
-                                    <p>
-                                        <a href="#review-section" class="to-product-review"
-                                           scroll-to-item>{{ ShowLabelById(182) }}</a>
-                                    </p>
-                                </div>
-                            </div>
+                            <h1>{{ $goods_item->itemByLang->name ?? '' }}</h1>
                         </div>
+                        {{-- Селекторы вариантов товара по макету: объём и (для красок) оттенок --}}
+                        @include('front.templates.product.volume-select')
+                        @include('front.templates.product.shade-select')
+
                         <div class="product-end-price">
+                            <span class="pb-field-label">{{ trans('variables.product_price') }}</span>
                             @if($goods_price_collect->price_promo > 0)
                                 <div
                                     class="product-end-price-current"
@@ -240,6 +217,8 @@
                             @endif
                         </div>
                         @if($goods_item->in_stoc == 1)
+                            {{-- по макету кнопка корзины и иконка избранного идут в один ряд --}}
+                            <div class="pb-cta-row">
                             <div class="product-end-cta">
                                 <div class="product-quantity quantity-item-page">
                                     <button type="button" class="count-minus"
@@ -271,6 +250,7 @@
                                 </a>
                                 <p>{{ ShowLabelById(105) }}</p>
                             </div>
+                            </div>
                             <div class="product-end-link">
                                 <a href="javascript:;"
                                    class="button button-black--inversed open-one-click">{{ ShowLabelById(252) }}</a>
@@ -281,6 +261,8 @@
                             </div>
                         @endif
 
+                        {{-- старая картинка-палитра прячется, когда есть новый селектор оттенка --}}
+                        @if(empty($shades) || !count($shades))
                         @if($brand_image_palette && file_exists('upfiles/goods-brand-palette/'. $brand_image_palette))
                             <div class="product-end-palette">
                                 <a href="{{ asset('upfiles/goods-brand-palette/'. $brand_image_palette) }}"
@@ -290,11 +272,6 @@
                                 </a>
                             </div>
                         @endif
-
-                        @if(showSettingBodyByAlias('text-delivery-descr'))
-                            <div class="product-end-text">
-                                {!! showSettingBodyByAlias('text-delivery-descr') !!}
-                            </div>
                         @endif
 
                         @if(count($promo_list) > 0)
@@ -349,6 +326,209 @@
                             </div>
                         @endif
                     </div>
+
+                    <div class="pb-product-stock">
+                        {{-- п.5 ТЗ — наличие по магазинам. Скрыт, пока 1С не отдаёт остатки по складам --}}
+                        @if(!empty($shops_stock) && count($shops_stock))
+                        <div class="section pt-0">
+                        <div class="container">
+                        @include('front.templates.product.shop-stock')
+                        </div>
+                        </div>
+                        @endif
+                    </div>
+
+                    {{--
+                        Блок описания по макету (нода 786:15247): вкладки Описание / Состав /
+                        Применение, ниже всегда — «Доставка», характеристики и ряд преимуществ.
+                        Механика вкладок штатная (openTab из main.js + автоклик первой).
+                    --}}
+                    <div class="pb-product-info">
+                        <div class="section product-end-tabs pb-info">
+                            <div class="container">
+                                <div class="product-tabs">
+                                    <div class="swiper-container">
+                                        <div class="swiper-wrapper">
+                                            @if($goods_item->itemByLang->body)
+                                                <div class="swiper-slide">
+                                                    <button type="button" class="product-tab"
+                                                            onclick="openTab(event, 'product-tabs-1')">
+                                                        {{ ShowLabelById(191) }}
+                                                    </button>
+                                                </div>
+                                            @endif
+                                            @if($tab_composition)
+                                                <div class="swiper-slide">
+                                                    <button type="button" class="product-tab"
+                                                            onclick="openTab(event, 'product-tabs-composition')">
+                                                        {{ trans('variables.product_tab_composition') }}
+                                                    </button>
+                                                </div>
+                                            @endif
+                                            @if($tab_usage)
+                                                <div class="swiper-slide">
+                                                    <button type="button" class="product-tab"
+                                                            onclick="openTab(event, 'product-tabs-usage')">
+                                                        {{ trans('variables.product_tab_usage') }}
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @if($goods_item->itemByLang->body)
+                                    <div id="product-tabs-1" class="product-tabs-content">
+                                        <div class="common-text">
+                                            {!! $goods_item->itemByLang->body ?? '' !!}
+                                        </div>
+                                    </div>
+                                @endif
+                                @if($tab_composition)
+                                    <div id="product-tabs-composition" class="product-tabs-content">
+                                        <div class="common-text">
+                                            <p>{{ $tab_composition }}</p>
+                                        </div>
+                                    </div>
+                                @endif
+                                @if($tab_usage)
+                                    <div id="product-tabs-usage" class="product-tabs-content">
+                                        <div class="common-text">
+                                            <p>{{ $tab_usage }}</p>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if(showSettingBodyByAlias('text-delivery-descr'))
+                                    <div class="pb-info-delivery">
+                                        <span class="pb-field-label">{{ trans('variables.product_delivery') }}</span>
+                                        <div class="pb-info-delivery-text">
+                                            {!! showSettingBodyByAlias('text-delivery-descr') !!}
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <dl class="pb-specs">
+                                    @if($goods_item->articol)
+                                        <dt>{{ ShowLabelById(9) }}:</dt>
+                                        <dd>{{ $goods_item->articol }}</dd>
+                                    @endif
+                                    @if($goods_item->one_c_code)
+                                        <dt>{{ ShowLabelById(13) }}:</dt>
+                                        <dd>{{ $goods_item->one_c_code }}</dd>
+                                    @endif
+                                    @if($goods_item->getBrand)
+                                        <dt>{{ ShowLabelById(8) }}:</dt>
+                                        <dd>
+                                            @if($goods_item->getBrand->parent)
+                                                <a href="{{ route('brands', $goods_item->getBrand->parent->alias) }}">{{ $goods_item->getBrand->parent->itemByLang->name ?? '' }}</a> /
+                                            @endif
+                                            <a href="{{ route('brands', $goods_item->getBrand->alias) }}">{{ $goods_item->getBrand->itemByLang->name ?? '' }}</a>
+                                        </dd>
+                                    @endif
+                                    @if($goods_item->getType && $goods_item->getType->itemByLang)
+                                        <dt>{{ ShowLabelById(14) }}:</dt>
+                                        <dd>{{ $goods_item->getType->itemByLang->name ?? '' }}</dd>
+                                    @endif
+                                    @if($goods_item->gramaj)
+                                        <dt>{{ trans('variables.product_volume') }}:</dt>
+                                        <dd>{{ $goods_item->gramaj }}</dd>
+                                    @endif
+                                    @foreach($tab_parameters as $one_parameter)
+                                        <dt>{{ $one_parameter['name'] ?? '' }}:</dt>
+                                        <dd>{{ $one_parameter['value'] ?? '' }}</dd>
+                                    @endforeach
+                                </dl>
+
+                                <div class="pb-benefits">
+                                    <div class="pb-benefit">
+                                        <span class="pb-benefit-icon">
+                                            <svg viewBox="0 0 16 16" aria-hidden="true">
+                                                <path d="M1.5 4h8v7h-8zM9.5 6.5h2.7l1.8 2.3V11H9.5z"/>
+                                                <circle cx="4.6" cy="12.4" r="1.3"/>
+                                                <circle cx="11.4" cy="12.4" r="1.3"/>
+                                            </svg>
+                                        </span>
+                                        <span>{{ trans('variables.product_usp_delivery') }}</span>
+                                    </div>
+                                    <div class="pb-benefit">
+                                        <span class="pb-benefit-icon">
+                                            <svg viewBox="0 0 16 16" aria-hidden="true">
+                                                <circle cx="8" cy="8" r="6.2"/>
+                                                <path d="M5.5 8l1.8 1.8 3.2-3.5"/>
+                                            </svg>
+                                        </span>
+                                        <span>{{ trans('variables.product_usp_quality') }}</span>
+                                    </div>
+                                    <div class="pb-benefit">
+                                        <span class="pb-benefit-icon">
+                                            <svg viewBox="0 0 16 16" aria-hidden="true">
+                                                <path d="M14 7.7A6 6 0 1 1 8 1.8a6 6 0 0 1 6 5.9zM8 14l-3.4.9.9-3.2"/>
+                                                <path d="M6.3 6.4A1.8 1.8 0 1 1 8 8.4v.8"/>
+                                                <path d="M8 11.1v.1"/>
+                                            </svg>
+                                        </span>
+                                        <span>{{ trans('variables.product_usp_support') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{--
+                        Отзывы по макету (нода 786:15392): правая колонка между описанием
+                        и «С этим товаром покупают». Показаны все отзывы — они выводятся
+                        прямо на странице, отдельного окна для них нет.
+                    --}}
+                    <div class="pb-product-reviews" id="review-section">
+                        <h2 class="rec-title">{{ trans('variables.product_reviews_title') }}</h2>
+                        <div class="pb-reviews-summary">
+                            <div class="pb-reviews-metric">
+                                <span class="pb-field-label">{{ trans('variables.product_rating_label') }}</span>
+                                <span class="pb-reviews-score">
+                                    {{ $reviews_count ? rtrim(rtrim(number_format($goods_item->rating, 1), '0'), '.') : 0 }}
+                                    @include('front.templates.product.stars', ['filled' => $reviews_count ? round($goods_item->rating) : 0])
+                                </span>
+                            </div>
+                            <div class="pb-reviews-metric">
+                                <span class="pb-field-label">{{ trans('variables.product_reviews_label') }}</span>
+                                <span class="pb-reviews-score">{{ $reviews_count }} {{ trans_choice('variables.goods_reviews', $reviews_count) }}</span>
+                            </div>
+                            <a href="javascript:;"
+                               class="pb-button pb-reviews-write{{ $global_user ? ' open-review-modal' : ' open-login-modal' }}">{{ ShowLabelById(182) }}</a>
+                        </div>
+                        @if($goods_item->goodsItemReviews->isNotEmpty())
+                            <div class="pb-reviews-list">
+                                @foreach($goods_item->goodsItemReviews as $one_goods_review)
+                                    <div class="pb-review">
+                                        <div class="pb-review-author">
+                                            <span>{{ $one_goods_review->frontUserId->name ?? '' }}</span>
+                                            @include('front.templates.product.stars', ['filled' => round($one_goods_review->rating)])
+                                        </div>
+                                        <div class="pb-review-date">{{ Carbon\Carbon::parse($one_goods_review->created_at)->locale(LANG)->isoFormat('DD MMM YYYY') }}</div>
+                                        <div class="pb-review-text">
+                                            <p>{{ $one_goods_review->review_text ?? '' }}</p>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="pb-reviews-empty">
+                                <p>{{ ShowLabelById(183) }}</p>
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- п.3 ТЗ — «С этим товаром покупают»: правая колонка, под описанием --}}
+                    <div class="pb-product-set">
+                        @include('front.templates.product.set-block')
+                    </div>
+
+                    {{-- п.4 ТЗ — «Похожие товары»: сразу следом, на всю ширину --}}
+                    <div class="pb-product-similar">
+                        @include('front.templates.product.similar-block')
+                    </div>
+
+
                 </div>
             </div>
         </div>
@@ -371,7 +551,7 @@
              </div>
          </div>--}}
 
-        @if($goods_item && $goods_item->goodsVideos->isNotEmpty())
+        @if(config('custom.front.show_extra_blocks_on_product_page') && $goods_item && $goods_item->goodsVideos->isNotEmpty())
             <div class="section videos pt-1">
                 <div class="container">
                     <div class="slider-wrapper">
@@ -404,97 +584,12 @@
             </div>
         @endif
 
-        <div class="section product-end-tabs">
-            <div class="container">
-                <div class="product-tabs">
-                    <div class="swiper-container">
-                        <div class="swiper-wrapper">
-                            @if($goods_item->itemByLang->body)
-                                <div class="swiper-slide">
-                                    <button type="button" class="product-tab"
-                                            onclick="openTab(event, 'product-tabs-1')">
-                                        {{ ShowLabelById(191) }}
-                                    </button>
-                                </div>
-                            @endif
-                            @if(!empty($goods_parameters) && count($goods_parameters))
-                                <div class="swiper-slide">
-                                    <button type="button" class="product-tab"
-                                            onclick="openTab(event, 'product-tabs-2')">
-                                        {{ ShowLabelById(190) }}
-                                    </button>
-                                </div>
-                            @endif
-                            @if($goods_item->itemByLang->body_two)
-                                <div class="swiper-slide">
-                                    <button type="button" class="product-tab"
-                                            onclick="openTab(event, 'product-tabs-3')">{{ ShowLabelById(191) }}
-                                    </button>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                @if($goods_item->itemByLang->body)
-                    <div id="product-tabs-1" class="product-tabs-content">
-                        <div class="common-text">
-                            {!! $goods_item->itemByLang->body ?? '' !!}
-                        </div>
-                    </div>
-                @endif
-                @if(!empty($goods_parameters) && count($goods_parameters))
-                    <div id="product-tabs-2" class="product-tabs-content">
-                        <div class="common-text">
-                            @foreach($goods_parameters as $one_parameter)
-                                <p><b>{{ $one_parameter['name'] ?? '' }}: </b>{{ $one_parameter['value'] ?? '' }}</p>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-                @if($goods_item->itemByLang->body_two)
-                    <div id="product-tabs-3" class="product-tabs-content">
-                        <div class="common-text">
-                            {!! $goods_item->itemByLang->body_two ?? '' !!}
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </div>
 
-        @if(!empty($similare_goods) && count($similare_goods))
-            <div class="section goods-slider goods-slider--large">
-                <div class="container">
-                    <div class="section-head">
-                        <h2>{{ ShowLabelById(15) }}</h2>
-                    </div>
-                    <div class="goods-slider-inner">
-                        <div class="goods-slider-wrapper">
-                            <div class="swiper-container">
-                                <div class="swiper-wrapper">
-                                    @foreach($similare_goods as $one_goods)
-                                        <div class="swiper-slide">
-                                            @include('front.templates.goods-template')
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <button type="button" class="slider-nav slider-nav--prev">
-                                <svg>
-                                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                </svg>
-                            </button>
-                            <button type="button" class="slider-nav slider-nav--next">
-                                <svg>
-                                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
 
-        @if(!empty($bestseller_goods) && count($bestseller_goods))
+
+        {{-- В новом макете этого блока нет. Скрыт флагом, разметка сохранена:
+             вернуть — custom.front.show_bestsellers_on_product_page = true --}}
+        @if(config('custom.front.show_bestsellers_on_product_page') && !empty($bestseller_goods) && count($bestseller_goods))
             <div class="section goods-slider goods-slider--large">
                 <div class="container">
                     <div class="section-head">
@@ -527,7 +622,7 @@
             </div>
         @endif
 
-        @if($three_banners_for_goods_page && $three_banners_for_goods_page->children->isNotEmpty())
+        @if(config('custom.front.show_extra_blocks_on_product_page') && $three_banners_for_goods_page && $three_banners_for_goods_page->children->isNotEmpty())
             <div class="section banners banners--three-columns">
                 <div class="container">
                     <div class="banners-list">
@@ -539,135 +634,8 @@
             </div>
         @endif
 
-        @if(!empty($compatibile_goods) && count($compatibile_goods))
-            <div class="section goods-slider goods-slider--large">
-                <div class="container">
-                    <div class="section-head">
-                        <h2>{{ ShowLabelById(17) }}</h2>
-                    </div>
-                    <div class="goods-slider-inner">
-                        <div class="goods-slider-wrapper">
-                            <div class="swiper-container">
-                                <div class="swiper-wrapper">
-                                    @foreach($compatibile_goods as $one_goods)
-                                        <div class="swiper-slide">
-                                            @include('front.templates.goods-template')
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <button type="button" class="slider-nav slider-nav--prev">
-                                <svg>
-                                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                </svg>
-                            </button>
-                            <button type="button" class="slider-nav slider-nav--next">
-                                <svg>
-                                    <use xlink:href="{{ asset('front-assets/svg/sprite.svg#slider-arrow') }}"></use>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
 
-        <div id="review-section" class="section product-end-review">
-            <div class="container">
-                <div class="product-review-head">
-                    <div class="product-review-grade">
-                        @php
-                            $stars = $reviews_count == 0 ? 0 : round($goods_item->rating);
-                            $no_stars = 5 - $stars;
-                        @endphp
-                        @include('front.templates.goods-rating')
-                        <p>{{ $reviews_count }} {{ trans_choice('variables.goods_reviews', $reviews_count) }}</p>
-                    </div>
-                    <div class="product-review-btn">
-                        <a href="javascript:;"
-                           class="button button--black{{ $global_user ? ' open-review-modal' : ' open-login-modal' }}">{{ ShowLabelById(182) }}</a>
-                    </div>
-                </div>
-                @if($goods_item->goodsItemReviews->isNotEmpty())
-                    <div class="product-review-list">
-                        @foreach($goods_item->goodsItemReviews as $one_goods_review)
-                            @php
-                                $stars = round($one_goods_review->rating);
-                                $no_stars = 5 - $stars;
-                            @endphp
-                            <div class="product-review-item">
-                                <div class="product-review-left">
-                                    @if($one_goods_review->frontUserId)
-                                        <div class="product-review-author">
-                                            <div
-                                                class="product-review-author-icon">{{ mb_substr($one_goods_review->frontUserId->name,0,1) }}</div>
-                                            <div
-                                                class="product-review-author-name">{{ $one_goods_review->frontUserId->name ?? '' }}</div>
-                                        </div>
-                                    @endif
-                                    {{--<div class="product-review-confirmed">
-                                        <img src="{{ asset('front-assets/img/icons/confirmed.svg') }}" alt="">
-                                        <span>Comanda confirmată</span>
-                                    </div>--}}
-                                </div>
-                                <div class="product-review-content">
-                                    <div class="product-review-item-head">
-                                        <div class="product-review-grade">
-                                            @include('front.templates.goods-rating')
-                                        </div>
-                                        <div
-                                            class="product-review-date">{{ Carbon\Carbon::parse($one_goods_review->created_at)->locale(LANG)->isoFormat('DD MMM YYYY') }}</div>
-                                    </div>
-                                    <div class="product-review-text common-text">
-                                        <p>{{ $one_goods_review->review_text ?? '' }}</p>
-                                    </div>
-                                    {{--<div class="product-review-link">
-                                        <a href="#">Răspundeți</a>
-                                    </div>--}}
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="product-review-empty">
-                        <p>{{ ShowLabelById(183) }}</p>
-                    </div>
-                @endif
-                {{--<div class="pagination">
-                    <ul>
-                        <li class="pagination-nav pagination-nav--prev pagination-nav--disabled">
-                            <a href="#">
-                                <svg>
-                                    <use xlink:href="svg/sprite.svg#arrow-right"></use>
-                                </svg>
-                            </a>
-                        </li>
-                        <li class="active">
-                            <a href="#">1</a>
-                        </li>
-                        <li>
-                            <a href="#">2</a>
-                        </li>
-                        <li>
-                            <a href="#">3</a>
-                        </li>
-                        <li>...</li>
-                        <li>
-                            <a href="#">7</a>
-                        </li>
-                        <li class="pagination-nav pagination-nav--next">
-                            <a href="#">
-                                <svg>
-                                    <use xlink:href="svg/sprite.svg#arrow-right"></use>
-                                </svg>
-                            </a>
-                        </li>
-                    </ul>
-                </div>--}}
-            </div>
-        </div>
-
-        @if(!empty($view_goods) && count($view_goods))
+        @if(config('custom.front.show_extra_blocks_on_product_page') && !empty($view_goods) && count($view_goods))
             <div class="section goods-slider goods-slider--large">
                 <div class="container">
                     <div class="section-head">
@@ -701,7 +669,8 @@
         @endif
 
         @if($blog && $blog->infoItems->isNotEmpty())
-            <div class="section blog">
+
+        <div class="section blog">
                 <div class="container">
                     <div class="section-head">
                         <h2>{{ $blog->itemBylang->name ?? '' }}</h2>
@@ -729,7 +698,7 @@
             </div>
         @endif
 
-        @if($advantages && $advantages->children->isNotEmpty())
+        @if(config('custom.front.show_extra_blocks_on_product_page') && $advantages && $advantages->children->isNotEmpty())
             <div class="section benefits">
                 <div class="container">
                     <div class="benefits-list">

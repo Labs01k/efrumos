@@ -1804,7 +1804,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                 $param_value = GetItemRSCSelectData($parametr->goods_parametr_id, $item_id);
 
                 if (!is_null($param_value) && $param_value->goods_parametr_value_id > 0) {
-                    $return[] = ['name' => $parametr->name, 'value' => IfHasName($param_value->goods_parametr_value_id, $lang_id, 'goods_parametr_value')];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => IfHasName($param_value->goods_parametr_value_id, $lang_id, 'goods_parametr_value')];
                 }
                 break;
 
@@ -1817,7 +1817,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                     foreach ($param_value as $pv) {
                         $param_value_name[] = IfHasName($pv, $lang_id, 'goods_parametr_value');
                     }
-                    $return[] = ['name' => $parametr->name, 'value' => implode(', ', $param_value_name)];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => implode(', ', $param_value_name)];
                 }
                 break;
 
@@ -1827,21 +1827,21 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
                         $param_value = GetItemMeasureData($parametr->goods_parametr_id, $item_id);
 
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => !empty(IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => !empty(IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($parametr->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
                         }
                         break;
 
                     case 'measure_list':
                         $param_value = GetItemMeasureData($parametr->goods_parametr_id, $item_id);
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => !empty(IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => !empty(IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure')) ? NumberFormat2($param_value->parametr_value) . ' (' . IfHasName($param_value->goods_measure_id, $lang_id, 'goods_measure') . ')' : NumberFormat2($param_value->parametr_value)];
                         }
                         break;
 
                     case 'no_measure':
                         $param_value = GetItemSimpleData($parametr->goods_parametr_id, $item_id, $lang_id);
                         if (!is_null($param_value) && $param_value->parametr_value) {
-                            $return[] = ['name' => $parametr->name, 'value' => $param_value->parametr_value];
+                            $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => $param_value->parametr_value];
                         }
                         break;
 
@@ -1853,7 +1853,7 @@ function ParametrDisplay($goods_subject_id, $item_id, $lang_id)
             case 'textarea':
                 $param_value = GetItemSimpleData($parametr->goods_parametr_id, $item_id, $lang_id);
                 if (!is_null($param_value) && $param_value->parametr_value) {
-                    $return[] = ['name' => $parametr->name, 'value' => $param_value->parametr_value];
+                    $return[] = ['id' => $parametr->goods_parametr_id, 'name' => $parametr->name, 'value' => $param_value->parametr_value];
                 }
                 break;
 
@@ -2165,13 +2165,18 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
 
     $search = $podbor['s'] ?? '';
 
+    // строка поиска уходит в запрос только через биндинги —
+    // конкатенация ломалась кавычкой и открывала SQL-инъекцию
+    $multi_bindings = [];
+
     if (!empty($podbor['s'])) {
         $search_array_values = explode(' ', $podbor['s']);
 
         if (!empty($search_array_values)) {
             foreach ($search_array_values as $key => $one_value) {
-                //$multi_query .= " AND (name LIKE '%" . $one_value . "%' OR body LIKE '%" . $one_value . "%' OR model LIKE '%" . $one_value . "%')";
-                $multi_query .= " AND (name LIKE '%" . $one_value . "%' OR model LIKE '%" . $one_value . "%')";
+                $multi_query .= " AND (name LIKE ? OR model LIKE ?)";
+                $multi_bindings[] = '%' . $one_value . '%';
+                $multi_bindings[] = '%' . $one_value . '%';
             }
             $multi_query = mb_substr($multi_query, 5);
         }
@@ -2472,10 +2477,16 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                         ->orWhereIn('goods_subject_id', $subjects_array);
                 });
             })
-            ->when($search, function ($query) use ($search, $multi_query) {
-                $query->whereHas('itemByLang', function ($q) use ($search, $multi_query) {
-                    $q->whereRaw($multi_query);
-                })->orWhere('one_c_code', 'like', '%' . $search . '%');
+            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings) {
+                // скобка обязательна: без неё orWhere ломал фильтры active/deleted,
+                // и по коду 1С находились в том числе снятые с продажи товары
+                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings) {
+                    $sub->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
+                        $q->whereRaw($multi_query, $multi_bindings);
+                    })
+                        ->orWhere('one_c_code', 'like', '%' . $search . '%')
+                        ->orWhere('articol', 'like', '%' . $search . '%');
+                });
             })
             ->when($brand_id, function ($query) use ($brand_id) {
                 return $query->whereRaw('(brand_id IN(' . $brand_id . ') OR brand_id IN(SELECT id FROM goods_brand_id WHERE p_id IN (' . $brand_id . ')) )');
@@ -2525,10 +2536,16 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                         ->orWhereIn('goods_subject_id', $subjects_array);
                 });
             })
-            ->when($search, function ($query) use ($search, $multi_query) {
-                $query->whereHas('itemByLang', function ($q) use ($search, $multi_query) {
-                    $q->whereRaw($multi_query);
-                })->orWhere('one_c_code', 'like', '%' . $search . '%');
+            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings) {
+                // скобка обязательна: без неё orWhere ломал фильтры active/deleted,
+                // и по коду 1С находились в том числе снятые с продажи товары
+                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings) {
+                    $sub->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
+                        $q->whereRaw($multi_query, $multi_bindings);
+                    })
+                        ->orWhere('one_c_code', 'like', '%' . $search . '%')
+                        ->orWhere('articol', 'like', '%' . $search . '%');
+                });
             })
             ->when($brand_id, function ($query) use ($brand_id) {
                 return $query->whereRaw('(brand_id IN(' . $brand_id . ') OR brand_id IN(SELECT id FROM goods_brand_id WHERE p_id IN (' . $brand_id . ')) )');

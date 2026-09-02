@@ -18,6 +18,9 @@
         <div class="order-details-col">
             <p><b>{{ ShowLabelById(207) }}</b></p>
             <p>{{ getEnumValueName($order->delivery_method) }} - {{ $order->ordersData->delivery_cost ?? '' }} {{ ShowLabelById(3) }}</p>
+            @if($order->delivery_method == 'pickup' && $order->pickupShop && $order->pickupShop->itemByLang)
+                <p>{{ trans('variables.checkout_pickup_shop') }}: {{ $order->pickupShop->itemByLang->name ?? '' }}, {{ $order->pickupShop->itemByLang->address ?? '' }}</p>
+            @endif
         </div>
     </div>
     @if($order && $order->basket->isNotEmpty())

@@ -60,6 +60,11 @@ class OrderController extends Controller
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
                         ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
+                        ],
                         'agree' => 'required'
                     ]);
                 } else {
@@ -75,6 +80,11 @@ class OrderController extends Controller
                         'delivery_method' => [
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                        ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
                         ],
                         'agree' => 'required'
                     ]);
@@ -128,6 +138,11 @@ class OrderController extends Controller
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
                         ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
+                        ],
                         'agree' => 'required'
                     ]);
                 } else {
@@ -144,6 +159,11 @@ class OrderController extends Controller
                         'delivery_method' => [
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                        ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
                         ],
                         'agree' => 'required'
                     ]);
@@ -185,6 +205,11 @@ class OrderController extends Controller
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
                         ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
+                        ],
                         'agree' => 'required'
                     ]);
                 } else {
@@ -200,6 +225,11 @@ class OrderController extends Controller
                         'delivery_method' => [
                             'required',
                             Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                        ],
+                        'pickup_shop_id' => [
+                            'nullable',
+                            'required_if:delivery_method,pickup',
+                            'exists:shops_id,id',
                         ],
                         'agree' => 'required'
                     ]);
@@ -273,6 +303,10 @@ class OrderController extends Controller
                 $order_new = new Orders();
                 $order_new->basket_id = $basket_id->id;
                 $order_new->delivery_method = $request->input('delivery_method');
+                // магазин самовывоза: разовый выбор на заказ (п.2 ТЗ)
+                if ($order_new->delivery_method == 'pickup') {
+                    $order_new->pickup_shop_id = (int) $request->input('pickup_shop_id') ?: null;
+                }
                 $order_new->pay_method = $request->input('pay_method');
 
                 if ($user)

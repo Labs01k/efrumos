@@ -82,6 +82,13 @@
                                             </div>
 
                                             <div class="mb-3">
+                                                <label for="store_guid"
+                                                       class="form-label">{{ __('variables.shop_store_guid') }}</label>
+                                                <input type="text" name="store_guid" class="form-control"
+                                                       id="store_guid" value="">
+                                            </div>
+
+                                            <div class="mb-3">
                                                 <label for="upload_files" class="form-label">{{__('variables.select_file')}}</label>
                                                 <input class="form-control" type="file" name="upload_files[]"
                                                        id="upload_files" multiple="">

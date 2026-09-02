@@ -22,6 +22,10 @@ use App\Models\InfoItemId;
 use App\Models\InfoLineId;
 use App\Models\MenuId;
 use App\Services\FacebookAds\FacebookPixelConversion;
+use App\Services\Product\ProductRecommendations;
+use App\Services\Product\ProductStock;
+use App\Services\Product\ProductVariants;
+use App\Services\Product\ShadePalette;
 use App\Services\GA4\GoogleEcommerce;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -285,6 +289,25 @@ class CatalogController extends Controller
             if ($goods_item->getBrand && $goods_item->getBrand->parent && $goods_item->getBrand->parent->img_palette) {
                 $brand_image_palette = $goods_item->getBrand->parent->img_palette;
             }
+        }
+
+        // Блоки страницы товара по новому макету:
+        // п.3 «С этим товаром покупают», п.4 «Похожие товары», п.6 палитра оттенков
+        $set_goods = ProductRecommendations::boughtTogether($goods_item);
+        $similar_goods = ProductRecommendations::similar($goods_item);
+        $shades = ShadePalette::for($goods_item);
+        $volumes = ProductVariants::volumes($goods_item);
+        // п.5: пока 1С не отдаёт остатки по складам, коллекция пустая и блок скрыт
+        $shops_stock = ProductStock::byShops($goods_item);
+
+        // Превью незавершённых блоков: ?preview=pending подставляет демо-данные
+        // в те блоки, под которые ещё нет источника (остатки по магазинам, вкладка
+        // «Применение»). На проде флаг не работает.
+        $preview_pending = !app()->environment('production') && request('preview') === 'pending';
+        $preview_usage = null;
+        if ($preview_pending) {
+            $shops_stock = ProductStock::demo($goods_item);
+            $preview_usage = trans('variables.product_usage_demo');
         }
 
         //For meta tags
@@ -730,10 +753,13 @@ class CatalogController extends Controller
 
         $search_array_values = explode(' ', $search_value);
 
+        // строка поиска только через биндинги — конкатенация ломалась кавычкой
         $multi_query = '';
+        $multi_bindings = [];
         if ($search_array_values) {
             foreach ($search_array_values as $one_value) {
-                $multi_query .= ' AND name LIKE "%' . $one_value . '%"';
+                $multi_query .= ' AND name LIKE ?';
+                $multi_bindings[] = '%' . $one_value . '%';
             }
 
             $multi_query = mb_substr($multi_query, 5);
@@ -753,11 +779,12 @@ class CatalogController extends Controller
         $search_goods_items = GoodsItemId::where('active', 1)
             ->where('deleted', 0)
             ->with('itemByLang')
-            ->where(function ($query) use ($multi_query, $search_value) {
-                $query->whereHas('itemByLang', function ($q) use ($search_value, $multi_query) {
-                    //$q->where('name', 'LIKE', '%' . $search_value . '%');
-                    $q->whereRaw($multi_query);
-                })->orWhere('one_c_code', 'like', '%' . $search_value . '%');
+            ->where(function ($query) use ($multi_query, $multi_bindings, $search_value) {
+                $query->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
+                    $q->whereRaw($multi_query, $multi_bindings);
+                })
+                    ->orWhere('one_c_code', 'like', '%' . $search_value . '%')
+                    ->orWhere('articol', 'like', '%' . $search_value . '%');
             })
             ->whereRaw('goods_subject_id IN(SELECT id FROM goods_subject_id WHERE active = 1 AND deleted = 0)')
             ->orderBy('position', 'asc')
