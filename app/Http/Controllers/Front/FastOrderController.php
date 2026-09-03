@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Integration\SubmitOrderToIntegrationLayerJob;
 use App\Models\Basket;
 use App\Models\BasketId;
 use App\Models\GoodsItemId;
@@ -121,6 +122,10 @@ class FastOrderController extends Controller
 
         //For AMO CRM
         $sendOrderToAmoCrm->sendOrderToAmoCrm($order_new, $orders_data, $orders_users, $user_info);
+
+        // Epic 0 / 0.1 — same as the regular checkout flow, a fast order needs
+        // to reach 1С/Bitrix24 too.
+        SubmitOrderToIntegrationLayerJob::dispatch($order_new->id);
 
         return response()->json([
             'status' => true,

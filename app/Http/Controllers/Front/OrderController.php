@@ -11,6 +11,7 @@ use App\Models\GoodsItemId;
 use App\Models\Orders;
 use App\Models\OrdersData;
 use App\Models\OrdersUsers;
+use App\Jobs\Integration\SubmitOrderToIntegrationLayerJob;
 use App\Services\AmoOrder\SendOrderToAmoCrm;
 use App\Services\FacebookAds\FacebookPixelConversion;
 use App\Services\GA4\GoogleEcommerce;
@@ -54,7 +55,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -75,7 +76,7 @@ class OrderController extends Controller
                         'email' => 'required|email|unique:front_user,email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -132,7 +133,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -154,7 +155,7 @@ class OrderController extends Controller
                         //'email' => 'required|email|unique:front_user,email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -199,7 +200,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -220,7 +221,7 @@ class OrderController extends Controller
                         'email' => 'required|email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash']),
+                            Rule::in(['cash', 'card']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -414,8 +415,30 @@ class OrderController extends Controller
                 //For AMO CRM
                 $sendOrderToAmoCrm->sendOrderToAmoCrm($order_new, $orders_data, $orders_users, $user_info, $user_district);
 
+                // Epic 0 / 0.1 — push the order into 1С + Bitrix24. Queued (not
+                // called inline) so a slow/unavailable 1С or Bitrix24 doesn't
+                // hold up the customer's checkout response; retries/alerting
+                // are handled by the job itself (0.4).
+                SubmitOrderToIntegrationLayerJob::dispatch($order_new->id);
+
                 Session::put('if-checkout-success', 1);
                 Session::put('order-id', $new_orders_data->orders_id);
+
+                // Card orders go to the bank first — checkout-success is only
+                // for orders that don't need online payment (cash). The bank
+                // callback, not this response, is what ultimately confirms
+                // the payment (Epic 1 / 1.1).
+                if ($order_new->pay_method === 'card') {
+                    // Payment routes live outside the locale-prefixed route group
+                    // (bank redirects/webhooks aren't localized pages), so LANG
+                    // isn't derivable from their own URL — carry it through
+                    // explicitly so backref() can send the customer back to the
+                    // language they were actually shopping in.
+                    return response()->json([
+                        'status' => true,
+                        'redirect' => route('payments.bank.initiate', ['order' => $order_new->id, 'lang' => LANG]),
+                    ]);
+                }
 
                 return response()->json([
                     'status' => true,

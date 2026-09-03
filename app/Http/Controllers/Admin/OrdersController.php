@@ -7,6 +7,7 @@ use App\Models\Basket;
 use App\Models\Orders;
 use App\Services\FacebookAds\FacebookPixelConversion;
 use App\Services\GA4\GoogleEcommerce;
+use App\Services\Integration\OrderIntegrationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 
@@ -166,7 +167,7 @@ class OrdersController extends Controller
 
     }
 
-    public function destroyOrderToCart(Request $request)
+    public function destroyOrderToCart(Request $request, OrderIntegrationService $integrationService)
     {
         $deleted_elements_id = $request->input('data_goods_id');
         $data_current_url = $request->input('data_current_url');
@@ -190,6 +191,11 @@ class OrdersController extends Controller
 
                         Orders::where('id', $one_orders_id->id)
                             ->update(['active' => 0, 'deleted' => 1]);
+
+                        // Epic 0 / 0.2 — cancelling an order releases whatever
+                        // stock it had reserved in 1С. No-ops cleanly if the
+                        // order was never synced (no mapping / no onec_document_id).
+                        $integrationService->releaseReservation($one_orders_id);
                     }
                 }
 
