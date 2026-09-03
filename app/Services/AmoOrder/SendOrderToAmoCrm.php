@@ -4,10 +4,24 @@ namespace App\Services\AmoOrder;
 
 use App\Models\Basket;
 use App\Models\GoodsPromo;
+use Illuminate\Support\Facades\Log;
 
 class SendOrderToAmoCrm
 {
     public function sendOrderToAmoCrm($order_new, $orders_data, $orders_users, $user_info, $user_district = null){
+
+        // Despite the class/method name, this is NOT AmoCRM — it POSTs to
+        // https://platon.progression.md (a different, real CRM) with a real
+        // hardcoded token. Every local/dev order creation call was hitting
+        // that live external system until this flag existed. Default is
+        // env-driven, not hardcoded true/false, so prod (which never sets
+        // AMOCRM_ENABLED=false) keeps sending real orders unchanged.
+        if (!config('services.amocrm.enabled', true)) {
+            Log::info('[Platon/Progression CRM DISABLED locally] sendOrderToAmoCrm — skipped, AMOCRM_ENABLED=false', [
+                'orders_id' => $order_new->id ?? null,
+            ]);
+            return;
+        }
 
         $basket = Basket::where('basket_id', $order_new->basket_id)->get();
 

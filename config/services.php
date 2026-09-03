@@ -2,6 +2,16 @@
 
 return [
 
+    'amocrm' => [
+        // App\Services\AmoOrder\SendOrderToAmoCrm — misleadingly named, it
+        // actually POSTs to platon.progression.md with a real hardcoded
+        // token, not AmoCRM. True by default everywhere (including
+        // production) so this doesn't change prod behavior; set
+        // AMOCRM_ENABLED=false locally so test orders don't hit the real
+        // external CRM.
+        'enabled' => env('AMOCRM_ENABLED', true),
+    ],
+
     'integration' => [
         // Epic 0 / 0.4 — who gets notified when 1С/Bitrix24 sync exhausts
         // its retries. Empty by default: no address is known yet, and the
