@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\SitemapsController;
 use App\Http\Controllers\Exchange\ImportFrom1C;
 use App\Http\Controllers\Front\GFGoodsXmlController;
 use App\Http\Controllers\Front\ParseController;
+use App\Http\Controllers\Payment\VictoriaBankController;
 use App\Services\Localization\LocalizationService;
 
 /*
@@ -39,6 +40,21 @@ Route::controller(ImportFrom1C::class)->group(function () {
 
 //Update goods guid
 Route::get('/updategoodsguid', [ParseController::class, 'updateGoodsGuid']);
+
+// Epic 1 / 1.1 — VictoriaBank e-Gateway: initiate starts TRTYPE=0, backref is
+// the single BACKREF the customer's browser lands on either way (result is
+// in its query string, informational only), callback is the authoritative
+// server-to-server webhook. Unprefixed by locale, like the 1C exchange
+// routes above — a bank redirect/webhook is not a localized page.
+// URL deliberately says "bank", not the provider name — keep which acquirer
+// we use out of public URLs. VictoriaBank* is still the real name internally.
+Route::controller(VictoriaBankController::class)->prefix('payments/bank')->name('payments.bank.')->group(function () {
+    // GET, not POST — the checkout AJAX response hands the browser this URL
+    // and does a plain navigation (window.location), it doesn't submit a form here.
+    Route::get('/initiate/{order}', 'initiate')->name('initiate');
+    Route::get('/backref/{order}', 'backref')->name('backref');
+    Route::post('/callback', 'callback')->name('callback');
+});
 
 Route::prefix(LocalizationService::locale())->middleware(['SetLocale', 'GetTranslate', 'GetSettings', 'denyAccess'])->group(function () {
 

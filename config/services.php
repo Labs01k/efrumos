@@ -52,6 +52,35 @@ return [
         'facebook_pixel_id' => env('FACEBOOK_PIXEL_ID'),
         'facebook_pixel_access_token' => env('FACEBOOK_PIXEL_ACCESS_TOKEN'),
         'facebook_test_event_code' => env('FACEBOOK_TEST_EVENT_CODE')
-    ]
+    ],
+
+    'victoriabank' => [
+        // e-Gateway CGI protocol (RSA-2048/SHA-256 P_SIGN). TRTYPE=0
+        // (authorize) -> callback -> TRTYPE=21 (capture); TRTYPE=24 is
+        // refund/reversal. Test terminal, endpoints and the bank's public
+        // key all come from VictoriaBank's own onboarding email + guide.
+        'endpoint_url' => env(
+            'VICTORIABANK_ENDPOINT_URL',
+            env('APP_ENV') === 'production'
+                ? 'https://vb059.vb.md/cgi-bin/cgi_link'
+                : 'https://ecomt.victoriabank.md/cgi-bin/cgi_link'
+        ),
+
+        // Test terminal from VictoriaBank's onboarding email (Solvex Lux SRL / efrumos.md).
+        'terminal_id' => env('VICTORIABANK_TERMINAL_ID', '49807132'),
+        'merchant_id' => env('VICTORIABANK_MERCHANT_ID', '498000049807132'),
+
+        // Ours — generated locally, not yet re-sent/confirmed after rotation.
+        // Outside the web root (storage/app is never publicly served).
+        'merchant_private_key_path' => env('VICTORIABANK_MERCHANT_PRIVATE_KEY_PATH', storage_path('app/victoriabank-keys/merchant_private.pem')),
+        'merchant_public_key_path' => env('VICTORIABANK_MERCHANT_PUBLIC_KEY_PATH', storage_path('app/victoriabank-keys/merchant_public.pem')),
+        'bank_public_key_path' => env('VICTORIABANK_BANK_PUBLIC_KEY_PATH', storage_path('app/victoriabank-keys/bank_public.pem')),
+
+        'currency' => 'MDL',
+        'merchant_name' => 'Solvex Lux SRL',
+        'merchant_url' => env('APP_URL'),
+        'country' => 'md',
+        'merch_gmt' => '+2',
+    ],
 
 ];
