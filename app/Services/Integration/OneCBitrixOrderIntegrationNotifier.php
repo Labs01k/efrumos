@@ -59,6 +59,19 @@ class OneCBitrixOrderIntegrationNotifier implements OrderIntegrationNotifier
             $ok = false;
         }
 
+        // Epic 1 / 1.5 — task for the responsible employee + CRM timeline
+        // comment. Isolated from updateDealStatus() above: a failure here
+        // shouldn't be reported as "the payment status push failed" (it did
+        // succeed) — this is a secondary notification step.
+        if ($status === PaymentStatus::Paid) {
+            try {
+                $this->bitrix->notifyOrderTask($order, $mapping->bitrix_deal_id);
+            } catch (\Throwable $e) {
+                Log::error('OneCBitrixOrderIntegrationNotifier: Bitrix24 task/notification failed', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
+                $ok = false;
+            }
+        }
+
         return $ok;
     }
 }

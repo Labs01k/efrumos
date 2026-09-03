@@ -20,4 +20,13 @@ interface BitrixDealGateway
      * plus whatever task/notification scenario is configured on the Bitrix24 side.
      */
     public function updateDealStatus(string $dealId, string $status): void;
+
+    /**
+     * Epic 1 / 1.5 — after payment: task for the responsible employee
+     * (tasks.task.add, linked to the deal), a bell notification to them
+     * (im.notify), and a CRM timeline comment on the deal. Client-facing
+     * chat notification is separate and best-effort — we don't have a
+     * Bitrix24 user id for the customer, only their site account.
+     */
+    public function notifyOrderTask(Orders $order, string $dealId): void;
 }

@@ -17,6 +17,12 @@ return [
         // IntegrationGatewayException — as honest as currently possible,
         // since neither system has a real write endpoint/credentials yet.
         'mock_mode' => env('INTEGRATION_MOCK_MODE', true),
+
+        // Epic 1 / 1.5 — Bitrix24 employee who gets the post-payment task
+        // (tasks.task.add RESPONSIBLE_ID). Not known yet — null until the
+        // client says who; LoggingBitrixDealGateway logs a clear warning
+        // and skips the task rather than guessing an id.
+        'bitrix_responsible_id' => env('BITRIX24_RESPONSIBLE_ID'),
     ],
 
     /*
