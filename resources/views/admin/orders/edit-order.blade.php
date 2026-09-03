@@ -45,6 +45,154 @@
                             </a>
                         </div>
                     </div>
+
+                    {{-- Epic 1 / 1.4 — manual payment status override. Current value comes
+                         from Orders::$casts (App\Enums\PaymentStatus), so it always reflects
+                         what OrderPaymentStatusService last set, automatically or manually. --}}
+                    <div class="border rounded p-3 mb-3 d-lg-flex align-items-center gap-3">
+                        <div>
+                            <strong>{{ __('variables.payment_status') }}:</strong>
+                            <span id="payment-status-current">{{ $orders->payment_status?->label() ?? __('variables.payment_status_pending') }}</span>
+                        </div>
+                        <div class="ms-lg-auto d-flex align-items-center gap-2 mt-2 mt-lg-0">
+                            <select id="payment-status-select" class="form-select form-select-sm" style="width:auto;">
+                                @foreach (\App\Enums\PaymentStatus::cases() as $status)
+                                    <option value="{{ $status->value }}" @selected($orders->payment_status === $status)>{{ $status->label() }}</option>
+                                @endforeach
+                            </select>
+                            <input id="payment-status-comment" type="text" class="form-control form-control-sm"
+                                   placeholder="{{ __('variables.payment_status_comment_placeholder') }}" style="width:220px;">
+                            <button type="button" id="payment-status-save" class="btn btn-sm btn-primary">{{ __('variables.payment_status_save') }}</button>
+                            @if ($orders->payment_status === \App\Enums\PaymentStatus::Paid && $orders->pay_method === 'card')
+                                <button type="button" id="payment-refund" class="btn btn-sm btn-outline-danger">{{ __('variables.payment_refund_button') }}</button>
+                            @endif
+                        </div>
+                    </div>
+
+                    @if ($payment_status_logs->isNotEmpty())
+                        <div class="border rounded p-3 mb-3">
+                            <strong>{{ __('variables.payment_status_history') }}</strong>
+                            <table class="table table-sm mb-0 mt-2">
+                                <thead>
+                                <tr>
+                                    <th>{{ __('variables.payment_status_history_date') }}</th>
+                                    <th>{{ __('variables.payment_status_history_from') }}</th>
+                                    <th>{{ __('variables.payment_status_history_to') }}</th>
+                                    <th>{{ __('variables.payment_status_history_source') }}</th>
+                                    <th>{{ __('variables.payment_status_history_admin') }}</th>
+                                    <th>{{ __('variables.payment_status_history_comment') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($payment_status_logs as $log)
+                                    <tr>
+                                        <td>{{ getDefaultDateFormat($log->created_at) }}</td>
+                                        <td>{{ $log->from_status ? \App\Enums\PaymentStatus::from($log->from_status)->label() : '—' }}</td>
+                                        <td>{{ \App\Enums\PaymentStatus::from($log->to_status)->label() }}</td>
+                                        <td>{{ $log->source }}</td>
+                                        <td>{{ $log->changedByAdmin->name ?? '—' }}</td>
+                                        <td>{{ $log->comment ?? '—' }}</td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    <script>
+                        document.getElementById('payment-status-save').addEventListener('click', function () {
+                            // form-urlencoded, not JSON — this app's request pipeline
+                            // does not parse a JSON body correctly (confirmed while
+                            // testing this widget), and it matches how the existing
+                            // changeActive AJAX calls in custom.js already post data.
+                            var body = new URLSearchParams({
+                                id: {{ $orders->id }},
+                                payment_status: document.getElementById('payment-status-select').value,
+                                comment: document.getElementById('payment-status-comment').value,
+                            });
+                            fetch('{{ urlForFunctionLanguage($lang, 'orders/changePaymentStatus') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                },
+                                body: body,
+                            })
+                                .then(r => {
+                                    if (r.status === 419) throw new Error('Сессия/CSRF-токен устарели — обновите страницу (F5) и попробуйте снова.');
+                                    if (!r.ok) throw new Error('Сервер вернул ошибку ' + r.status);
+                                    return r.json();
+                                })
+                                .then(response => {
+                                    if (response.status === true) {
+                                        document.getElementById('payment-status-current').textContent = response.text;
+                                        document.getElementById('payment-status-comment').value = '';
+                                        if (window.Notiflix) {
+                                            Notiflix.Notify.info(response.messages[0]);
+                                        } else {
+                                            alert(response.messages[0]);
+                                        }
+                                        // reload so the history table below (server-rendered) picks up the new row
+                                        setTimeout(() => location.reload(), 800);
+                                    } else {
+                                        const msg = (response.messages && response.messages[0]) || 'Error';
+                                        if (window.Notiflix) {
+                                            Notiflix.Notify.failure(msg);
+                                        } else {
+                                            alert(msg);
+                                        }
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('changePaymentStatus failed:', err);
+                                    if (window.Notiflix) {
+                                        Notiflix.Notify.failure(err.message);
+                                    } else {
+                                        alert(err.message);
+                                    }
+                                });
+                        });
+
+                        const refundBtn = document.getElementById('payment-refund');
+                        if (refundBtn) {
+                            refundBtn.addEventListener('click', function () {
+                                if (!confirm('{{ __('variables.payment_refund_confirm') }}')) return;
+                                fetch('{{ urlForFunctionLanguage($lang, 'orders/refundPayment') }}', {
+                                    method: 'POST',
+                                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                    body: new URLSearchParams({ id: {{ $orders->id }} }),
+                                })
+                                    .then(r => {
+                                        if (r.status === 419) throw new Error('Сессия/CSRF-токен устарели — обновите страницу (F5) и попробуйте снова.');
+                                        if (!r.ok) throw new Error('Сервер вернул ошибку ' + r.status);
+                                        return r.json();
+                                    })
+                                    .then(response => {
+                                        const msg = (response.messages && response.messages[0]) || 'Error';
+                                        if (response.status === true) {
+                                            document.getElementById('payment-status-current').textContent = response.text;
+                                            refundBtn.remove();
+                                        }
+                                        if (window.Notiflix) {
+                                            response.status === true ? Notiflix.Notify.info(msg) : Notiflix.Notify.failure(msg);
+                                        } else {
+                                            alert(msg);
+                                        }
+                                        if (response.status === true) {
+                                            setTimeout(() => location.reload(), 800);
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error('refundPayment failed:', err);
+                                        if (window.Notiflix) {
+                                            Notiflix.Notify.failure(err.message);
+                                        } else {
+                                            alert(err.message);
+                                        }
+                                    });
+                            });
+                        }
+                    </script>
+
                     <hr/>
                     <div class="table-responsive">
                         <table class="table mb-0">

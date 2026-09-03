@@ -55,6 +55,7 @@
                                     <th scope="col" class="text-center">{{__('variables.total_price')}}</th>
                                     <th scope="col" class="text-center">{{__('variables.delivery_method')}}</th>
                                     <th scope="col" class="text-center">{{__('variables.pay_method')}}</th>
+                                    <th scope="col" class="text-center">{{__('variables.payment_status')}}</th>
                                     <th scope="col" class="text-center">{{__('variables.date_table')}}</th>
                                     @if($groupSubRelations->active == 1)
                                         {{--<th scope="col" class="text-center">{{__('variables.active_table')}}</th>--}}
@@ -110,6 +111,17 @@
                                         </td>
                                         <td class="text-center">
                                             <span>{{$one_order->pay_method ?? ''}}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            @php
+                                                $paymentBadgeClass = match ($one_order->payment_status) {
+                                                    \App\Enums\PaymentStatus::Paid => 'bg-success',
+                                                    \App\Enums\PaymentStatus::Failed => 'bg-danger',
+                                                    \App\Enums\PaymentStatus::Cancelled => 'bg-dark',
+                                                    default => 'bg-warning text-dark',
+                                                };
+                                            @endphp
+                                            <span class="badge {{ $paymentBadgeClass }}">{{ $one_order->payment_status?->label() ?? '—' }}</span>
                                         </td>
                                         <td class="text-center">
                                             <span

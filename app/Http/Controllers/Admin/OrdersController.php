@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\PaymentStatus;
+use App\Exceptions\Payment\InvalidPaymentStatusTransitionException;
 use App\Http\Controllers\Controller;
 use App\Models\Basket;
+use App\Models\OrderPaymentStatusLog;
 use App\Models\Orders;
 use App\Services\FacebookAds\FacebookPixelConversion;
 use App\Services\GA4\GoogleEcommerce;
 use App\Services\Integration\OrderIntegrationService;
+use App\Services\Payment\OrderPaymentStatusService;
+use App\Services\Payment\Victoriabank\VictoriaBankClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
 
 
 class OrdersController extends Controller
@@ -76,6 +82,125 @@ class OrdersController extends Controller
 
     }
 
+    /**
+     * Epic 1 / 1.4 — manual payment status override for force-majeure cases.
+     * Goes through OrderPaymentStatusService like every other transition, but
+     * with force=true since an admin is explicitly allowed to make a jump the
+     * automatic flow would otherwise block (documented, not silent).
+     */
+    public function changePaymentStatus(Request $request, OrderPaymentStatusService $paymentStatusService)
+    {
+        $id = $request->input('id');
+        $statusValue = $request->input('payment_status');
+        $comment = $request->input('comment');
+
+        $order = Orders::find($id);
+        if (is_null($order)) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => [controllerTrans('variables.something_wrong', LANG)]
+            ]);
+        }
+
+        $newStatus = PaymentStatus::tryFrom((string) $statusValue);
+        if (is_null($newStatus)) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['Unknown payment status: ' . $statusValue]
+            ]);
+        }
+
+        try {
+            $paymentStatusService->transition(
+                order: $order,
+                to: $newStatus,
+                source: 'admin',
+                changedByAdminId: Auth::id(),
+                comment: $comment,
+                force: true,
+            );
+        } catch (InvalidPaymentStatusTransitionException $e) {
+            // force=true means this should not happen, but keep the guard —
+            // a thrown exception here is a bug, not an expected admin flow.
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => [$e->getMessage()]
+            ]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'type' => 'info',
+            'text' => $newStatus->label(),
+            'messages' => ['Статус оплаты изменён на «' . $newStatus->label() . '»'],
+        ]);
+    }
+
+    /**
+     * TRTYPE=24 — refund a paid VictoriaBank order. Only reachable for
+     * orders already in Paid status; the bank itself rejects a second
+     * reversal on the same transaction (RC=95), so this doesn't need its
+     * own idempotency guard beyond that.
+     */
+    public function refundPayment(Request $request, VictoriaBankClient $client, OrderPaymentStatusService $paymentStatusService)
+    {
+        $id = $request->input('id');
+
+        $order = Orders::find($id);
+        if (is_null($order) || $order->payment_status !== PaymentStatus::Paid) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['Order is not in a refundable state.'],
+            ]);
+        }
+
+        $payment = $order->payments()->where('provider', 'victoriabank')->whereNotNull('confirmed_at')->latest()->first();
+        if (is_null($payment) || !$payment->rrn) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['No confirmed VictoriaBank payment found for this order.'],
+            ]);
+        }
+
+        $amount = (float) $payment->amount_bani / 100;
+        $result = $client->reverse((string) $order->id, $amount, $payment->rrn, (string) $payment->int_ref);
+
+        if (($result['RC'] ?? null) !== '00') {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['Bank rejected the refund: RC=' . ($result['RC'] ?? '?')],
+            ]);
+        }
+
+        $payment->update(['provider_status' => 'REFUND RC=00']);
+
+        try {
+            $paymentStatusService->transition(
+                order: $order,
+                to: PaymentStatus::Cancelled,
+                source: 'admin',
+                changedByAdminId: Auth::id(),
+                comment: 'Refunded via TRTYPE=24, RRN=' . $payment->rrn,
+                force: true,
+            );
+        } catch (InvalidPaymentStatusTransitionException $e) {
+            return response()->json(['status' => false, 'type' => 'error', 'messages' => [$e->getMessage()]]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'type' => 'info',
+            'text' => PaymentStatus::Cancelled->label(),
+            'messages' => ['Возврат выполнен, статус изменён на «' . PaymentStatus::Cancelled->label() . '»'],
+        ]);
+    }
+
     public function editItem($id)
     {
         $view = 'admin.orders.edit-order';
@@ -102,6 +227,11 @@ class OrdersController extends Controller
             ->get();
 
         $basket = Basket::whereRaw('basket_id = (SELECT basket_id FROM orders where id=' . $id . ')')
+            ->get();
+
+        $payment_status_logs = OrderPaymentStatusLog::where('orders_id', $id)
+            ->with('changedByAdmin')
+            ->orderByDesc('created_at')
             ->get();
 
         return view($view, get_defined_vars());

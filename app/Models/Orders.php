@@ -32,6 +32,11 @@ class Orders extends Model
         return $this->hasMany(OrderPaymentStatusLog::class, 'orders_id', 'id')->orderBy('created_at', 'desc');
     }
 
+    public function payments()
+    {
+        return $this->hasMany(OrderPayment::class, 'orders_id', 'id')->orderBy('created_at', 'desc');
+    }
+
     public function ordersData()
     {
         return $this->hasOne('App\Models\OrdersData', 'orders_id', 'id')->withDefault();

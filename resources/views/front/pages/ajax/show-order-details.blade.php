@@ -4,7 +4,7 @@
         <div class="order-details-col">
             <p><b>{{ ShowLabelById(84) }}</b></p>
             <p>{{ ShowLabelById(85) }}: {{ getDefaultDateFormat($order->created_at) }}</p>
-            <p>{{ ShowLabelById(74) }}: achitat</p>
+            <p>{{ ShowLabelById(74) }}: {{ $order->payment_status?->label() ?? __('variables.payment_status_pending') }}</p>
             <p>{{ ShowLabelById(86) }}: tracking</p>
         </div>
         <div class="order-details-col">

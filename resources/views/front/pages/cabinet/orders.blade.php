@@ -30,8 +30,8 @@
                                         <th>{{ ShowLabelById(71) }}</th>
                                         <th>{{ ShowLabelById(72) }}</th>
                                         <th>{{ ShowLabelById(73) }}</th>
+                                        <th style="text-align: center;">{{ __('variables.payment_status') }}</th>
 										{{--
-                                        <th style="text-align: center;">{{ ShowLabelById(74) }}</th>
                                         <th style="text-align: center;">{{ ShowLabelById(75) }}</th>
 										--}}
                                         <th></th>
@@ -45,8 +45,8 @@
                                             <td>{{ getDefaultDateFormat($one_order->created_at) }}</td>
                                             <td>{{ $one_order->ordersData && $one_order->ordersData->total_price ? $one_order->ordersData->total_price : 0  }} {{ ShowLabelById(3) }}</td>
                                             <td>{{ ShowLabelById(76) }}</td>
+                                            <td align="center">{{ $one_order->payment_status?->label() ?? __('variables.payment_status_pending') }}</td>
 											{{--
-                                            <td align="center">Achitat</td>
                                             <td align="center">
                                                 <div class="cabinet-table-status">
                                                     <a href="javascript:;">Tracking</a>
