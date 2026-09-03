@@ -38,6 +38,19 @@ fi
 echo "==> Restarting queue/scheduler (they crash-loop until vendor/ exists)"
 docker compose restart queue scheduler
 
+# database/sql/*.sql — raw idempotent schema/data patches (per
+# backend-handoff.md: "выполнить на проде при деплое — все идемпотентны").
+# Not part of artisan migrate; applying them here so a fresh local DB
+# doesn't silently miss real data (e.g. shop coordinates) that features
+# depend on.
+if compgen -G "database/sql/*.sql" > /dev/null; then
+  echo "==> Applying database/sql/*.sql (idempotent, safe to re-run)"
+  for f in database/sql/*.sql; do
+    echo "    $f"
+    docker compose exec -T db mysql -uroot -proot "${DB_DATABASE:-efrumos}" < "$f"
+  done
+fi
+
 echo
 echo "Done. Site:    http://localhost:${APP_PORT:-8080}"
 echo "      Mailhog: http://localhost:8025"
