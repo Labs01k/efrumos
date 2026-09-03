@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Contracts\Integration\BitrixDealGateway;
 use App\Contracts\Integration\OneCOrderGateway;
+use App\Contracts\OrderIntegrationNotifier;
 use App\Services\Integration\Bitrix24\LoggingBitrixDealGateway;
 use App\Services\Integration\OneC\SoapOneCOrderGateway;
+use App\Services\Integration\OneCBitrixOrderIntegrationNotifier;
 use App\Services\Payment\Victoriabank\VictoriaBankClient;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
         // the class docblock) so the rest of Epic 1's order flow doesn't
         // block on it — swap for a real REST client once credentials exist.
         $this->app->bind(BitrixDealGateway::class, LoggingBitrixDealGateway::class);
+
+        // Epic 1 / 1.3 — real notifier: forwards the payment status onto the
+        // 1С document + Bitrix24 deal (markPaid/updateDealStatus), through
+        // the same gateways bound above.
+        $this->app->bind(OrderIntegrationNotifier::class, OneCBitrixOrderIntegrationNotifier::class);
     }
 
     /**
