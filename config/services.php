@@ -2,6 +2,13 @@
 
 return [
 
+    'integration' => [
+        // Epic 0 / 0.4 — who gets notified when 1С/Bitrix24 sync exhausts
+        // its retries. Empty by default: no address is known yet, and the
+        // job logs critically either way, so this degrades safely.
+        'alert_email' => env('INTEGRATION_ALERT_EMAIL'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

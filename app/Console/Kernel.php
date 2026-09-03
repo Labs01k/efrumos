@@ -16,6 +16,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
+
+        // Epic 0 / 0.4 — catch any 1С/Bitrix24 desync that slipped past the
+        // per-job retry alert.
+        $schedule->command('integration:check-desync')->daily();
     }
 
     /**
