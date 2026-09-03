@@ -20,25 +20,23 @@ personal_access_tokens) — весь основной каталог/заказ�
 ## Первый запуск
 
 ```bash
-cp .env.docker.example .env
-# при необходимости положи дамп в docker/mysql-init/ (см. README там же)
-
-docker compose build
-
-# `db` — теперь под профилем `local-db` (на сервере база уже есть как хост-сервис,
-# в контейнере не нужна — см. efrumos-docs/deploy-investigation.md).
-# Локально запускаем с этим профилем:
-docker compose --profile local-db up -d db redis mailhog
-docker compose up -d app nginx node   # node теперь по умолчанию — без него нет CSS/JS
-
-docker compose exec app composer install
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate   # накатит только 4 "новых" миграции поверх дампа
+# при необходимости положи дамп в docker/mysql-init/ (см. README там же) —
+# только на самый первый запуск, до первого docker compose up для db
+bin/local-up.sh
 ```
 
-Короче: локально всегда добавляй `--profile local-db`, иначе БД не поднимется.
-На сервере (`DB_HOST` смотрит на реальный MariaDB хоста) профиль просто не
-указываешь.
+Скрипт сам: копирует `.env.docker.example` → `.env` при первом запуске,
+поднимает контейнеры (`db` — под профилем `local-db`, он на локали нужен;
+на сервере — нет, там реальный MariaDB как хост-сервис, см.
+`efrumos-docs/deploy-investigation.md`), чинит права на volume `vendor`/
+`node_modules` (Docker создаёт их из-под root, контейнер работает под uid
+1000), ставит composer-зависимости и генерирует `APP_KEY`, если их ещё нет.
+Идемпотентен — можно гонять повторно.
+
+Руками после первого запуска (не входит в скрипт, т.к. может быть разрушительно):
+```bash
+docker compose exec app php artisan migrate   # накатит только 4 "новых" миграции поверх дампа
+```
 
 Сайт: http://localhost:8080
 Mailhog (письма): http://localhost:8025

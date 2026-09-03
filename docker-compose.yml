@@ -10,6 +10,11 @@ services:
         GID: ${GID:-1000}
     volumes:
       - .:/var/www/html
+      # vendor/ lives in a real Docker volume (fast, native WSL2 filesystem),
+      # not the Windows-host bind mount above — composer/artisan touching
+      # thousands of small vendor files across the Windows<->WSL2 boundary is
+      # what actually causes the freezes, not the app code itself.
+      - efrumos_vendor:/var/www/html/vendor
     depends_on:
       - redis
     environment:
@@ -26,6 +31,11 @@ services:
         GID: ${GID:-1000}
     volumes:
       - .:/var/www/html
+      # vendor/ lives in a real Docker volume (fast, native WSL2 filesystem),
+      # not the Windows-host bind mount above — composer/artisan touching
+      # thousands of small vendor files across the Windows<->WSL2 boundary is
+      # what actually causes the freezes, not the app code itself.
+      - efrumos_vendor:/var/www/html/vendor
     depends_on:
       - redis
     environment:
@@ -46,6 +56,11 @@ services:
         GID: ${GID:-1000}
     volumes:
       - .:/var/www/html
+      # vendor/ lives in a real Docker volume (fast, native WSL2 filesystem),
+      # not the Windows-host bind mount above — composer/artisan touching
+      # thousands of small vendor files across the Windows<->WSL2 boundary is
+      # what actually causes the freezes, not the app code itself.
+      - efrumos_vendor:/var/www/html/vendor
     depends_on:
       - redis
     environment:
@@ -110,9 +125,15 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
+      # Same reasoning as vendor/ above — node_modules is the other classic
+      # source of Windows-host<->WSL2 bind-mount freezes (npm installs are
+      # even worse than composer for tiny-file counts).
+      - efrumos_node_modules:/var/www/html/node_modules
     ports:
       - "5173:5173"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
 
 volumes:
   efrumos_db_data:
+  efrumos_vendor:
+  efrumos_node_modules:
