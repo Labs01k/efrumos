@@ -40,6 +40,25 @@ class SoapOneCOrderGateway implements OneCOrderGateway
             return [];
         }
 
+        // TEMPORARY — ONEC_FORCE_STOCK_OK. 1С has no real reserve/create
+        // endpoint yet (see class docblock), so testing the rest of the
+        // integration chain (submitOrder -> synced -> markPaid ->
+        // updateDealStatus) currently depends on whatever real stock number
+        // happens to be seeded for the test order's SKU. If it's genuinely
+        // low/zero, submitOrder() correctly throws InsufficientStockException
+        // and the job retries forever without ever reaching 'synced' — which
+        // blocks testing everything downstream, not just the stock check.
+        // With the flag on, every requested SKU is reported as having stock,
+        // regardless of the real number — remove this once 1С exposes a real
+        // reserve endpoint and this whole gateway stops being a stub.
+        if (config('services.onec.force_stock_ok')) {
+            Log::warning('[1С TEMP OVERRIDE] ONEC_FORCE_STOCK_OK is on — checkStock() ignoring real stock, reporting all requested SKUs as available', [
+                'skus' => $skuCodes,
+            ]);
+
+            return array_fill_keys($skuCodes, PHP_INT_MAX);
+        }
+
         $stockByCode = GoodsItemId::whereIn('one_c_code', $skuCodes)
             ->pluck('products_count', 'one_c_code');
 

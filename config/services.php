@@ -98,6 +98,11 @@ return [
         'wsdl_url' => env('APP_ENV') === 'production'
             ? env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')
             : env('SOAP_1C_API_TEST_URL', env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')),
+
+        // TEMPORARY — see SoapOneCOrderGateway::checkStock() docblock. Off
+        // by default even outside production, so a stray env copy doesn't
+        // silently mask a real out-of-stock order.
+        'force_stock_ok' => env('ONEC_FORCE_STOCK_OK', false),
     ],
 
 ];
