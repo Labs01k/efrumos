@@ -1,0 +1,68 @@
+# Локальный запуск в Docker
+
+## Что где
+
+- `Dockerfile` — PHP 8.1-FPM с расширениями, нужными проекту (`soap` — для интеграции
+  с 1С через `SoapClient`, `gd`/`zip`/`bcmath`/`intl` — под Excel-экспорт, изображения, штрихкоды).
+- `docker-compose.yml` — сервисы: `app` (php-fpm), `nginx`, `db` (MariaDB), `redis`,
+  `mailhog` (перехват писем локально), `node` (сборка фронта через vite, опционально).
+- `docker/mysql-init/` — сюда кладётся дамп для первого запуска БД (см. `docker/mysql-init/README.md`).
+- `.env.docker.example` — env под докер (хосты сервисов, тестовый адрес 1С).
+
+## Почему БД поднимается из дампа, а не через `artisan migrate`
+
+В проекте только 4 Laravel-миграции (users, password_resets, failed_jobs,
+personal_access_tokens) — весь основной каталог/заказы/корзина исторически не
+мигрированы, это просто SQL-схема. Поэтому единственный рабочий способ поднять
+локальную БД, максимально похожую на прод — это залить существующий дамп, а не
+накатывать миграции с нуля.
+
+## Первый запуск
+
+```bash
+cp .env.docker.example .env
+# при необходимости положи дамп в docker/mysql-init/ (см. README там же)
+
+docker compose build
+
+# `db` — теперь под профилем `local-db` (на сервере база уже есть как хост-сервис,
+# в контейнере не нужна — см. efrumos-docs/deploy-investigation.md).
+# Локально запускаем с этим профилем:
+docker compose --profile local-db up -d db redis mailhog
+docker compose up -d app nginx node   # node теперь по умолчанию — без него нет CSS/JS
+
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate   # накатит только 4 "новых" миграции поверх дампа
+```
+
+Короче: локально всегда добавляй `--profile local-db`, иначе БД не поднимется.
+На сервере (`DB_HOST` смотрит на реальный MariaDB хоста) профиль просто не
+указываешь.
+
+Сайт: http://localhost:8080
+Mailhog (письма): http://localhost:8025
+
+## 1С: прод vs тест
+
+⚠️ На этой ветке (докеризация чистого `main`) адрес WSDL 1С всё ещё
+захардкожен прямо в коде (`GoodsRequest1C::BASE_API_URL`,
+`ImportFrom1C::$baseApiUrl`) — оба указывают на боевую базу solvex
+(`/svx/ws/...`). Локальный докер-стенд по умолчанию **будет ходить в прод-1С**
+при любом действии, которое дёргает эти классы (обновление товара из 1С и т.д.).
+Если нужно тестировать эти функции — либо руками подменить URL в коде на
+`http://agent.solvex.md/test_db/ws/ws_ef.1cws?wsdl` локально (не коммитить),
+либо сказать — накину локальный SOAP-мок с фикстурами.
+
+## Реальные интеграционные ключи в `.env.docker.example`
+
+`RE_CAP_*`, `GOOGLE_MAP_API`, `FACEBOOK_CLIENT_*`, `GOOGLE_CLIENT_*`,
+`FACEBOOK_PIXEL_*` — настоящие ключи из прод-`.env` (реально используются
+кодом на `main`, проверено по `config/services.php`/`helpers.php`). Взяты
+намеренно — это ключи, которыми приложение представляется провайдеру, не
+данные клиентов. DB/mail-креды и `APP_KEY` — НЕ из прода, локальные/пустые.
+
+## Смена пароля к БД
+
+Дефолтные `efrumos`/`efrumos`/`root` в `docker-compose.yml` — только для
+локалки, менять не обязательно, наружу (кроме твоей машины) они не торчат.

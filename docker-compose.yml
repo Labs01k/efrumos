@@ -1,0 +1,118 @@
+name: efrumos
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - redis
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - MAIL_HOST=mailhog
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - redis
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - MAIL_HOST=mailhog
+    # Processes queued jobs for real — without this, QUEUE_CONNECTION=redis
+    # jobs just pile up unprocessed (they no longer run inline like on `sync`).
+    command: php artisan queue:work --sleep=3
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - redis
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - MAIL_HOST=mailhog
+    # Laravel's foreground scheduler loop — runs whatever's due in
+    # app/Console/Kernel.php's schedule() (empty by default on this branch).
+    command: php artisan schedule:work
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    # Opt-in — on a server the real MariaDB is already a host service (see
+    # efrumos-docs/deploy-investigation.md), so `docker compose up` there
+    # shouldn't spin up a second one. Locally: `docker compose --profile
+    # local-db up -d`.
+    profiles:
+      - local-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${DB_DATABASE:-efrumos}
+      MYSQL_USER: ${DB_USERNAME:-efrumos}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-efrumos}
+    ports:
+      - "${FORWARD_DB_PORT:-3306}:3306"
+    volumes:
+      - efrumos_db_data:/var/lib/mysql
+      # Drop a *.sql or *.sql.gz dump here (see docker/mysql-init/README.md) —
+      # it's imported automatically only on the very first container start.
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # web UI
+      - "1025:1025" # smtp
+
+  # Not opt-in — app's Blade views load Vite-built assets, so without this
+  # running (dev server locally, or a one-off build on a server) the site
+  # has no CSS/JS.
+  node:
+    image: node:18-alpine
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  efrumos_db_data:
