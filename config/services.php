@@ -7,6 +7,16 @@ return [
         // its retries. Empty by default: no address is known yet, and the
         // job logs critically either way, so this degrades safely.
         'alert_email' => env('INTEGRATION_ALERT_EMAIL'),
+
+        // TEMPORARY — single flag covering every 1С/Bitrix24 call made
+        // during order processing (SoapOneCOrderGateway, LoggingBitrixDeal-
+        // Gateway). true (default everywhere, including production): stock
+        // check always reports "enough", every write always "succeeds" —
+        // the whole integration chain reaches synced regardless of real
+        // data. false: real stock check, every write throws
+        // IntegrationGatewayException — as honest as currently possible,
+        // since neither system has a real write endpoint/credentials yet.
+        'mock_mode' => env('INTEGRATION_MOCK_MODE', true),
     ],
 
     /*
@@ -98,11 +108,6 @@ return [
         'wsdl_url' => env('APP_ENV') === 'production'
             ? env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')
             : env('SOAP_1C_API_TEST_URL', env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')),
-
-        // TEMPORARY — see SoapOneCOrderGateway::checkStock() docblock. Off
-        // by default even outside production, so a stray env copy doesn't
-        // silently mask a real out-of-stock order.
-        'force_stock_ok' => env('ONEC_FORCE_STOCK_OK', false),
     ],
 
 ];

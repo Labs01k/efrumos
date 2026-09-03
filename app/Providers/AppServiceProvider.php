@@ -23,14 +23,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(VictoriaBankClient::class, fn () => VictoriaBankClient::fromConfig());
 
-        // checkStock() is real (same GetSKUArray SOAP operation the catalog
-        // sync already uses); reserveOrder()/releaseReservation()/markPaid()
-        // stay logging-only because the WSDL has no such operation.
+        // INTEGRATION_MOCK_MODE (services.integration.mock_mode, default
+        // true) — the single flag both of these gateways read internally
+        // (see their own mock_mode branches) to decide whether to mock
+        // every 1С/Bitrix24 call (stock always "enough", writes always
+        // "succeed") or behave as honestly as currently possible: real stock
+        // check, and a clear IntegrationGatewayException on every write,
+        // since neither system has a real write endpoint/credentials yet.
+        // The binding itself doesn't change — there is no real
+        // implementation to swap in yet, only these two classes' internal
+        // behavior changes with the flag.
         $this->app->bind(OneCOrderGateway::class, SoapOneCOrderGateway::class);
-
-        // No Bitrix24 credentials exist yet. Deliberately never throws (see
-        // the class docblock) so the rest of Epic 1's order flow doesn't
-        // block on it — swap for a real REST client once credentials exist.
         $this->app->bind(BitrixDealGateway::class, LoggingBitrixDealGateway::class);
 
         // Epic 1 / 1.3 — real notifier: forwards the payment status onto the

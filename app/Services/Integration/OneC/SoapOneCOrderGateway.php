@@ -3,6 +3,7 @@
 namespace App\Services\Integration\OneC;
 
 use App\Contracts\Integration\OneCOrderGateway;
+use App\Exceptions\Integration\IntegrationGatewayException;
 use App\Models\GoodsItemId;
 use App\Models\Orders;
 use Illuminate\Support\Facades\Log;
@@ -28,9 +29,15 @@ use Illuminate\Support\Str;
  *     guessed placeholder values.
  * So this reads the same real, 1С-sourced number the site already trusts
  * elsewhere (catalog pages, "in stock" badges) instead of adding an
- * unreliable/slow live round trip. reserveOrder()/releaseReservation()/
- * markPaid() stay logging-only: the WSDL only binds GetSKU/GetSKUArray —
- * there is no order/reservation operation to call at all yet.
+ * unreliable/slow live round trip.
+ *
+ * reserveOrder()/releaseReservation()/markPaid() have no real 1С operation
+ * to call at all — the WSDL only binds GetSKU/GetSKUArray. Behaviour for
+ * all four methods is gated by the single INTEGRATION_MOCK_MODE flag
+ * (services.integration.mock_mode, default true everywhere): mocked (log +
+ * fake success) when on, a clear IntegrationGatewayException when off —
+ * "as honest as currently possible" rather than a silent no-op, since off
+ * doesn't mean a real implementation exists, it means there isn't one.
  */
 class SoapOneCOrderGateway implements OneCOrderGateway
 {
@@ -40,19 +47,8 @@ class SoapOneCOrderGateway implements OneCOrderGateway
             return [];
         }
 
-        // TEMPORARY — ONEC_FORCE_STOCK_OK. 1С has no real reserve/create
-        // endpoint yet (see class docblock), so testing the rest of the
-        // integration chain (submitOrder -> synced -> markPaid ->
-        // updateDealStatus) currently depends on whatever real stock number
-        // happens to be seeded for the test order's SKU. If it's genuinely
-        // low/zero, submitOrder() correctly throws InsufficientStockException
-        // and the job retries forever without ever reaching 'synced' — which
-        // blocks testing everything downstream, not just the stock check.
-        // With the flag on, every requested SKU is reported as having stock,
-        // regardless of the real number — remove this once 1С exposes a real
-        // reserve endpoint and this whole gateway stops being a stub.
-        if (config('services.onec.force_stock_ok')) {
-            Log::warning('[1С TEMP OVERRIDE] ONEC_FORCE_STOCK_OK is on — checkStock() ignoring real stock, reporting all requested SKUs as available', [
+        if (config('services.integration.mock_mode')) {
+            Log::warning('[1С MOCK] checkStock — INTEGRATION_MOCK_MODE is on, ignoring real stock, reporting all requested SKUs as available', [
                 'skus' => $skuCodes,
             ]);
 
@@ -72,9 +68,15 @@ class SoapOneCOrderGateway implements OneCOrderGateway
 
     public function reserveOrder(Orders $order): string
     {
-        $fakeId = '1C-NOENDPOINT-' . $order->id . '-' . strtoupper(Str::random(6));
+        if (!config('services.integration.mock_mode')) {
+            throw new IntegrationGatewayException(
+                "1С reserveOrder: no real order/reservation operation exists in the WSDL for order #{$order->id}."
+            );
+        }
 
-        Log::info('[1С — no order/reservation operation on the WSDL] reserveOrder — minted a placeholder document id', [
+        $fakeId = '1C-MOCK-' . $order->id . '-' . strtoupper(Str::random(6));
+
+        Log::info('[1С MOCK] reserveOrder — no real operation exists, minted a placeholder document id', [
             'orders_id' => $order->id,
             'onec_document_id' => $fakeId,
         ]);
@@ -84,12 +86,24 @@ class SoapOneCOrderGateway implements OneCOrderGateway
 
     public function releaseReservation(string $onecDocumentId): void
     {
-        Log::info('[1С — no order/reservation operation on the WSDL] releaseReservation', ['onec_document_id' => $onecDocumentId]);
+        if (!config('services.integration.mock_mode')) {
+            throw new IntegrationGatewayException(
+                "1С releaseReservation: no real order/reservation operation exists in the WSDL (document {$onecDocumentId})."
+            );
+        }
+
+        Log::info('[1С MOCK] releaseReservation', ['onec_document_id' => $onecDocumentId]);
     }
 
     public function markPaid(string $onecDocumentId, float $amount, string $paymentId): void
     {
-        Log::info('[1С — no order/reservation operation on the WSDL] markPaid', [
+        if (!config('services.integration.mock_mode')) {
+            throw new IntegrationGatewayException(
+                "1С markPaid: no real operation exists in the WSDL (document {$onecDocumentId})."
+            );
+        }
+
+        Log::info('[1С MOCK] markPaid', [
             'onec_document_id' => $onecDocumentId,
             'amount' => $amount,
             'payment_id' => $paymentId,
