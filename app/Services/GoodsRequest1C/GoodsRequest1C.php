@@ -7,8 +7,6 @@ use Illuminate\Support\Facades\Validator;
 
 class GoodsRequest1C
 {
-    const BASE_API_URL = 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl';
-
     /**
      * @param $type
      * @return array|mixed
@@ -28,7 +26,7 @@ class GoodsRequest1C
             'compression' => SOAP_COMPRESSION_ACCEPT | SOAP_COMPRESSION_GZIP | SOAP_COMPRESSION_DEFLATE,
         ];
 
-        $soapclient = new \SoapClient(self::BASE_API_URL, $connectParams);
+        $soapclient = new \SoapClient(config('services.onec.wsdl_url'), $connectParams);
 
         $response = $soapclient->GetSKUArray(['SKUArray' => $goods_guid_array, 'SiteType' => 'EF']);
 

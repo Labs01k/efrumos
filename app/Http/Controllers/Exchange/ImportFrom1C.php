@@ -12,10 +12,12 @@ use Illuminate\Support\Str;
 class ImportFrom1C extends Controller
 {
 
-    // TEST SERVER 1C
-    //public $baseApiUrl = 'http://agent.solvex.md/test_db/ws/ws_ef.1cws?wsdl';
+    public $baseApiUrl;
 
-    public $baseApiUrl = 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl';
+    public function __construct()
+    {
+        $this->baseApiUrl = config('services.onec.wsdl_url');
+    }
 
     public function fullExchange()
     {

@@ -83,4 +83,14 @@ return [
         'merch_gmt' => '+2',
     ],
 
+    'onec' => [
+        // SOAP_1C_API_TEST_URL / SOAP_1C_API_LIVE_URL already existed in the
+        // production .env (unused until now). Production keeps APP_ENV=production
+        // and picks the live endpoint automatically; any other env (local/staging)
+        // picks the test one, falling back to the live URL if TEST isn't set.
+        'wsdl_url' => env('APP_ENV') === 'production'
+            ? env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')
+            : env('SOAP_1C_API_TEST_URL', env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')),
+    ],
+
 ];
