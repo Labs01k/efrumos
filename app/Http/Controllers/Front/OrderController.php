@@ -457,10 +457,68 @@ class OrderController extends Controller
             ]);
     }
 
-    public function checkoutSuccess()
+    /**
+     * [FE+BE] Экран возврата с оплаты — reached two ways:
+     * 1. Normal cash checkout (session flags set in ajaxNewOrder above).
+     * 2. Bank redirect for a card order (VictoriaBankController::backref),
+     *    which passes ?order= instead — no session flags, because the
+     *    customer's browser round-tripped through the bank in between.
+     *
+     * Either way, the actual payment_status shown here always comes from
+     * the order itself, never from the bank's redirect query params —
+     * those are informational only, per the task's own acceptance criteria.
+     */
+    public function checkoutSuccess(Request $request)
     {
+        $bankOrderId = $request->query('order');
+
+        if ($bankOrderId) {
+            $order = Orders::where('id', (int) $bankOrderId)
+                ->where('pay_method', 'card')
+                ->with('ordersData', 'basket')
+                ->first();
+
+            if (!$order) {
+                return redirect(url(LANG));
+            }
+
+            $view = 'front.pages.checkout.success';
+            $orders = $order;
+            $payment_outcome = match ($order->payment_status) {
+                \App\Enums\PaymentStatus::Paid => 'paid',
+                \App\Enums\PaymentStatus::Failed, \App\Enums\PaymentStatus::Cancelled => 'failed',
+                default => 'processing',
+            };
+
+            if ($payment_outcome === 'paid' && $orders->basket->isNotEmpty()) {
+                $goods_objects = GoogleEcommerce::goodsCollectionsToObjects($orders->basket, 1);
+                $goods_items_ids = json_encode($orders->basket->pluck('goods_one_c_code')->toArray());
+                $goods_objects_fb = $orders->basket->map(fn ($item) => [
+                    'id' => $item->goods_one_c_code,
+                    'quantity' => $item->items_count,
+                    'item_price' => $item->goods_price,
+                ])->all();
+
+                $goods_collect = collect();
+                $goods_collect->num_items = $orders->ordersData->total_count;
+                $goods_collect->content_ids = $goods_items_ids;
+                $goods_collect->contents = $goods_objects_fb;
+                $goods_collect->value = priceFormatForGA4($orders->ordersData->total_count + $orders->ordersData->delivery_cost);
+                FacebookPixelConversion::pixelEvent('Purchase', $goods_collect);
+            }
+
+            $checkout_success_message = getItemByAlias('success-order-message', 'MenuId');
+            $order_id = $order->id;
+
+            $meta = collect([]);
+            $meta->meta_static = ShowLabelById(162) . ' - ' . env('APP_NAME') ?? env('APP_NAME');
+
+            return view($view, get_defined_vars());
+        }
+
         if (Session::get('if-checkout-success') == 1) {
             $view = 'front.pages.checkout.success';
+            $payment_outcome = 'paid'; // cash orders — no online payment step to wait on
 
             $order_id = Session::get('order-id');
             $goods_items_ids = [];
