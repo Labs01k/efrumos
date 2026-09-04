@@ -29,6 +29,43 @@ class ShadePalette
     }
 
     /**
+     * SEO — schema.org разметка для страницы оттенка (Epic 6). Каждый оттенок
+     * остаётся отдельной страницей (см. докблок класса), поэтому используем
+     * официальный паттерн Google для ровно этого случая — `Product` с
+     * `isVariantOf: ProductGroup`, без перечисления всех сиблингов на
+     * странице (их может быть 70+). `productGroupID` — та же линия
+     * (`brand_id`), что уже использует product_variants/ProductRecommendations.
+     */
+    public static function structuredData(GoodsItemId $goods_item, $goods_price): ?array
+    {
+        if (!self::isDye($goods_item) || !$goods_item->brand_id) {
+            return null;
+        }
+
+        $shade_number = self::shadeCode($goods_item->itemByLang->name ?? '', $goods_item->articol);
+        $in_stock = $goods_item->in_stoc && $goods_item->products_count > 0;
+
+        return [
+            '@context' => 'https://schema.org/',
+            '@type' => 'Product',
+            'name' => $goods_item->itemByLang->name ?? '',
+            'sku' => $goods_item->articol,
+            'isVariantOf' => [
+                '@type' => 'ProductGroup',
+                'productGroupID' => 'line-' . $goods_item->brand_id,
+                'name' => $goods_item->getBrand->itemByLang->name ?? null,
+            ],
+            'color' => $shade_number,
+            'offers' => [
+                '@type' => 'Offer',
+                'price' => (string) ($goods_price->price ?? ''),
+                'priceCurrency' => 'MDL',
+                'availability' => $in_stock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+            ],
+        ];
+    }
+
+    /**
      * Оттенки линейки: сам товар и его соседи по brand_id.
      * Пустая коллекция означает «палитру не показываем».
      */

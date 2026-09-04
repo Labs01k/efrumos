@@ -3,6 +3,15 @@
     <x-meta :meta="$meta"/>
 @stop
 
+{{-- Epic 6 — schema.org для оттенков красок: сигнализирует поисковику, что
+     это не дублирующий контент, а один из вариантов линии (см. докблок
+     ShadePalette::structuredData()). Пусто/не выводится для не-красок. --}}
+@if(!empty($shade_structured_data))
+@section('json-ld')
+    <script type="application/ld+json">{!! json_encode($shade_structured_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+@stop
+@endif
+
 @section('google-tag-manager')
     <script>
         //dataLayer = [];

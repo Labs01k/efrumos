@@ -51,3 +51,4 @@
 @endif
 
 @yield('google-tag-manager')
+@yield('json-ld')
