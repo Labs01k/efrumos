@@ -9,11 +9,12 @@ RUN apt-get update && apt-get install -y \
         libpng-dev \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
+        libwebp-dev \
         libzip-dev \
         libonig-dev \
         libxml2-dev \
         libicu-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" \
         pdo_mysql \
         soap \
