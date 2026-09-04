@@ -124,24 +124,18 @@ class ProductRecommendations
     }
 
     /**
-     * Товары, которые чаще всего заказывали вместе с этим за последние 12 месяцев.
-     * Позиции заказа лежат в basket, заказ ссылается на корзину через orders.basket_id.
+     * Товары, которые чаще всего заказывали вместе с этим. Читает кеш
+     * goods_frequently_bought_with, который раз в сутки пересчитывает
+     * RecalculateFrequentlyBoughtTogether (см. её докблок) — не считает
+     * вживую на каждой странице (ТЗ.md п.3.2 прямо просит этого не делать).
      */
     private static function coPurchased(GoodsItemId $goods_item, bool $without_dyes = false): Collection
     {
-        $pairs = DB::table('orders')
-            ->join('basket as current_item', 'current_item.basket_id', '=', 'orders.basket_id')
-            ->join('basket as other_item', function ($join) {
-                $join->on('other_item.basket_id', '=', 'orders.basket_id')
-                    ->whereColumn('other_item.goods_item_id', '<>', 'current_item.goods_item_id');
-            })
-            ->where('current_item.goods_item_id', $goods_item->id)
-            ->where('orders.deleted', 0)
-            ->where('orders.created_at', '>=', now()->subMonths(self::CO_PURCHASE_MONTHS))
-            ->groupBy('other_item.goods_item_id')
-            ->orderByRaw('COUNT(*) DESC')
+        $pairs = DB::table('goods_frequently_bought_with')
+            ->where('goods_item_id', $goods_item->id)
+            ->orderByDesc('pair_count')
             ->limit(self::MAX_ITEMS * 2)
-            ->pluck('other_item.goods_item_id')
+            ->pluck('related_goods_item_id')
             ->all();
 
         if (!$pairs) {
