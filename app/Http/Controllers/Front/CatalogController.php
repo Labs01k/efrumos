@@ -776,15 +776,31 @@ class CatalogController extends Controller
             ->limit(5)
             ->get();
 
+        // п.6 ТЗ — поиск по номеру/коду оттенка: артикул хранит код с «/»
+        // («DLS 9/76»), но покупатель может набрать номер с «-»/«_»/пробелом
+        // вместо «/» — нормализуем обе стороны в тот же формат, что и
+        // ShadePaletteController::normalizeCode() для CMS-загрузки фото.
+        $shade_code_query = null;
+        if (preg_match('~^\d+[\s\-_/]\d+$~', trim($search_value))) {
+            $shade_code_query = preg_replace('~[\s\-_]~', '/', trim($search_value));
+        }
+
         $search_goods_items = GoodsItemId::where('active', 1)
             ->where('deleted', 0)
             ->with('itemByLang')
-            ->where(function ($query) use ($multi_query, $multi_bindings, $search_value) {
+            ->where(function ($query) use ($multi_query, $multi_bindings, $search_value, $shade_code_query) {
                 $query->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
                     $q->whereRaw($multi_query, $multi_bindings);
                 })
                     ->orWhere('one_c_code', 'like', '%' . $search_value . '%')
                     ->orWhere('articol', 'like', '%' . $search_value . '%');
+
+                if ($shade_code_query) {
+                    $query->orWhereRaw(
+                        "REPLACE(REPLACE(REPLACE(articol, '-', '/'), '_', '/'), ' ', '/') LIKE ?",
+                        ['%' . $shade_code_query . '%']
+                    );
+                }
             })
             ->whereRaw('goods_subject_id IN(SELECT id FROM goods_subject_id WHERE active = 1 AND deleted = 0)')
             ->orderBy('position', 'asc')
