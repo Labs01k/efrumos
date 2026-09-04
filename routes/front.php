@@ -35,6 +35,7 @@ Route::middleware('FrontGlobal')->group(function () {
             Route::post('/ajaxSortPage', 'ajaxSortPage');
             Route::post('/ajaxQuickViewGoods', 'ajaxQuickViewGoods');
             Route::get('/ajaxNearestShopWithStock', 'ajaxNearestShopWithStock');
+            Route::get('/ajaxProductVariants', 'ajaxProductVariants');
 
         });
 

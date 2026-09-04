@@ -30,6 +30,7 @@ use App\Services\GA4\GoogleEcommerce;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 
 class CatalogController extends Controller
 {
@@ -892,6 +893,60 @@ class CatalogController extends Controller
             'address' => $nearest['address'],
             'distance_km' => round($nearest['distance_km'], 1),
             'qty' => $nearest['qty'],
+        ]);
+    }
+
+    /**
+     * Epic 6 — оттенки линии как варианты (ТЗ §6.2). Читает кеш
+     * product_variants (см. RebuildProductVariants) — не собирает вживую.
+     * «Код» — уникальный артикул из 1С; «номер» — тон, разобранный из
+     * названия, может повторяться между линиями (см. докблок миграции
+     * product_variants и open-decisions.md).
+     *
+     * Не создаёт новых URL и не заменяет существующие товарные страницы —
+     * `url` в ответе указывает на уже существующую страницу того же товара.
+     */
+    public function ajaxProductVariants(Request $request)
+    {
+        $goods_item = GoodsItemId::where('active', 1)
+            ->where('deleted', 0)
+            ->where('id', (int) $request->input('goods_item_id'))
+            ->first();
+
+        if (!$goods_item || !$goods_item->brand_id) {
+            return response()->json(['status' => false]);
+        }
+
+        $variants = DB::table('product_variants')
+            ->join('goods_item_id', 'goods_item_id.id', '=', 'product_variants.goods_item_id')
+            ->where('product_variants.line_brand_id', $goods_item->brand_id)
+            ->orderBy('product_variants.shade_number')
+            ->select(
+                'product_variants.goods_item_id',
+                'product_variants.shade_code',
+                'product_variants.shade_number',
+                'product_variants.shade_name',
+                'product_variants.price',
+                'product_variants.products_count',
+                'product_variants.in_stoc',
+                'goods_item_id.alias'
+            )
+            ->get()
+            ->map(fn ($row) => [
+                'goods_item_id' => $row->goods_item_id,
+                'shade_code' => $row->shade_code,
+                'shade_number' => $row->shade_number,
+                'shade_name' => $row->shade_name,
+                'price' => $row->price,
+                'products_count' => $row->products_count,
+                'in_stoc' => (bool) $row->in_stoc,
+                'url' => route('catalog-product', ['product', $row->alias]),
+            ]);
+
+        return response()->json([
+            'status' => true,
+            'line_brand_id' => $goods_item->brand_id,
+            'variants' => $variants,
         ]);
     }
 }
