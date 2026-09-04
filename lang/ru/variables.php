@@ -454,6 +454,7 @@ return [
     'shades_ambiguous' => 'Несколько совпадений',
     'shades_back_to_list' => 'К списку оттенков',
     'shop_store_guid' => 'Склад 1С (StoreId из обмена)',
+    'google_place_id' => 'Google Place ID',
     'checkout_pickup_shop' => 'Магазин самовывоза',
     'shops_order_default' => 'обычный порядок',
     'shops_nearest' => 'ближайшие',

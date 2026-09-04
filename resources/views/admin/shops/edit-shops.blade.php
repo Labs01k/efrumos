@@ -106,6 +106,13 @@
                                                        id="map_iframe" value="{{ $shops_without_lang->shopsId->map_iframe ?? ''}}">
                                             </div>
 
+                                            <div class="mb-3 col-md-12">
+                                                <label for="google_place_id"
+                                                       class="form-label">{{__('variables.google_place_id')}}</label>
+                                                <input type="text" name="google_place_id" class="form-control"
+                                                       id="google_place_id" value="{{ $shops_without_lang->shopsId->google_place_id ?? ''}}">
+                                            </div>
+
                                             <div class="mb-3">
                                                 <label for="upload_files"
                                                        class="form-label">{{__('variables.select_file')}}</label>

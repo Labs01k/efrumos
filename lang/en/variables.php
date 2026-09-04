@@ -415,6 +415,7 @@ return [
     'shades_ambiguous' => 'Multiple matches',
     'shades_back_to_list' => 'Back to shade list',
     'shop_store_guid' => '1C warehouse (StoreId from exchange)',
+    'google_place_id' => 'Google Place ID',
     'checkout_pickup_shop' => 'Pickup store',
     'shops_order_default' => 'default order',
     'shops_nearest' => 'nearest',

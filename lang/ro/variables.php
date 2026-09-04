@@ -458,6 +458,7 @@ return [
     'shades_ambiguous' => 'Mai multe potriviri',
     'shades_back_to_list' => 'La lista nuanțelor',
     'shop_store_guid' => 'Depozit 1C (StoreId din schimb)',
+    'google_place_id' => 'Google Place ID',
     'checkout_pickup_shop' => 'Magazinul de ridicare',
     'shops_order_default' => 'ordine obișnuită',
     'shops_nearest' => 'cele mai apropiate',

@@ -212,6 +212,7 @@ class ShopsController extends Controller
             'longitude' => $request->input('longitude'),
             'map_iframe' => $request->input('map_iframe'),
             'store_guid' => $request->input('store_guid'),
+            'google_place_id' => $request->input('google_place_id'),
             'position' => $position,
         ]);
 

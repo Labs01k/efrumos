@@ -82,6 +82,13 @@
                                             </div>
 
                                             <div class="mb-3">
+                                                <label for="google_place_id"
+                                                       class="form-label">{{__('variables.google_place_id')}}</label>
+                                                <input type="text" name="google_place_id" class="form-control"
+                                                       id="google_place_id">
+                                            </div>
+
+                                            <div class="mb-3">
                                                 <label for="store_guid"
                                                        class="form-label">{{ __('variables.shop_store_guid') }}</label>
                                                 <input type="text" name="store_guid" class="form-control"
