@@ -74,6 +74,11 @@ Route::middleware('FrontGlobal')->group(function () {
         Route::controller(OrderController::class)->group(function () {
             Route::post('/ajaxNewOrder', 'ajaxNewOrder')->name('ajax-new-order');
             Route::get('/checkout-success', 'checkoutSuccess')->name('checkout-success');
+            // Same handler as checkout-success — the real payment_status from
+            // the DB always wins over which of these two URLs was hit (see
+            // VictoriaBankController::backref()), so a customer landing here
+            // by an old bookmark/retry still sees the true current status.
+            Route::get('/checkout-fail', 'checkoutSuccess')->name('checkout-fail');
         });
 
         /* Fast Order */

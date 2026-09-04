@@ -74,18 +74,27 @@ class VictoriaBankController extends Controller
     /**
      * BACKREF — browser redirect after the bank page. Informational only;
      * ACTION/RC here are query params and are not verified (P_SIGN on a
-     * GET redirect can be replayed/edited by the customer). Only shows a
-     * message — the actual status was already decided by callback() below,
-     * which normally arrives first or within moments of this request.
+     * GET redirect can be replayed/edited by the customer) — they're never
+     * used to decide anything. The actual status was already decided by
+     * callback() below, which normally arrives first or within moments of
+     * this request; we only read that already-decided status from the DB
+     * to pick which of the two routes to send the browser to.
      */
     public function backref(Request $request, Orders $order): RedirectResponse
     {
         $lang = $this->resolveLang($request);
 
-        // [FE+BE] Экран возврата с оплаты — checkoutSuccess() decides what to
-        // actually show from the order's real payment_status, never from
-        // ACTION here (informational/unverified, see class docblock).
-        $url = $this->localizedHomeUrl($lang, 'checkout-success') . '?' . http_build_query(['order' => $order->id]);
+        // [FE+BE] Экран возврата с оплаты — route choice is cosmetic, both
+        // point at the same checkoutSuccess() handler, which re-reads
+        // payment_status itself and would show the right thing either way.
+        // Splitting them here just satisfies "separate route for Ok/Fail"
+        // without weakening the "status only from Callback" guarantee.
+        $path = $order->payment_status === \App\Enums\PaymentStatus::Failed
+            || $order->payment_status === \App\Enums\PaymentStatus::Cancelled
+            ? 'checkout-fail'
+            : 'checkout-success';
+
+        $url = $this->localizedHomeUrl($lang, $path) . '?' . http_build_query(['order' => $order->id]);
 
         return redirect($url);
     }
