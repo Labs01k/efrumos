@@ -842,5 +842,41 @@ class CatalogController extends Controller
             'goods_modal_view' => $goods_modal_view,
         ]);
     }
+
+    /**
+     * Epic 5 — ближайший магазин с наличием товара. Принимает координаты
+     * покупателя (браузерная геолокация, как на странице «Магазины»,
+     * Epic 2) — считать их на сервере, не доверяя присланному расстоянию
+     * с клиента.
+     */
+    public function ajaxNearestShopWithStock(Request $request)
+    {
+        $goods_item = GoodsItemId::where('active', 1)
+            ->where('deleted', 0)
+            ->where('id', (int) $request->input('goods_item_id'))
+            ->first();
+
+        $lat = $request->input('lat');
+        $lng = $request->input('lng');
+
+        if (!$goods_item || !is_numeric($lat) || !is_numeric($lng)) {
+            return response()->json(['status' => false]);
+        }
+
+        $nearest = ProductStock::nearestWithStock($goods_item, (float) $lat, (float) $lng);
+
+        if (!$nearest) {
+            return response()->json(['status' => false]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'shop_id' => $nearest['shop']->id,
+            'name' => $nearest['name'],
+            'address' => $nearest['address'],
+            'distance_km' => round($nearest['distance_km'], 1),
+            'qty' => $nearest['qty'],
+        ]);
+    }
 }
 

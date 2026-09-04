@@ -74,6 +74,40 @@ class ProductStock
         return (bool) config('custom.front.stock_by_shops_enabled', false);
     }
 
+    /**
+     * Ближайший к покупателю магазин, где товар реально есть в наличии
+     * (п.5 ТЗ — Epic 5). Переиспользует ту же формулу расстояния (haversine),
+     * что и клиентский `distanceKm()` в shops-page.js (Epic 2), только на
+     * стороне сервера — здесь нужен именно расчёт, а не отображение на карте.
+     * Магазины без наличия (`in_stock=false`) или без координат не
+     * учитываются. Пустой `byShops()` (см. его докблок — 1С ещё не шлёт
+     * остатки по складам) означает null здесь тоже: "ближайшего с наличием"
+     * не определить без данных о наличии.
+     */
+    public static function nearestWithStock(GoodsItemId $goods_item, float $lat, float $lng): ?array
+    {
+        $nearest = self::byShops($goods_item)
+            ->filter(fn ($row) => $row['in_stock'] && $row['lat'] && $row['lng'])
+            ->map(function ($row) use ($lat, $lng) {
+                $row['distance_km'] = self::haversineKm($lat, $lng, (float) $row['lat'], (float) $row['lng']);
+
+                return $row;
+            })
+            ->sortBy('distance_km')
+            ->first();
+
+        return $nearest ?: null;
+    }
+
+    private static function haversineKm(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $rad = M_PI / 180;
+        $h = sin(($lat2 - $lat1) * $rad / 2) ** 2
+            + cos($lat1 * $rad) * cos($lat2 * $rad) * sin(($lng2 - $lng1) * $rad / 2) ** 2;
+
+        return 6371 * 2 * atan2(sqrt($h), sqrt(1 - $h));
+    }
+
     /** Города для селектора над списком магазинов. */
     public static function cities(Collection $stock): Collection
     {
