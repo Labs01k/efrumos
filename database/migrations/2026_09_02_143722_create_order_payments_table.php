@@ -13,6 +13,12 @@ return new class extends Migration
         // Deliberately separate from `orders_data.maib_trans_id/maib_status`,
         // which is unused legacy from a different, never-finished MAIB
         // integration attempt — not reused here to avoid mixing the two.
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasTable('order_payments')) {
+            return;
+        }
+
         Schema::create('order_payments', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('orders_id'); // matches orders.id (int unsigned) in the legacy schema

@@ -10,6 +10,12 @@ return new class extends Migration
     {
         // Epic 1 / 1.2 + 1.4 — audit trail for every payment status change,
         // automatic (bank callback) or manual (admin override in the CMS).
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasTable('order_payment_status_logs')) {
+            return;
+        }
+
         Schema::create('order_payment_status_logs', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('orders_id'); // matches orders.id (int unsigned) in the legacy schema

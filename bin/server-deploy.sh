@@ -67,6 +67,24 @@ fi
 echo "==> Running migrations"
 ssh_do "cd ~ && php artisan migrate --force"
 
+# database/sql/*.sql — идемпотентные патчи схемы и данных, которые не входят
+# в artisan migrate (структура сайта живёт в дампе). Локально их накатывает
+# bin/local-up.sh; на сервере нет ни compose, ни mysql-клиента, поэтому здесь
+# та же работа делается artisan-командой через подключение приложения.
+# Без этого шага на сервере не появятся goods_shop_rests, shade_img,
+# store_guid, orders.pickup_shop_id, координаты магазинов и раздел CMS
+# «Палитра оттенков» — карточка товара и самовывоз упадут.
+echo "==> Applying database/sql patches"
+ssh_do "cd ~ && php artisan db:apply-sql-patches"
+
+# Кеши, которые строятся командами по расписанию: на свежем сервере они пусты
+# до первого запуска scheduler'а, и до тех пор блок «С этим товаром покупают»
+# теряет источник «часто покупают вместе», а витрина вариантов оттенков пуста.
+# Прогреваем сразу, чтобы деплой не оставлял сайт в частично рабочем виде.
+# Регулярность обеспечивает cron (см. напоминание в конце скрипта).
+echo "==> Warming recommendation/variant caches"
+ssh_do "cd ~ && php artisan recommendations:recalc-bought-together && php artisan shades:rebuild-variants"
+
 echo "==> Fixing storage/bootstrap permissions"
 ssh_do "cd ~ && chown -R \$(whoami):www-data storage bootstrap/cache"
 
@@ -76,3 +94,14 @@ ssh_do "docker restart $CONTAINER"
 echo
 echo "Done. Deployed to $ENVIRONMENT ($DOMAIN)."
 [ "$BUILD_ASSETS" = "0" ] && echo "Note: ran without --build-assets — frontend assets were NOT rebuilt/uploaded."
+
+# Разовые серверные настройки, которые этот скрипт не делает и делать не должен
+# (они переживают деплой). Без первого пункта кеши протухнут через сутки,
+# без второго очередь не разбирается и заказы не уходят в 1С/Bitrix24.
+cat <<'REMINDER'
+
+Проверьте один раз на сервере (deploy этого не настраивает):
+  1) cron:   * * * * * cd ~ && php artisan schedule:run >> /dev/null 2>&1
+  2) очередь: QUEUE_CONNECTION в .env + запущенный воркер (php artisan queue:work),
+     иначе SubmitOrderToIntegrationLayerJob выполняется внутри запроса оформления.
+REMINDER

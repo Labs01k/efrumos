@@ -8,6 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasColumn('orders', 'payment_status')) {
+            return;
+        }
+
         Schema::table('orders', function (Blueprint $table) {
             // Epic 1 / 1.2 — dedicated 4-state payment status, separate from the
             // legacy boolean `paid` column (kept untouched for backward compat

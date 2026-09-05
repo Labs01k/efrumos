@@ -13,6 +13,12 @@ return new class extends Migration
         // результат кешируется здесь. RecalculateFrequentlyBoughtTogether
         // truncates + refills this table on every run — it's a derived
         // cache, not a source of truth.
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasTable('goods_frequently_bought_with')) {
+            return;
+        }
+
         Schema::create('goods_frequently_bought_with', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('goods_item_id');

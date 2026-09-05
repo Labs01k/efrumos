@@ -12,6 +12,12 @@ return new class extends Migration
         // The unique index on orders_id is what makes "приём заказа" idempotent:
         // a retried/duplicate submission finds the existing row instead of
         // creating a second 1C document / Bitrix24 deal.
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasTable('integration_id_mappings')) {
+            return;
+        }
+
         Schema::create('integration_id_mappings', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('orders_id')->unique(); // WEB ID — matches orders.id (int unsigned)

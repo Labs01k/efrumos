@@ -17,6 +17,12 @@ return new class extends Migration
         // перестраивает его при каждой синхронизации с 1С, группируя
         // существующие товары по линии (goods_item_id.brand_id — та же
         // иерархия, что уже используется в ProductRecommendations/ShadePalette).
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasTable('product_variants')) {
+            return;
+        }
+
         Schema::create('product_variants', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('line_brand_id');

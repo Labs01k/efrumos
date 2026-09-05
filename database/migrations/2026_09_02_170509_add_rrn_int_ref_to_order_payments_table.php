@@ -12,6 +12,12 @@ return new class extends Migration
         // required as-is for the later TRTYPE=21 (capture) / TRTYPE=24
         // (refund) calls — kept as their own columns rather than parsed out
         // of raw_callback_payload every time they're needed.
+        // Идемпотентность: деплой применяет миграции и патчи database/sql
+        // на стендах с разной историей, повторный прогон не должен падать.
+        if (Schema::hasColumn('order_payments', 'rrn')) {
+            return;
+        }
+
         Schema::table('order_payments', function (Blueprint $table) {
             $table->string('rrn', 32)->nullable()->after('external_payment_id');
             $table->string('int_ref', 32)->nullable()->after('rrn');
