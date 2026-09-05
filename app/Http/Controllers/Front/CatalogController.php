@@ -297,7 +297,12 @@ class CatalogController extends Controller
         $set_goods = ProductRecommendations::boughtTogether($goods_item);
         $similar_goods = ProductRecommendations::similar($goods_item);
         $shades = ShadePalette::for($goods_item);
-        $shade_structured_data = ShadePalette::structuredData($goods_item, $goods_price_collect);
+        // Разметка варианта товара (isVariantOf → ProductGroup) осмысленна только
+        // там, где линейка оттенков реально есть: у одиночной краски без палитры
+        // группы вариантов не существует, и поисковику её обещать нечего.
+        $shade_structured_data = $shades->isNotEmpty()
+            ? ShadePalette::structuredData($goods_item, $goods_price_collect)
+            : null;
         $volumes = ProductVariants::volumes($goods_item);
         // п.5: пока 1С не отдаёт остатки по складам, коллекция пустая и блок скрыт
         $shops_stock = ProductStock::byShops($goods_item);

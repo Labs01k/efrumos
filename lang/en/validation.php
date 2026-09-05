@@ -174,6 +174,10 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'pickup_shop_id' => 'Pickup store',
+        'delivery_method' => 'Delivery method',
+        'pay_method' => 'Payment method',
+    ],
 
 ];
