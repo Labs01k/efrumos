@@ -474,6 +474,17 @@
         try { localStorage.setItem('shpGeoAsked', '1'); } catch (e) {}
     }
 
+    /* Маршрут строится от текущей позиции, если она известна: без origin
+       Google подставит своё представление о «где я», и десктопная кнопка
+       вела бы себя иначе, чем мобильная шторка. */
+    function refreshRouteLinks() {
+        root.querySelectorAll('[data-shp-card]').forEach(function (card) {
+            var link = card.querySelector('.shp-chip-route');
+            var shop = shopsById[card.dataset.shpCard];
+            if (link && shop) link.href = routeUrl(shop);
+        });
+    }
+
     function applyGeo(position) {
         state.user = { lat: position.coords.latitude, lng: position.coords.longitude };
         state.sort = 'nearest';
@@ -482,6 +493,8 @@
         });
         renderList();
         renderCarousel();
+        refreshRouteLinks();
+        fitNearestCity();
         if (state.selected) renderSheetIfOpen();
     }
 
@@ -522,5 +535,35 @@
 
     renderList();
     renderCarousel();
-    map.fit(CFG.shops.map(function (shop) { return shop.id; }));
+    fitInitial();
+
+    /*
+       На всю страну карта даёт зум, при котором семь кишинёвских пинов
+       наезжают друг на друга. Открываем на городе: где живёт большинство
+       магазинов (Кишинёв — первый в списке городов), а после выдачи
+       геолокации — на городе ближайшего магазина.
+    */
+    function fitInitial() {
+        var city = CFG.cities[0];
+        var ids = CFG.shops
+            .filter(function (shop) { return shop.city === city; })
+            .map(function (shop) { return shop.id; });
+
+        map.fit(ids.length ? ids : CFG.shops.map(function (shop) { return shop.id; }));
+    }
+
+    function fitNearestCity() {
+        if (!state.user) return;
+
+        var nearest = CFG.shops.slice().sort(function (a, b) {
+            return shopDistanceKm(a) - shopDistanceKm(b);
+        })[0];
+        if (!nearest) return;
+
+        var ids = CFG.shops
+            .filter(function (shop) { return shop.city === nearest.city; })
+            .map(function (shop) { return shop.id; });
+
+        map.fit(ids);
+    }
 })();

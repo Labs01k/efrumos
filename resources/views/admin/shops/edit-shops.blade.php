@@ -99,12 +99,10 @@
                                                        value="{{ $shops_without_lang->shopsId->store_guid ?? '' }}">
                                             </div>
 
-                                            <div class="mb-3 col-md-12">
-                                                <label for="map_iframe"
-                                                       class="form-label">{{__('variables.map')}} (iframe)</label>
-                                                <input type="text" name="map_iframe" class="form-control"
-                                                       id="map_iframe" value="{{ $shops_without_lang->shopsId->map_iframe ?? ''}}">
-                                            </div>
+                                            {{-- Поле «Карта (iframe)» убрано: страница магазинов
+                                                 показывает одну общую интерактивную карту, отдельные
+                                                 врезки больше не выводятся. Данные в базе сохранены —
+                                                 из них взяты координаты магазинов. --}}
 
                                             <div class="mb-3 col-md-12">
                                                 <label for="google_place_id"

@@ -208,7 +208,6 @@ class ShopsController extends Controller
             'alias' => $request->input('alias'),
             'city_id' => $request->input('city_id'),
             'phone' => $request->input('phone'),
-            'map_iframe' => $request->input('map_iframe'),
             'store_guid' => $request->input('store_guid'),
             'google_place_id' => $request->input('google_place_id'),
             'position' => $position,

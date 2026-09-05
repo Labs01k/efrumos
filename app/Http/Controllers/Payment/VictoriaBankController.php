@@ -89,9 +89,13 @@ class VictoriaBankController extends Controller
         // polling) — no-ops on its own once the callback resolves the order first.
         PollVictoriaBankStatusJob::startFor($order);
 
+        // страница видна доли секунды, но её текст должен быть на языке покупателя
+        app()->setLocale($lang);
+
         return view('payment.victoriabank-redirect', [
             'endpoint' => $form['endpoint'],
             'fields' => $form['fields'],
+            'lang' => $lang,
         ]);
     }
 
