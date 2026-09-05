@@ -245,6 +245,8 @@ return [
     'delivery_method' => 'Delivery method',
     'pay_method' => 'Pay method',
     'payment_status' => 'Payment status',
+    'payment_method_card' => 'Card online',
+    'payment_status_not_applicable' => '—',
     'payment_status_pending' => 'Pending payment',
     'payment_status_paid' => 'Paid',
     'payment_status_failed' => 'Payment error',

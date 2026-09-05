@@ -2169,6 +2169,10 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
     // конкатенация ломалась кавычкой и открывала SQL-инъекцию
     $multi_bindings = [];
 
+    // «9-76» / «9_76» / «9 76» → «9/76»: покупатель набирает номер оттенка
+    // как угодно, а хранится он через «/». null = обычный поиск.
+    $shade_code_query = \App\Services\Product\ShadePalette::normalizeShadeQuery($podbor['s'] ?? '');
+
     if (!empty($podbor['s'])) {
         $search_array_values = explode(' ', $podbor['s']);
 
@@ -2477,15 +2481,28 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                         ->orWhereIn('goods_subject_id', $subjects_array);
                 });
             })
-            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings) {
+            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings, $shade_code_query) {
                 // скобка обязательна: без неё orWhere ломал фильтры active/deleted,
                 // и по коду 1С находились в том числе снятые с продажи товары
-                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings) {
+                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings, $shade_code_query) {
                     $sub->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
                         $q->whereRaw($multi_query, $multi_bindings);
                     })
                         ->orWhere('one_c_code', 'like', '%' . $search . '%')
                         ->orWhere('articol', 'like', '%' . $search . '%');
+
+                    // п.6 ТЗ — номер оттенка, набранный через «-», «_» или пробел
+                    // («9-76»), должен находить то же, что и «9/76»: код лежит
+                    // и в названии товара, и в артикуле. Та же нормализация, что
+                    // в подсказках поиска (CatalogController::ajaxGoodsSearch).
+                    if ($shade_code_query) {
+                        $sub->orWhereHas('itemByLang', function ($q) use ($shade_code_query) {
+                            $q->where('name', 'like', '%' . $shade_code_query . '%');
+                        })->orWhereRaw(
+                            \App\Services\Product\ShadePalette::normalizedColumnSql('articol') . ' LIKE ?',
+                            ['%' . $shade_code_query . '%']
+                        );
+                    }
                 });
             })
             ->when($brand_id, function ($query) use ($brand_id) {
@@ -2536,15 +2553,28 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                         ->orWhereIn('goods_subject_id', $subjects_array);
                 });
             })
-            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings) {
+            ->when($search, function ($query) use ($search, $multi_query, $multi_bindings, $shade_code_query) {
                 // скобка обязательна: без неё orWhere ломал фильтры active/deleted,
                 // и по коду 1С находились в том числе снятые с продажи товары
-                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings) {
+                $query->where(function ($sub) use ($search, $multi_query, $multi_bindings, $shade_code_query) {
                     $sub->whereHas('itemByLang', function ($q) use ($multi_query, $multi_bindings) {
                         $q->whereRaw($multi_query, $multi_bindings);
                     })
                         ->orWhere('one_c_code', 'like', '%' . $search . '%')
                         ->orWhere('articol', 'like', '%' . $search . '%');
+
+                    // п.6 ТЗ — номер оттенка, набранный через «-», «_» или пробел
+                    // («9-76»), должен находить то же, что и «9/76»: код лежит
+                    // и в названии товара, и в артикуле. Та же нормализация, что
+                    // в подсказках поиска (CatalogController::ajaxGoodsSearch).
+                    if ($shade_code_query) {
+                        $sub->orWhereHas('itemByLang', function ($q) use ($shade_code_query) {
+                            $q->where('name', 'like', '%' . $shade_code_query . '%');
+                        })->orWhereRaw(
+                            \App\Services\Product\ShadePalette::normalizedColumnSql('articol') . ' LIKE ?',
+                            ['%' . $shade_code_query . '%']
+                        );
+                    }
                 });
             })
             ->when($brand_id, function ($query) use ($brand_id) {
@@ -4192,7 +4222,10 @@ function getEnumValueName($type)
             return $type_name = ShowLabelById(76);
             break;
         case 'card':
-            return $type_name = ShowLabelById(68);
+            // раньше здесь стоял ShowLabelById(68) — эта метка означает
+            // «Добавить в корзину», и в письме о заказе картой она попадала
+            // в строку «Способ оплаты»
+            return $type_name = trans('variables.payment_method_card');
             break;
         case 'delivery':
             return $type_name = ShowLabelById(208);

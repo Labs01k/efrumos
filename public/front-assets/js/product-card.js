@@ -423,45 +423,47 @@
     }
 
     /**
-     * Подсветка ближайшего магазина с наличием (п.5 ТЗ). Геолокацию не запрашиваем
-     * сами — используем, только если посетитель уже дал разрешение (например, на
-     * странице магазинов): молча подсвечиваем ближайшую точку с товаром.
+     * Подсветка ближайшего магазина с наличием (п.5 ТЗ). Расстояние и выбор
+     * магазина считает сервер — GET ajaxNearestShopWithStock (frontend-spec.md,
+     * Epic 5): он единственный видит реальные остатки по складам, а на клиенте
+     * в разметке только «есть/нет».
+     *
+     * Геолокацию сами не запрашиваем: подсветка — приятная мелочь, ради неё
+     * дёргать разрешение навязчиво. Используем, только если посетитель уже
+     * разрешил её раньше (например, на странице «Магазины»).
      */
     function initNearestShop() {
         var shops = document.querySelector('[data-shops]');
         if (!shops || !('geolocation' in navigator)) return;
 
-        function distance(lat1, lng1, lat2, lng2) {
-            var rad = Math.PI / 180;
-            var a = Math.sin((lat2 - lat1) * rad / 2) * Math.sin((lat2 - lat1) * rad / 2) +
-                Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
-                Math.sin((lng2 - lng1) * rad / 2) * Math.sin((lng2 - lng1) * rad / 2);
-            return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        }
+        var goods_item_id = shops.dataset.goodsItemId;
+        if (!goods_item_id) return;
 
         function highlight(position) {
-            var best = null;
-            var bestDistance = Infinity;
-
-            Array.prototype.forEach.call(shops.querySelectorAll('.pb-shop-item:not(.is-out)'), function (row) {
-                var lat = parseFloat(row.dataset.lat);
-                var lng = parseFloat(row.dataset.lng);
-                if (isNaN(lat) || isNaN(lng)) return;
-
-                var d = distance(position.coords.latitude, position.coords.longitude, lat, lng);
-                if (d < bestDistance) { bestDistance = d; best = row; }
+            var params = new URLSearchParams({
+                goods_item_id: goods_item_id,
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
             });
 
-            if (best) best.classList.add('is-nearest');
-        }
+            fetch('/' + document.documentElement.lang + '/ajaxNearestShopWithStock?' + params, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data || data.status !== true) return;
 
-        function locate() {
-            navigator.geolocation.getCurrentPosition(highlight, function () {}, { maximumAge: 600000 });
+                    var row = shops.querySelector('.pb-shop-item[data-shop-id="' + data.shop_id + '"]');
+                    if (row) row.classList.add('is-nearest');
+                })
+                .catch(function () {});
         }
 
         if (navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
-                if (status.state === 'granted') locate();
+                if (status.state === 'granted') {
+                    navigator.geolocation.getCurrentPosition(highlight, function () {}, { maximumAge: 600000 });
+                }
             }).catch(function () {});
         }
     }

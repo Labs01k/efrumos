@@ -44,8 +44,18 @@
                                             <td>#{{ $one_order->id ?? '' }}</td>
                                             <td>{{ getDefaultDateFormat($one_order->created_at) }}</td>
                                             <td>{{ $one_order->ordersData && $one_order->ordersData->total_price ? $one_order->ordersData->total_price : 0  }} {{ ShowLabelById(3) }}</td>
-                                            <td>{{ ShowLabelById(76) }}</td>
-                                            <td align="center">{{ $one_order->payment_status?->label() ?? __('variables.payment_status_pending') }}</td>
+                                            <td>{{ getEnumValueName($one_order->pay_method) }}</td>
+                                            {{--
+                                                Статус онлайн-оплаты применим только к заказам,
+                                                оплаченным картой. У заказов наложенным платежом
+                                                он навсегда остаётся «pending», и покупатель видел
+                                                бы «Ожидает оплаты» на давно полученном заказе.
+                                            --}}
+                                            <td align="center">
+                                                {{ $one_order->pay_method === 'card'
+                                                    ? ($one_order->payment_status?->label() ?? __('variables.payment_status_pending'))
+                                                    : __('variables.payment_status_not_applicable') }}
+                                            </td>
 											{{--
                                             <td align="center">
                                                 <div class="cabinet-table-status">

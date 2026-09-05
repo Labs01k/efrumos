@@ -244,6 +244,8 @@ return [
     'delivery_method' => 'Metoda de livrare',
     'pay_method' => 'Metoda de achitare',
     'payment_status' => 'Statutul plății',
+    'payment_method_card' => 'Card online',
+    'payment_status_not_applicable' => '—',
     'payment_status_pending' => 'În așteptarea plății',
     'payment_status_paid' => 'Achitat',
     'payment_status_failed' => 'Eroare de plată',

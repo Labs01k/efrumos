@@ -4,7 +4,12 @@
         <div class="order-details-col">
             <p><b>{{ ShowLabelById(84) }}</b></p>
             <p>{{ ShowLabelById(85) }}: {{ getDefaultDateFormat($order->created_at) }}</p>
-            <p>{{ ShowLabelById(74) }}: {{ $order->payment_status?->label() ?? __('variables.payment_status_pending') }}</p>
+            {{-- способ оплаты + статус; статус онлайн-оплаты показываем только
+                 у карточных заказов (у наличных он навсегда «pending») --}}
+            <p>{{ ShowLabelById(218) }}: {{ getEnumValueName($order->pay_method) }}</p>
+            @if($order->pay_method === 'card')
+                <p>{{ ShowLabelById(74) }}: {{ $order->payment_status?->label() ?? __('variables.payment_status_pending') }}</p>
+            @endif
             <p>{{ ShowLabelById(86) }}: tracking</p>
         </div>
         <div class="order-details-col">

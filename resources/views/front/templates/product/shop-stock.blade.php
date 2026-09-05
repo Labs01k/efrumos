@@ -42,10 +42,14 @@
         </ul>
     </div>
 
-    <div class="pb-shops @if($stock_all_out) pb-shops--all-out @endif" data-shops>
+    {{-- data-goods-item-id — для запроса ближайшего магазина с наличием
+         (GET ajaxNearestShopWithStock, см. frontend-spec.md, Epic 5) --}}
+    <div class="pb-shops @if($stock_all_out) pb-shops--all-out @endif"
+         data-shops data-goods-item-id="{{ $goods_item->id }}">
         <div class="pb-shops-list">
             @foreach($shops_stock as $one_shop)
                 <div class="pb-shop-item @if(!$one_shop['in_stock']) is-out @endif"
+                     data-shop-id="{{ $one_shop['shop']->id ?? '' }}"
                      data-city="{{ $one_shop['city'] }}"
                      data-lat="{{ $one_shop['lat'] ?? '' }}"
                      data-lng="{{ $one_shop['lng'] ?? '' }}"

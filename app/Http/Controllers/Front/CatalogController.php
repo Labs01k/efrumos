@@ -778,14 +778,11 @@ class CatalogController extends Controller
             ->limit(5)
             ->get();
 
-        // п.6 ТЗ — поиск по номеру/коду оттенка: артикул хранит код с «/»
-        // («DLS 9/76»), но покупатель может набрать номер с «-»/«_»/пробелом
-        // вместо «/» — нормализуем обе стороны в тот же формат, что и
-        // ShadePaletteController::normalizeCode() для CMS-загрузки фото.
-        $shade_code_query = null;
-        if (preg_match('~^\d+[\s\-_/]\d+$~', trim($search_value))) {
-            $shade_code_query = preg_replace('~[\s\-_]~', '/', trim($search_value));
-        }
+        // п.6 ТЗ — поиск по номеру/коду оттенка: покупатель может набрать
+        // номер с «-»/«_»/пробелом вместо «/». Нормализация общая с выдачей
+        // каталога (GetItemsPodborList), иначе подсказка и результат
+        // по Enter расходятся.
+        $shade_code_query = ShadePalette::normalizeShadeQuery($search_value);
 
         $search_goods_items = GoodsItemId::where('active', 1)
             ->where('deleted', 0)
@@ -798,8 +795,12 @@ class CatalogController extends Controller
                     ->orWhere('articol', 'like', '%' . $search_value . '%');
 
                 if ($shade_code_query) {
-                    $query->orWhereRaw(
-                        "REPLACE(REPLACE(REPLACE(articol, '-', '/'), '_', '/'), ' ', '/') LIKE ?",
+                    // код оттенка живёт и в названии («…, 9/76 Блондин…»),
+                    // и в артикуле — покрытие по названию заметно выше
+                    $query->orWhereHas('itemByLang', function ($q) use ($shade_code_query) {
+                        $q->where('name', 'like', '%' . $shade_code_query . '%');
+                    })->orWhereRaw(
+                        ShadePalette::normalizedColumnSql('articol') . ' LIKE ?',
                         ['%' . $shade_code_query . '%']
                     );
                 }

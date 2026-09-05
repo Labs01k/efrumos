@@ -158,6 +158,36 @@ class ShadePalette
         return null;
     }
 
+    /**
+     * Приводит поисковый запрос к тому виду, в котором код оттенка хранится
+     * в названии товара и в артикуле: «9-76», «9_76», «9 76» → «9/76».
+     * null означает «запрос не похож на код оттенка» — обычный поиск.
+     *
+     * Единая точка нормализации для витрины: подсказки в шапке и выдача
+     * каталога обязаны находить одно и то же, иначе покупатель видит
+     * подсказку, жмёт Enter и получает пустой каталог.
+     */
+    public static function normalizeShadeQuery(?string $query): ?string
+    {
+        $query = trim((string) $query);
+
+        if (!preg_match('~^\d+[\s\-_/]\d+$~', $query)) {
+            return null;
+        }
+
+        return preg_replace('~[\s\-_]~', '/', $query);
+    }
+
+    /**
+     * SQL-выражение, приводящее колонку к тому же формату, что и
+     * normalizeShadeQuery() — артикулы у брендов пишутся вразнобой
+     * («NDL9-76», «DLS 9/76»).
+     */
+    public static function normalizedColumnSql(string $column): string
+    {
+        return "REPLACE(REPLACE(REPLACE($column, '-', '/'), '_', '/'), ' ', '/')";
+    }
+
     /** Сортировка палитры по уровню тона, затем по нюансу: 1/0, 3/11, 9/76, 10/1. */
     private static function sortKey(string $code): array
     {

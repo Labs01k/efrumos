@@ -245,6 +245,8 @@ return [
     'delivery_method' => 'Способ доставки',
     'pay_method' => 'Способ оплаты',
     'payment_status' => 'Статус оплаты',
+    'payment_method_card' => 'Картой онлайн',
+    'payment_status_not_applicable' => '—',
     'payment_status_pending' => 'Ожидает оплаты',
     'payment_status_paid' => 'Оплачен',
     'payment_status_failed' => 'Ошибка оплаты',
