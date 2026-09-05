@@ -107,7 +107,16 @@
 <div class="basket-account-title">{{ ShowLabelById(218) }}</div>
 <div class="form-item">
     <label for="pay_method" class="sr-only">{{ ShowLabelById(76) }}</label>
+    {{--
+        Способы оплаты по макету (нода 783:6698): обычный селект, первым идёт
+        онлайн-оплата. Карта показывается только при включённом флаге
+        custom.front.online_payment_enabled — до получения ключей мерчанта
+        VictoriaBank выбор карты упирается в отказ банка.
+    --}}
     <select name="pay_method" id="pay_method">
+        @if(config('custom.front.online_payment_enabled'))
+            <option value="card">{{ trans('variables.payment_method_card') }}</option>
+        @endif
         <option value="cash">{{ ShowLabelById(76) }}</option>
     </select>
 </div>

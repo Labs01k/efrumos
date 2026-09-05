@@ -76,6 +76,12 @@ return [
         # Параметр «назначение» (Pentru) — участвует в подборе похожих товаров (п.4 ТЗ)
         'purpose_parametr_id' => 1,
 
+        # Онлайн-оплата картой в оформлении заказа (п.1 ТЗ). Пока банк не выдал
+        # ключи мерчанта, выбор этого способа приводит покупателя на страницу
+        # эквайера с отказом — поэтому опция показывается только по флагу.
+        # Включить: ONLINE_PAYMENT_ENABLED=true в .env (после проверки оплаты).
+        'online_payment_enabled' => env('ONLINE_PAYMENT_ENABLED', false),
+
         # Ключ Google Maps JavaScript API для страницы магазинов (п.2 ТЗ).
         # Пока ключа нет, карта рендерится на Leaflet/OSM — адаптер в shops-page.js.
         'google_maps_key' => env('GOOGLE_MAPS_KEY'),
