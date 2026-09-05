@@ -490,6 +490,13 @@ class OrderController extends Controller
                 default => 'processing',
             };
 
+            // оплату не удалось даже начать (эквайер недоступен/не настроен):
+            // статус заказа честно остаётся Pending, но покупателю показываем
+            // ошибку с кнопкой повтора, а не «платёж обрабатывается»
+            if ($request->query('payment_error') && $payment_outcome === 'processing') {
+                $payment_outcome = 'failed';
+            }
+
             if ($payment_outcome === 'paid' && $orders->basket->isNotEmpty()) {
                 $goods_objects = GoogleEcommerce::goodsCollectionsToObjects($orders->basket, 1);
                 $goods_items_ids = json_encode($orders->basket->pluck('goods_one_c_code')->toArray());

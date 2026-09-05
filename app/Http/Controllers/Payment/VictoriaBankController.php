@@ -59,7 +59,25 @@ class VictoriaBankController extends Controller
         }
 
         $backrefUrl = route('payments.bank.backref', ['order' => $order->id, 'lang' => $lang]);
-        $form = $client->buildAuthorizationForm((string) $order->id, $amount, $email, $backrefUrl);
+
+        try {
+            $form = $client->buildAuthorizationForm((string) $order->id, $amount, $email, $backrefUrl);
+        } catch (\Throwable $e) {
+            // Ключи мерчанта не заведены или эквайер недоступен. Заказ уже создан,
+            // поэтому вместо 500 отправляем покупателя на экран неуспешной оплаты
+            // с возможностью повторить — заказ остаётся в Pending и виден менеджеру.
+            Log::error('VictoriaBank: не удалось собрать форму оплаты', [
+                'order' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // payment_error — заказ остаётся Pending (банк вообще не отвечал),
+            // но покупателю показываем ошибку с повтором, а не «обрабатывается»
+            return redirect($this->localizedHomeUrl($lang, 'checkout-fail') . '?' . http_build_query([
+                'order' => $order->id,
+                'payment_error' => 1,
+            ]));
+        }
 
         // Fallback in case the callback never arrives (bank docs: TRTYPE=90
         // polling) — no-ops on its own once the callback resolves the order first.
@@ -114,12 +132,16 @@ class VictoriaBankController extends Controller
         return in_array($lang, config('app.locales'), true) ? $lang : config('app.locale');
     }
 
-    /** Mirrors App\Traits\LocaleTrait::SetLangPrefix() — the fallback locale is served bare, others get a /xx prefix. */
+    /**
+     * Языковой префикс нужен ВСЕГДА, включая fallback-локаль: роуты сайта
+     * регистрируются через LocalizationService::langRoutePrefix(), и адрес без
+     * префикса отдаёт 404 (проверено: /checkout-fail → 404, /ru/checkout-fail → 200).
+     * Раньше здесь для fallback-локали префикс отбрасывался, и покупатель,
+     * вернувшись из банка, попадал на несуществующую страницу.
+     */
     private function localizedHomeUrl(string $lang, string $path = ''): string
     {
-        $prefix = $lang === config('app.fallback_locale') ? '' : '/' . $lang;
-
-        return $path !== '' ? url($prefix . '/' . ltrim($path, '/')) : url($prefix ?: '/');
+        return $path !== '' ? url('/' . $lang . '/' . ltrim($path, '/')) : url('/' . $lang);
     }
 
     public function callback(Request $request, VictoriaBankClient $client, VictoriaBankPaymentResultHandler $resultHandler): JsonResponse
