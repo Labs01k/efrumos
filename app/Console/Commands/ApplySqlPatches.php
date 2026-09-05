@@ -35,8 +35,6 @@ class ApplySqlPatches extends Command
             return self::SUCCESS;
         }
 
-        $failed = 0;
-
         foreach ($files as $file) {
             $name = basename($file);
 
@@ -51,15 +49,13 @@ class ApplySqlPatches extends Command
                 DB::unprepared(file_get_contents($file));
                 $this->info('  применён: ' . $name);
             } catch (Throwable $e) {
-                $failed++;
+                // Останавливаемся на первой ошибке: патчи бывают связаны
+                // (колонка → данные), продолжать по сломанной базе опаснее.
                 $this->error('  ОШИБКА в ' . $name . ': ' . $e->getMessage());
+                $this->error('  Остальные патчи не применялись — база в промежуточном состоянии.');
+
+                return self::FAILURE;
             }
-        }
-
-        if ($failed) {
-            $this->error($failed . ' патч(ей) не применилось — деплой останавливать, база в промежуточном состоянии.');
-
-            return self::FAILURE;
         }
 
         return self::SUCCESS;

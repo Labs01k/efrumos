@@ -33,6 +33,12 @@ class VictoriaBankController extends Controller
         // bank — guards against someone hitting this URL directly for a
         // cash order, or clicking a stale "pay" link on an order that
         // already confirmed.
+        // Онлайн-оплата выключена (нет ключей мерчанта или так решили) —
+        // роут не должен запускать платёж в обход формы оформления.
+        if (!config('custom.front.online_payment_enabled')) {
+            return redirect($this->localizedHomeUrl($lang));
+        }
+
         if ($order->pay_method !== 'card' || $order->payment_status === PaymentStatus::Paid) {
             return redirect($this->localizedHomeUrl($lang));
         }

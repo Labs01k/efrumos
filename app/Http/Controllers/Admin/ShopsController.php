@@ -204,17 +204,26 @@ class ShopsController extends Controller
             $position = $maxPosition - 1;
         }
 
-        $shops_id = ShopsId::updateOrCreate(['id' => $id], [
+        $shops_fields = [
             'alias' => $request->input('alias'),
             'city_id' => $request->input('city_id'),
             'phone' => $request->input('phone'),
-            'latitude' => $request->input('latitude'),
-            'longitude' => $request->input('longitude'),
             'map_iframe' => $request->input('map_iframe'),
             'store_guid' => $request->input('store_guid'),
             'google_place_id' => $request->input('google_place_id'),
             'position' => $position,
-        ]);
+        ];
+
+        // Поля координат в форме закрыты, и раньше сохранение затирало их NULL:
+        // магазин без координат пропадает с витрины (Front\ShopsController их
+        // требует для карты). Пишем только то, что реально пришло в запросе.
+        foreach (['latitude', 'longitude'] as $one_coordinate) {
+            if ($request->filled($one_coordinate)) {
+                $shops_fields[$one_coordinate] = $request->input($one_coordinate);
+            }
+        }
+
+        $shops_id = ShopsId::updateOrCreate(['id' => $id], $shops_fields);
 
         Shops::updateOrCreate([
             'shops_id' => $shops_id->id,

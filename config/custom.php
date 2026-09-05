@@ -91,8 +91,10 @@ return [
         # не привязаны store_guid; false выключает его принудительно.
         'stock_by_shops_enabled' => true,
 
-        'js_version' => 58,
-        'css_version' => 58,
+        # поднимать при каждом изменении front-assets, иначе вернувшиеся
+        # посетители получают старые css/js из кеша браузера
+        'js_version' => 59,
+        'css_version' => 59,
         'svg_version' => 1,
     ],
 

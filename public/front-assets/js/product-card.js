@@ -180,20 +180,55 @@
        Любое расхождение разметки — честный переход по ссылке.
        ------------------------------------------------------------------ */
 
+    /*
+       Блоки, которые целиком принадлежат товару и меняются вместе с оттенком.
+       Берём КРУПНЫЕ контейнеры, а не отдельные поля: у оттенка без остатка
+       нет кнопок покупки, и точечные селекторы (.pb-cta-row и т.п.) не
+       находились — подмена срывалась в полную перезагрузку.
+    */
     var SWAP_TARGETS = [
         '[data-pb-gallery]',
-        '.product-end-content-inner',
-        '.pb-volume-field',
-        '.pb-shade',
-        '.product-end-price',
-        '.pb-cta-row',
-        '.product-end-link',
-        '.pb-product-info',
-        '.pb-product-stock',
-        '.pb-bar--top',
-        '.pb-bar--bottom',
-        '.breadcrumbs-wrapper'
+        '.product-end-content',   // заголовок, объём, оттенок, цена, кнопки, акции
+        '.pb-product-info',       // табы, характеристики, доставка, преимущества
+        '.pb-product-stock',      // наличие по магазинам
+        '.pb-product-set',        // «С этим покупают» — иначе комплект кладёт старый оттенок
+        '.pb-product-similar',
+        '.breadcrumbs-wrapper',
+        '.pb-bar--top'
     ];
+
+    /* Мобильная панель покупки: у оттенка без остатка её нет вовсе. */
+    var OPTIONAL_TARGETS = ['.pb-bar--bottom'];
+
+    /* Теги в <head>, которые обязаны указывать на текущий оттенок. */
+    function swapHead(doc) {
+        var pairs = [
+            ['link[rel="canonical"]', 'href'],
+            ['meta[property="og:url"]', 'content'],
+            ['meta[property="og:title"]', 'content'],
+            ['meta[property="og:image"]', 'content']
+        ];
+
+        pairs.forEach(function (pair) {
+            var cur = document.querySelector(pair[0]);
+            var next = doc.querySelector(pair[0]);
+            if (cur && next) cur.setAttribute(pair[1], next.getAttribute(pair[1]));
+        });
+
+        // структурированные данные товара (sku, цена, оттенок)
+        var cur_ld = document.querySelector('script[type="application/ld+json"]');
+        var next_ld = doc.querySelector('script[type="application/ld+json"]');
+        if (cur_ld && next_ld) cur_ld.textContent = next_ld.textContent;
+        else if (cur_ld && !next_ld) cur_ld.remove();
+    }
+
+    function restoreScroll(y) {
+        if (!y) return;
+
+        window.scrollTo(0, y);
+        requestAnimationFrame(function () { window.scrollTo(0, y); });
+        setTimeout(function () { window.scrollTo(0, y); }, 250);
+    }
 
     var lastPath = window.location.pathname;
 
@@ -218,10 +253,25 @@
                     pairs.push([cur, next]);
                 }
 
+                // страница не должна прыгать: положение прокрутки сохраняем
+                var scroll_y = window.scrollY;
+
                 pairs.forEach(function (pair) {
                     pair[0].replaceWith(document.importNode(pair[1], true));
                 });
 
+                // необязательные блоки: появляются и исчезают вместе с наличием
+                OPTIONAL_TARGETS.forEach(function (selector) {
+                    var cur = document.querySelector(selector);
+                    var next = doc.querySelector(selector);
+                    var page = document.querySelector('.pb-page');
+
+                    if (cur && next) cur.replaceWith(document.importNode(next, true));
+                    else if (cur && !next) cur.remove();
+                    else if (!cur && next && page) page.appendChild(document.importNode(next, true));
+                });
+
+                swapHead(doc);
                 document.title = doc.title || document.title;
                 if (push) window.history.pushState({ pbShade: true }, '', url);
                 lastPath = window.location.pathname;
@@ -230,11 +280,12 @@
                 initShadeSelect();
                 initTopBar(true);
 
-                // блок наличия у оттенков может отличаться — перевешиваем обработчики
-                // и модификатор пустого блока на сетке
+                // блоки подменились целиком — обработчики вешаем заново
                 initCitySelect();
                 initShopsToggle();
                 initNearestShop();
+                initSetAdd();
+                initSimilarSliders();
 
                 var pb_product = document.querySelector('.pb-product');
                 var stock_block = document.querySelector('.pb-product-stock');
@@ -248,6 +299,12 @@
                 // штатный main.js активирует первую вкладку только на загрузке
                 var firstTab = document.querySelector('.product-end-tabs .product-tab');
                 if (firstTab) firstTab.click();
+
+                // высота страницы после подмены набирается не сразу (ленивые
+                // картинки), поэтому возвращаем позицию ещё раз в следующем
+                // кадре и после догрузки — иначе браузер упирается в короткий
+                // документ и прокрутка «прыгает» вверх
+                restoreScroll(scroll_y);
             })
             .catch(function () {
                 window.location.href = url;
@@ -293,7 +350,8 @@
 
         Array.prototype.forEach.call(sections, function (section) {
             var track = section.querySelector('.rec-similar-track');
-            if (!track) return;
+            if (!track || section.dataset.pbReady) return;
+            section.dataset.pbReady = '1';
 
             function step() {
                 var card = track.querySelector('.rec-card');
@@ -347,6 +405,9 @@
         }
 
         Array.prototype.forEach.call(buttons, function (button) {
+            if (button.dataset.pbReady) return;
+            button.dataset.pbReady = '1';
+
             button.addEventListener('click', function (event) {
                 event.preventDefault();
                 if (button.dataset.pbBusy) return;
@@ -385,7 +446,8 @@
     /** Селектор города над списком магазинов (п.5 ТЗ). */
     function initCitySelect() {
         var root = document.querySelector('[data-city-select]');
-        if (!root) return;
+        if (!root || root.dataset.pbReady) return;
+        root.dataset.pbReady = '1';
 
         var trigger = root.querySelector('.pb-city-trigger');
         var value = root.querySelector('.pb-city-value');
@@ -437,7 +499,8 @@
         if (!shops || !('geolocation' in navigator)) return;
 
         var goods_item_id = shops.dataset.goodsItemId;
-        if (!goods_item_id) return;
+        if (!goods_item_id || shops.dataset.pbNearestDone) return;
+        shops.dataset.pbNearestDone = '1';
 
         function highlight(position) {
             var params = new URLSearchParams({
@@ -474,7 +537,8 @@
         if (!shops) return;
 
         var toggle = shops.querySelector('.pb-shops-toggle');
-        if (!toggle) return;
+        if (!toggle || toggle.dataset.pbReady) return;
+        toggle.dataset.pbReady = '1';
 
         toggle.addEventListener('click', function (event) {
             event.preventDefault();

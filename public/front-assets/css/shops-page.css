@@ -602,6 +602,14 @@
     body:has(.shp:not(.is-list-view)) .b24-widget-button-wrapper { display: none !important; }
 }
 
+/* На десктопе кнопка чата ложилась поверх нижних карточек панели магазинов —
+   сдвигаем её левее панели (панель 400px + отступ 12px). */
+@media (min-width: 769px) {
+    body:has(.shp) .b24-widget-button-wrapper {
+        right: 43rem !important;
+    }
+}
+
 @media (min-width: 769px) {
     .shp-carousel,
     .shp-sheet { display: none !important; }

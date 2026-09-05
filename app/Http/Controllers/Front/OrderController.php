@@ -55,7 +55,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -64,7 +64,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -76,7 +76,7 @@ class OrderController extends Controller
                         'email' => 'required|email|unique:front_user,email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -85,7 +85,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -133,7 +133,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -142,7 +142,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -155,7 +155,7 @@ class OrderController extends Controller
                         //'email' => 'required|email|unique:front_user,email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -164,7 +164,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -200,7 +200,7 @@ class OrderController extends Controller
                         'address' => 'required|min:2|max:100',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -209,7 +209,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -221,7 +221,7 @@ class OrderController extends Controller
                         'email' => 'required|email|max:255',
                         'pay_method' => [
                             'required',
-                            Rule::in(['cash', 'card']),
+                            Rule::in(config('custom.front.online_payment_enabled') ? ['cash', 'card'] : ['cash']),
                         ],
                         'delivery_method' => [
                             'required',
@@ -230,7 +230,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            'exists:shops_id,id',
+                            Rule::exists('shops_id', 'id')->where('active', 1),
                         ],
                         'agree' => 'required'
                     ]);

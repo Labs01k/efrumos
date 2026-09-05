@@ -8,7 +8,15 @@
 --}}
 @if(!empty($shops_stock) && count($shops_stock))
     @php
-        $stock_cities = collect($shops_stock)->pluck('city')->filter()->unique()->sort()->values();
+        // Кишинёв первым (как в макете), остальные города по алфавиту
+        $stock_cities = collect($shops_stock)->pluck('city')->filter()->unique()
+            ->sort(function ($a, $b) {
+                $a_main = mb_stripos($a, 'Кишин') !== false || mb_stripos($a, 'Chi') === 0;
+                $b_main = mb_stripos($b, 'Кишин') !== false || mb_stripos($b, 'Chi') === 0;
+
+                return $a_main !== $b_main ? ($a_main ? -1 : 1) : mb_strtolower($a) <=> mb_strtolower($b);
+            })
+            ->values();
         $stock_active_city = $stock_cities->first();
         $stock_has_empty = collect($shops_stock)->where('in_stock', false)->count() > 0;
         // товара нет ни в одном магазине: показываем весь список сразу, без сворачивания —
