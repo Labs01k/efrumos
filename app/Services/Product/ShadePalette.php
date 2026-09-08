@@ -88,14 +88,38 @@ class ShadePalette
                 $one_shade->shade_name = self::shadeName($one_shade->itemByLang->name ?? '', $one_shade->shade_code);
                 $one_shade->is_current = $one_shade->id === $goods_item->id;
                 $one_shade->shade_swatch = self::swatchUrl($one_shade);
+                $one_shade->shade_label = self::shadeLabel($one_shade);
 
                 return $one_shade;
             })
-            ->filter(fn ($one_shade) => $one_shade->shade_code !== null)
-            ->sortBy(fn ($one_shade) => self::sortKey($one_shade->shade_code))
+            // членство в линейке не зависит от того, распознался ли код: у части
+            // линеек кода нет в принципе, и раньше они оставались вовсе без палитры
+            ->pipe(fn ($all) => self::dropDuplicateCodes($all))
+            ->sortBy(fn ($one_shade) => self::sortKey($one_shade->shade_code, $one_shade->shade_name))
             ->values();
 
         return $shades->count() >= self::MIN_SHADES ? $shades : collect();
+    }
+
+    /**
+     * Один и тот же оттенок иногда заведён двумя SKU — старый и новый артикул
+     * из 1С (Acme Avena: 12226.014 и 31210.014). В палитре это два одинаковых
+     * свотча подряд, поэтому оставляем один: текущий товар, если дубль — он,
+     * иначе тот, которого больше на складе.
+     */
+    private static function dropDuplicateCodes(Collection $shades): Collection
+    {
+        return $shades
+            ->groupBy(fn ($one_shade) => $one_shade->shade_code ?? 'no-code-' . $one_shade->id)
+            ->map(function ($group) {
+                if ($group->count() === 1) {
+                    return $group->first();
+                }
+
+                return $group->firstWhere('is_current', true)
+                    ?? $group->sortByDesc('products_count')->first();
+            })
+            ->values();
     }
 
     /**
@@ -108,20 +132,46 @@ class ShadePalette
     public static function shadeCode(?string $goods_name, ?string $articol = null): ?string
     {
         // код оттенка идёт после запятой, за ним название оттенка;
-        // «, 135 мл» — это объём, а не оттенок, поэтому единицы измерения исключаем
-        if ($goods_name && preg_match('~,\s*([\d]+(?:/[\dA-Za-zА-Яа-я]+)?)\s+(?!(?:мл|ml|г|гр|g|gr|л|l)\b)\p{L}~u', $goods_name, $match)) {
+        // «, 135 мл» — это объём, а не оттенок, поэтому единицы измерения исключаем.
+        // Разделителем бывает и тире («, 1 - Черный»), и просто пробел.
+        $units = '(?:мл|ml|г|гр|g|gr|л|l|шт|buc)';
+
+        if ($goods_name && preg_match('~,\s*([\d]+(?:/[\dA-Za-zА-Яа-я]+)?)\s*[-–—]?\s*(?!' . $units . '\b)\p{L}~u', $goods_name, $match)) {
             return $match[1];
         }
 
         if ($articol) {
-            $code = preg_replace('/^[A-Za-zА-Яа-я.\-\s]+/u', '', trim($articol));
+            $articol = trim($articol);
+            $code = preg_replace('/^[A-Za-zА-Яа-я.\-\s]+/u', '', $articol);
 
             if ($code !== '' && preg_match('~^[\d/]+$~', $code)) {
                 return $code;
             }
+
+            // артикулы вида 31210.042 — код оттенка после точки; сам префикс
+            // это номер линейки в 1С и к оттенку отношения не имеет
+            if (preg_match('~\.([\d]{2,}(?:/[\d]+)?)$~', $articol, $match)) {
+                return $match[1];
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Подпись оттенка в палитре: «9/76, Блондин коричнево-фиолетовый».
+     * У части линеек кода нет вовсе (ENIGMA — только «Графит», «Черный»),
+     * тогда остаётся одно название.
+     */
+    public static function shadeLabel(GoodsItemId $one_shade): string
+    {
+        $name = trim((string) $one_shade->shade_name);
+
+        if (!$one_shade->shade_code) {
+            return $name;
+        }
+
+        return $name === '' ? $one_shade->shade_code : $one_shade->shade_code . ', ' . $name;
     }
 
     /**
@@ -130,8 +180,24 @@ class ShadePalette
      */
     public static function shadeName(string $goods_name, ?string $code): string
     {
-        if ($code && preg_match('~' . preg_quote($code, '~') . '\s+(.+?)(?:,\s*\d+\s*(?:мл|ml)\b.*)?$~ui', $goods_name, $match)) {
-            return trim($match[1], " ,\t\n");
+        $volume_tail = '~,?\s*\d+[.,]?\d*\s*(?:мл|ml|г|гр|g|gr|л|l|шт|buc)\b.*$~ui';
+
+        if (!$code) {
+            return trim(preg_replace($volume_tail, '', $goods_name), " ,-–—\t\n");
+        }
+
+        $quoted = preg_quote($code, '~');
+
+        // сначала ищем код там, где он и должен стоять — после запятой; иначе
+        // короткий код («1») может совпасть с числом из названия товара
+        foreach (['~,\s*' . $quoted . '\s*[-–—]?\s*(.*)$~ui', '~' . $quoted . '\s*[-–—]?\s*(.*)$~ui'] as $pattern) {
+            if (preg_match($pattern, $goods_name, $match)) {
+                $tail = trim(preg_replace($volume_tail, '', $match[1]), " ,-–—\t\n");
+
+                // у части линеек название оттенка отсутствует, есть только номер
+                // («… Avena Shine Color 042, 135 мл») — тогда подписью служит код
+                return $tail;
+            }
         }
 
         return $goods_name;
@@ -188,13 +254,20 @@ class ShadePalette
         return "REPLACE(REPLACE(REPLACE($column, '-', '/'), '_', '/'), ' ', '/')";
     }
 
-    /** Сортировка палитры по уровню тона, затем по нюансу: 1/0, 3/11, 9/76, 10/1. */
-    private static function sortKey(string $code): array
+    /**
+     * Сортировка палитры по уровню тона, затем по нюансу: 1/0, 3/11, 9/76, 10/1.
+     * Оттенки без кода уходят в конец списка и там сортируются по названию.
+     */
+    private static function sortKey(?string $code, ?string $name = null): array
     {
+        if ($code === null) {
+            return [1, 0, 0, (string) $name];
+        }
+
         $parts = explode('/', $code);
         $level = is_numeric($parts[0]) ? (int) $parts[0] : 999;
         $tone = isset($parts[1]) && is_numeric($parts[1]) ? (int) $parts[1] : -1;
 
-        return [$level, $tone];
+        return [0, $level, $tone, (string) $name];
     }
 }

@@ -18,7 +18,7 @@
             @else
                 <span class="pb-swatch" style="background-image: url('{{ $active_shade->oImage && $active_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) ? asset('upfiles/goods-items/s/' . showImg($active_shade->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}')"></span>
             @endif
-            <span class="pb-shade-value">{{ $active_shade->shade_code }}, {{ $active_shade->shade_name }}</span>
+            <span class="pb-shade-value">{{ $active_shade->shade_label }}</span>
             <input type="text" class="pb-shade-search" autocomplete="off"
                    placeholder="{{ trans('variables.product_shade_search') }}"
                    aria-label="{{ trans('variables.product_shade_search') }}">
@@ -39,7 +39,7 @@
                 @php
                     $shade_classes = ($one_shade->is_current ? ' is-selected' : '')
                         . (!$one_shade->in_stoc || $one_shade->products_count <= 0 ? ' is-out' : '');
-                    $shade_title = $one_shade->shade_code . ', ' . $one_shade->shade_name;
+                    $shade_title = $one_shade->shade_label;
                     $shade_image = $one_shade->shade_swatch
                         ?: ($one_shade->oImage && $one_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_shade->oImage->img))
                             ? asset('upfiles/goods-items/s/' . showImg($one_shade->oImage->img))
