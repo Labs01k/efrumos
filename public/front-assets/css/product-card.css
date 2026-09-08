@@ -1570,3 +1570,166 @@
     font-family: gilroy-light, sans-serif;
     opacity: .8;
 }
+
+/* =========================================================================
+   ANTI-FOUC: геометрия swiper-слайдов ДО инициализации.
+   Причина скачка: libs.min.css задаёт `.swiper-slide{width:100%}`,
+   поэтому до new Swiper() каждый слайд занимает ВСЮ ширину контейнера,
+   картинка внутри раздувается, высота .swiper-wrapper = высота
+   самого высокого слайда. Swiper потом пишет инлайном
+   width = (size - S*(n-1))/n  и  margin-right = S.
+   Ниже — та же формула в CSS, действует только пока нет
+   класса .swiper-container-initialized.
+   100% в calc() = ширина .swiper-wrapper = swiper.size.
+   ========================================================================= */
+
+/* ---------- .videos : 2/20 → 768:3/20 → 992:4/20 → 1200:5/30 ---------- */
+.videos .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc((100% - 20px) / 2);
+    margin-right: 20px;
+}
+@media (min-width: 768px){
+    .videos .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 40px) / 3);
+    }
+}
+@media (min-width: 992px){
+    .videos .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 60px) / 4);
+    }
+}
+@media (min-width: 1200px){
+    .videos .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 120px) / 5);
+        margin-right: 30px;
+    }
+}
+
+/* ---------- .news : 1.2/20 → 768:2.2/20 → 992:3.2/20 → 1200:4/40 ---------- */
+.news .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc((100% - 4px) / 1.2);
+    margin-right: 20px;
+}
+@media (min-width: 768px){
+    .news .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 24px) / 2.2);
+    }
+}
+@media (min-width: 992px){
+    .news .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 44px) / 3.2);
+    }
+}
+@media (min-width: 1200px){
+    .news .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 120px) / 4);
+        margin-right: 40px;
+    }
+}
+
+/* ---------- .blog : 1.2/20 → 768:2.2/20 → 992:3/20 → 1200:3/30 ---------- */
+.blog .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc((100% - 4px) / 1.2);
+    margin-right: 20px;
+}
+@media (min-width: 768px){
+    .blog .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 24px) / 2.2);
+    }
+}
+@media (min-width: 992px){
+    .blog .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 40px) / 3);
+    }
+}
+@media (min-width: 1200px){
+    .blog .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: calc((100% - 60px) / 3);
+        margin-right: 30px;
+    }
+}
+
+/* ---------- .goods-slider (обычный) : 2/20 → 992:3/20 → 1200:4/30 ----------
+   .goods-slider-banner исключён: Swiper не трогает display:none-слайды,
+   у баннера своя ширина в main.css. */
+.goods-slider:not(.goods-slider--large) .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+    width: calc((100% - 20px) / 2);
+    margin-right: 20px;
+}
+@media (min-width: 992px){
+    .goods-slider:not(.goods-slider--large) .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+        width: calc((100% - 40px) / 3);
+    }
+}
+@media (min-width: 1200px){
+    .goods-slider:not(.goods-slider--large) .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+        width: calc((100% - 90px) / 4);
+        margin-right: 30px;
+    }
+}
+
+/* ---------- .goods-slider--large : 2/20 → 768:3/20 → 992:4/20 → 1200:5/30 ---------- */
+.goods-slider--large .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+    width: calc((100% - 20px) / 2);
+    margin-right: 20px;
+}
+@media (min-width: 768px){
+    .goods-slider--large .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+        width: calc((100% - 40px) / 3);
+    }
+}
+@media (min-width: 992px){
+    .goods-slider--large .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+        width: calc((100% - 60px) / 4);
+    }
+}
+@media (min-width: 1200px){
+    .goods-slider--large .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide:not(.goods-slider-banner){
+        width: calc((100% - 120px) / 5);
+        margin-right: 30px;
+    }
+}
+
+/* ---------- .categories : 3.6 → 576:5.6 → 768:7.6 → 1200:9.6 → 1600:11, S=0 ---------- */
+.categories .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc(100% / 3.6);
+}
+@media (min-width: 576px){
+    .categories .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 5.6); }
+}
+@media (min-width: 768px){
+    .categories .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 7.6); }
+}
+@media (min-width: 1200px){
+    .categories .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 9.6); }
+}
+@media (min-width: 1600px){
+    .categories .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 11); }
+}
+
+/* ---------- .brands : 2.2 → 480:3.2 → 576:4.2 → 768:5.2 → 992:6.2 → 1200:7.2 → 1500:9, S=0 ---------- */
+.brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc(100% / 2.2);
+}
+@media (min-width: 480px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 3.2); } }
+@media (min-width: 576px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 4.2); } }
+@media (min-width: 768px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 5.2); } }
+@media (min-width: 992px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 6.2); } }
+@media (min-width:1200px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 7.2); } }
+@media (min-width:1500px){ .brands .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{ width: calc(100% / 9);   } }
+
+/* ---------- .product-end-thumbs / .product-end-gallery (старый шаблон товара) ---------- */
+.product-end-thumbs .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+    width: calc((100% - 30px) / 4);
+    margin-right: 10px;
+}
+@media (min-width: 576px){
+    .product-end-thumbs .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper{
+        flex-direction: column;
+    }
+    .product-end-thumbs .swiper-container:not(.swiper-container-initialized) > .swiper-wrapper > .swiper-slide{
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 18px;
+    }
+}
