@@ -126,10 +126,14 @@
                         --}}
                         <div class="pb-gallery @if($goods_item->oImages->count() <= 1) pb-gallery--single @endif" data-pb-gallery>
                             <div class="pb-gallery-thumbs">
-                                <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-prev
-                                        aria-label="{{ trans('variables.product_slider_prev') }}">
-                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>
-                                </button>
+                                {{-- то же условие, что было в product-card.js: стрелки нужны,
+                                     только если превью не помещаются в столбик --}}
+                                @if($goods_item->oImages->count() > 4)
+                                    <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-prev
+                                            aria-label="{{ trans('variables.product_slider_prev') }}">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>
+                                    </button>
+                                @endif
                                 <div class="pb-gallery-thumbs-list" data-pb-thumbs>
                                     @foreach($goods_item->oImages as $one_image)
                                         <button type="button" class="pb-gallery-thumb @if($loop->first) is-active @endif"
@@ -141,10 +145,12 @@
                                         </button>
                                     @endforeach
                                 </div>
-                                <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-next
-                                        aria-label="{{ trans('variables.product_slider_next') }}">
-                                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
-                                </button>
+                                @if($goods_item->oImages->count() > 4)
+                                    <button type="button" class="pb-gallery-thumb-nav" data-pb-thumbs-next
+                                            aria-label="{{ trans('variables.product_slider_next') }}">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+                                    </button>
+                                @endif
                             </div>
                             <div class="pb-gallery-stage">
                                 <div class="pb-gallery-track" data-pb-track>
@@ -171,7 +177,14 @@
                                         aria-label="{{ trans('variables.product_slider_next') }}">
                                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9.5 3.5 13 8l-3.5 4.5"/></svg>
                                 </button>
-                                <div class="pb-gallery-dots" data-pb-dots aria-hidden="true"></div>
+                                {{-- точки рисует сервер: на ≤1024 это единственный указатель
+                                     на то, что фото несколько, а раньше их создавал JS --}}
+                                <div class="pb-gallery-dots" data-pb-dots aria-hidden="true">
+                                    @foreach($goods_item->oImages as $one_image)
+                                        <button type="button" class="pb-gallery-dot{{ $loop->first ? ' is-active' : '' }}"
+                                                data-pb-go="{{ $loop->index }}"></button>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
                     </div>

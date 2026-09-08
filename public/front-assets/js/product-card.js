@@ -25,7 +25,10 @@
             var dotsBox = root.querySelector('[data-pb-dots]');
             var current = 0;
 
-            if (dotsBox) {
+            // точки и стрелки превью приходят из разметки: и то и другое
+            // раньше доводилось здесь, из-за чего они мигали после загрузки.
+            // Ветка ниже страхует ajax-подмену старой разметкой.
+            if (dotsBox && !dotsBox.children.length) {
                 for (var i = 0; i < slides.length; i++) {
                     var dot = document.createElement('button');
                     dot.type = 'button';
@@ -33,14 +36,6 @@
                     dot.dataset.pbGo = i;
                     dotsBox.appendChild(dot);
                 }
-            }
-
-            // стрелки прокрутки превью нужны, только если превью больше четырёх
-            if (thumbs.length <= 4) {
-                Array.prototype.forEach.call(
-                    root.querySelectorAll('[data-pb-thumbs-prev], [data-pb-thumbs-next]'),
-                    function (nav) { nav.hidden = true; }
-                );
             }
 
             function setActive(index) {
