@@ -177,24 +177,34 @@
 
 <div id="fixed-overlay"></div>
 
-<script src="{{ asset('front-assets/js/libs.min.js?v=').config('custom.front.js_version') }}"></script>
-<script src="{{ asset('front-assets/js/main.js?v=').config('custom.front.js_version') }}"></script>
-<script src="{{ asset('front-assets/js/notiflix-3.2.6.min.js') }}"></script>
-<script src="{{ asset('front-assets/js/recaptcha.js') }}"></script>
-<script src="{{ asset('front-assets/js/ajax-scripts.js?v=').config('custom.front.js_version') }}"></script>
-<script src="{{ asset('front-assets/js/product-card.js?v=').config('custom.front.js_version') }}"></script>
-<script src="https://www.google.com/recaptcha/api.js?render={{ env('RE_CAP_SECRET') }}"></script>
+{{--
+    defer: скрипты перестают блокировать разбор страницы, но сохраняют
+    порядок исполнения между собой и гарантированно отрабатывают до
+    DOMContentLoaded. Раньше один только libs.min.js (400 КБ) держал
+    парсер, а вместе с ним и всю доводку вёрстки, которая живёт в ready().
+--}}
+<script defer src="{{ asset('front-assets/js/libs.min.js?v=').config('custom.front.js_version') }}"></script>
+<script defer src="{{ asset('front-assets/js/main.js?v=').config('custom.front.js_version') }}"></script>
+<script defer src="{{ asset('front-assets/js/notiflix-3.2.6.min.js') }}"></script>
+<script defer src="{{ asset('front-assets/js/recaptcha.js') }}"></script>
+<script defer src="{{ asset('front-assets/js/ajax-scripts.js?v=').config('custom.front.js_version') }}"></script>
+<script defer src="{{ asset('front-assets/js/product-card.js?v=').config('custom.front.js_version') }}"></script>
+<script defer src="https://www.google.com/recaptcha/api.js?render={{ env('RE_CAP_SECRET') }}"></script>
 
 
 <script>
-    getRecaptcha('/contacts', 'recaptcha-contacts');
-    getRecaptcha('/', 'recaptcha-register');
-    getRecaptcha('/', 'recaptcha-restore-password');
-    getRecaptcha('/cart', 'recaptcha-order-new');
-    getRecaptcha('/cart', 'recaptcha-order-already');
-    getRecaptcha('/cart', 'recaptcha-order-without');
-    getRecaptcha('/', 'recaptcha-form-goods-review');
-    getRecaptcha('/', 'recaptcha-subscribers');
+    // ждём DOMContentLoaded: скрипты выше отложены, и до этого момента
+    // ни getRecaptcha, ни сам grecaptcha ещё не определены
+    document.addEventListener('DOMContentLoaded', function () {
+        getRecaptcha('/contacts', 'recaptcha-contacts');
+        getRecaptcha('/', 'recaptcha-register');
+        getRecaptcha('/', 'recaptcha-restore-password');
+        getRecaptcha('/cart', 'recaptcha-order-new');
+        getRecaptcha('/cart', 'recaptcha-order-already');
+        getRecaptcha('/cart', 'recaptcha-order-without');
+        getRecaptcha('/', 'recaptcha-form-goods-review');
+        getRecaptcha('/', 'recaptcha-subscribers');
+    });
 </script>
 
 {{--Modal add to cart--}}

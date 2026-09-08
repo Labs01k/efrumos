@@ -1,5 +1,7 @@
 <script>
-    $(document).ready(function () {
+    // не $(document).ready: скрипты подключены с defer, и в момент разбора
+    // этого инлайна ни jQuery, ни noUiSlider ещё не существуют
+    document.addEventListener('DOMContentLoaded', function () {
         let priceSlider = document.getElementById('priceSlider');
         let min_input = document.getElementById('minPrice');
         let max_input = document.getElementById('maxPrice');
