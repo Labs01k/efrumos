@@ -350,61 +350,58 @@
                     {{--
                         Блок описания по макету (нода 786:15247): вкладки Описание / Состав /
                         Применение, ниже всегда — «Доставка», характеристики и ряд преимуществ.
-                        Механика вкладок штатная (openTab из main.js + автоклик первой).
+                        Переключение штатное — openTab() из main.js.
+
+                        Активная вкладка проставляется здесь, на сервере. Раньше её выставлял
+                        main.js, кликая по первой вкладке после $(document).ready: до этого
+                        момента весь текст описания лежал под display:none, и посетитель видел
+                        пустое место, а затем скачок страницы на ~240 px.
                     --}}
+                    @php
+                        $product_tabs = [];
+
+                        if ($goods_item->itemByLang->body) {
+                            $product_tabs[] = ['id' => 'product-tabs-1', 'title' => ShowLabelById(191), 'html' => $goods_item->itemByLang->body];
+                        }
+
+                        if ($tab_composition) {
+                            $product_tabs[] = ['id' => 'product-tabs-composition', 'title' => trans('variables.product_tab_composition'), 'text' => $tab_composition];
+                        }
+
+                        if ($tab_usage) {
+                            $product_tabs[] = ['id' => 'product-tabs-usage', 'title' => trans('variables.product_tab_usage'), 'text' => $tab_usage];
+                        }
+                    @endphp
                     <div class="pb-product-info">
                         <div class="section product-end-tabs pb-info">
                             <div class="container">
-                                <div class="product-tabs">
-                                    <div class="swiper-container">
-                                        <div class="swiper-wrapper">
-                                            @if($goods_item->itemByLang->body)
-                                                <div class="swiper-slide">
-                                                    <button type="button" class="product-tab"
-                                                            onclick="openTab(event, 'product-tabs-1')">
-                                                        {{ ShowLabelById(191) }}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                            @if($tab_composition)
-                                                <div class="swiper-slide">
-                                                    <button type="button" class="product-tab"
-                                                            onclick="openTab(event, 'product-tabs-composition')">
-                                                        {{ trans('variables.product_tab_composition') }}
-                                                    </button>
-                                                </div>
-                                            @endif
-                                            @if($tab_usage)
-                                                <div class="swiper-slide">
-                                                    <button type="button" class="product-tab"
-                                                            onclick="openTab(event, 'product-tabs-usage')">
-                                                        {{ trans('variables.product_tab_usage') }}
-                                                    </button>
-                                                </div>
-                                            @endif
+                                @if(count($product_tabs))
+                                    <div class="product-tabs">
+                                        <div class="swiper-container">
+                                            <div class="swiper-wrapper">
+                                                @foreach($product_tabs as $one_tab)
+                                                    <div class="swiper-slide">
+                                                        <button type="button" class="product-tab{{ $loop->first ? ' active' : '' }}"
+                                                                onclick="openTab(event, '{{ $one_tab['id'] }}')">
+                                                            {{ $one_tab['title'] }}
+                                                        </button>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                @if($goods_item->itemByLang->body)
-                                    <div id="product-tabs-1" class="product-tabs-content">
-                                        <div class="common-text">
-                                            {!! $goods_item->itemByLang->body ?? '' !!}
+
+                                    @foreach($product_tabs as $one_tab)
+                                        <div id="{{ $one_tab['id'] }}" class="product-tabs-content{{ $loop->first ? ' active' : '' }}">
+                                            <div class="common-text">
+                                                @if(isset($one_tab['html']))
+                                                    {!! $one_tab['html'] !!}
+                                                @else
+                                                    <p>{{ $one_tab['text'] }}</p>
+                                                @endif
+                                            </div>
                                         </div>
-                                    </div>
-                                @endif
-                                @if($tab_composition)
-                                    <div id="product-tabs-composition" class="product-tabs-content">
-                                        <div class="common-text">
-                                            <p>{{ $tab_composition }}</p>
-                                        </div>
-                                    </div>
-                                @endif
-                                @if($tab_usage)
-                                    <div id="product-tabs-usage" class="product-tabs-content">
-                                        <div class="common-text">
-                                            <p>{{ $tab_usage }}</p>
-                                        </div>
-                                    </div>
+                                    @endforeach
                                 @endif
 
                                 @if(showSettingBodyByAlias('text-delivery-descr'))
