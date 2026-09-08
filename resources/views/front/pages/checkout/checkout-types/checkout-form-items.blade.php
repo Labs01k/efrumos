@@ -34,32 +34,50 @@
 
 <div class="basket-info pickup d-none">
     {{--
-        Выбор магазина самовывоза (п.2 ТЗ): все активные магазины без проверки
-        наличия, разовый выбор на заказ — в профиле не сохраняется.
-        Своего макета у блока нет — компактный вид по мотивам карточек магазинов.
+        Пункты выдачи заказов (ответ заказчика 07.09.2026): выдача идёт только
+        из отмеченных точек, сейчас такая одна. Когда точка одна — показываем
+        её карточкой без выбора, но всё равно записываем в заказ; появятся
+        ещё — блок сам превращается в список выбора.
     --}}
     @if(!empty($pickup_shops) && count($pickup_shops))
-        <div class="form-item checkout-pickup">
-            <label for="pickup-shop-{{ request()->input('type', 'new') }}">{{ trans('variables.checkout_pickup_shop') }}*</label>
-            <select name="pickup_shop_id" id="pickup-shop-{{ request()->input('type', 'new') }}" class="checkout-pickup-select">
-                @foreach($pickup_shops as $one_city => $city_shops)
-                    <optgroup label="{{ $one_city }}">
-                        @foreach($city_shops as $one_shop)
-                            <option value="{{ $one_shop->id }}"
-                                    data-address="{{ $one_shop->itemByLang->address ?? '' }}"
-                                    data-phone="{{ $one_shop->phone ?? '' }}"
-                                    data-schedule="{{ $one_shop->itemByLang->schedule ?? '' }}">
-                                {{ $one_shop->itemByLang->name ?? '' }}
-                            </option>
-                        @endforeach
-                    </optgroup>
-                @endforeach
-            </select>
-            <div class="checkout-pickup-details" data-pickup-details aria-live="polite"></div>
+        @php $pickup_flat = collect($pickup_shops)->flatten(1); @endphp
+
+        <div class="checkout-pickup">
+            @if($pickup_flat->count() === 1)
+                @php $pickup_only = $pickup_flat->first(); @endphp
+                <input type="hidden" name="pickup_shop_id" value="{{ $pickup_only->id }}">
+                <div class="checkout-pickup-details">
+                    <p class="checkout-pickup-address">{{ $pickup_only->itemByLang->name ?? '' }}, {{ $pickup_only->itemByLang->address ?? '' }}</p>
+                    @if($pickup_only->phone)
+                        <p class="checkout-pickup-phone">{{ $pickup_only->phone }}</p>
+                    @endif
+                    @if($pickup_only->itemByLang->schedule ?? null)
+                        <p class="checkout-pickup-schedule">{{ $pickup_only->itemByLang->schedule }}</p>
+                    @endif
+                </div>
+            @else
+                <label for="pickup-shop-{{ request()->input('type', 'new') }}">{{ trans('variables.checkout_pickup_shop') }}*</label>
+                <select name="pickup_shop_id" id="pickup-shop-{{ request()->input('type', 'new') }}" class="checkout-pickup-select">
+                    @foreach($pickup_shops as $one_city => $city_shops)
+                        <optgroup label="{{ $one_city }}">
+                            @foreach($city_shops as $one_shop)
+                                <option value="{{ $one_shop->id }}"
+                                        data-address="{{ $one_shop->itemByLang->address ?? '' }}"
+                                        data-phone="{{ $one_shop->phone ?? '' }}"
+                                        data-schedule="{{ $one_shop->itemByLang->schedule ?? '' }}">
+                                    {{ $one_shop->itemByLang->name ?? '' }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    @endforeach
+                </select>
+                <div class="checkout-pickup-details" data-pickup-details aria-live="polite"></div>
+            @endif
         </div>
-    @else
-        {!! showSettingBodyByAlias('delivery-pickup-text') !!}
     @endif
+
+    {{-- условия выдачи из панели управления (срок хранения, стоимость) --}}
+    {!! showSettingBodyByAlias('delivery-pickup-text') !!}
 </div>
 
 <div class="basket-info nova-courier d-none">

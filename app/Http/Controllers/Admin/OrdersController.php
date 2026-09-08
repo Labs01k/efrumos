@@ -145,61 +145,13 @@ class OrdersController extends Controller
      * reversal on the same transaction (RC=95), so this doesn't need its
      * own idempotency guard beyond that.
      */
-    public function refundPayment(Request $request, VictoriaBankClient $client, OrderPaymentStatusService $paymentStatusService)
-    {
-        $id = $request->input('id');
-
-        $order = Orders::find($id);
-        if (is_null($order) || $order->payment_status !== PaymentStatus::Paid) {
-            return response()->json([
-                'status' => false,
-                'type' => 'error',
-                'messages' => ['Order is not in a refundable state.'],
-            ]);
-        }
-
-        $payment = $order->payments()->where('provider', 'victoriabank')->whereNotNull('confirmed_at')->latest()->first();
-        if (is_null($payment) || !$payment->rrn) {
-            return response()->json([
-                'status' => false,
-                'type' => 'error',
-                'messages' => ['No confirmed VictoriaBank payment found for this order.'],
-            ]);
-        }
-
-        $amount = (float) $payment->amount_bani / 100;
-        $result = $client->reverse((string) $order->id, $amount, $payment->rrn, (string) $payment->int_ref);
-
-        if (($result['RC'] ?? null) !== '00') {
-            return response()->json([
-                'status' => false,
-                'type' => 'error',
-                'messages' => ['Bank rejected the refund: RC=' . ($result['RC'] ?? '?')],
-            ]);
-        }
-
-        $payment->update(['provider_status' => 'REFUND RC=00']);
-
-        try {
-            $paymentStatusService->transition(
-                order: $order,
-                to: PaymentStatus::Cancelled,
-                source: 'admin',
-                changedByAdminId: Auth::id(),
-                comment: 'Refunded via TRTYPE=24, RRN=' . $payment->rrn,
-                force: true,
-            );
-        } catch (InvalidPaymentStatusTransitionException $e) {
-            return response()->json(['status' => false, 'type' => 'error', 'messages' => [$e->getMessage()]]);
-        }
-
-        return response()->json([
-            'status' => true,
-            'type' => 'info',
-            'text' => PaymentStatus::Cancelled->label(),
-            'messages' => ['Возврат выполнен, статус изменён на «' . PaymentStatus::Cancelled->label() . '»'],
-        ]);
-    }
+    /*
+     * refundPayment() удалён по решению заказчика (07.09.2026): возврат оплаты
+     * через сайт не входит в согласованный объём работ. Механика возврата в
+     * VictoriaBankClient::reverse() осталась — если возвраты понадобятся,
+     * их нужно делать отдельной задачей с правами доступа, подтверждением
+     * и журналом операций.
+     */
 
     public function editItem($id)
     {

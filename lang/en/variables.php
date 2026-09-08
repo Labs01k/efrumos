@@ -403,6 +403,7 @@ return [
     'product_reviews_title' => 'Reviews',
     'product_rating_label' => 'Rating',
     'product_reviews_label' => 'Reviews',
+    'product_reviews_more' => 'Show more',
     'shades_title' => 'Shade palette: photos',
     'shades_search' => 'Search: code, name or article',
     'shades_find' => 'Search',

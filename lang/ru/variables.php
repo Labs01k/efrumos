@@ -442,6 +442,7 @@ return [
     'product_reviews_title' => 'Отзывы',
     'product_rating_label' => 'Оценка',
     'product_reviews_label' => 'Отзывов',
+    'product_reviews_more' => 'Показать ещё',
     'shades_title' => 'Палитра оттенков: фотографии',
     'shades_search' => 'Поиск: код, название или артикул',
     'shades_find' => 'Найти',

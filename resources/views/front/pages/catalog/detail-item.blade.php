@@ -506,9 +506,11 @@
                                class="pb-button pb-reviews-write{{ $global_user ? ' open-review-modal' : ' open-login-modal' }}">{{ ShowLabelById(182) }}</a>
                         </div>
                         @if($goods_item->goodsItemReviews->isNotEmpty())
-                            <div class="pb-reviews-list">
+                            {{-- Показываем три отзыва, остальные — по кнопке
+                                 (решение заказчика 07.09.2026, макет 786:15392). --}}
+                            <div class="pb-reviews-list" data-reviews>
                                 @foreach($goods_item->goodsItemReviews as $one_goods_review)
-                                    <div class="pb-review">
+                                    <div class="pb-review @if($loop->index >= 3) is-hidden @endif">
                                         <div class="pb-review-author">
                                             <span>{{ $one_goods_review->frontUserId->name ?? '' }}</span>
                                             @include('front.templates.product.stars', ['filled' => round($one_goods_review->rating)])
@@ -520,6 +522,11 @@
                                     </div>
                                 @endforeach
                             </div>
+                            @if($goods_item->goodsItemReviews->count() > 3)
+                                <button type="button" class="pb-reviews-more" data-reviews-more>
+                                    {{ trans('variables.product_reviews_more') }}
+                                </button>
+                            @endif
                         @else
                             <div class="pb-reviews-empty">
                                 <p>{{ ShowLabelById(183) }}</p>

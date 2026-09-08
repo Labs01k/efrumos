@@ -531,6 +531,20 @@
         }
     }
 
+    /** «Показать ещё» под отзывами: три видны сразу, остальные по кнопке. */
+    function initReviewsMore() {
+        var button = document.querySelector('[data-reviews-more]');
+        if (!button || button.dataset.pbReady) return;
+        button.dataset.pbReady = '1';
+
+        button.addEventListener('click', function () {
+            document.querySelectorAll('.pb-review.is-hidden').forEach(function (review) {
+                review.classList.remove('is-hidden');
+            });
+            button.remove();
+        });
+    }
+
     /** Раскрытие магазинов, где товара нет. */
     function initShopsToggle() {
         var shops = document.querySelector('[data-shops]');
@@ -555,5 +569,6 @@
         initCitySelect();
         initShopsToggle();
         initNearestShop();
+        initReviewsMore();
     });
 })();

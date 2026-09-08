@@ -121,9 +121,10 @@ class CartController extends Controller
 
             $month_list = showSettingBodyByAlias('month-list') ? explode(';', showSettingBodyByAlias('month-list')) : [];
 
-            // магазины самовывоза (п.2 ТЗ): все активные, наличие товара не проверяется,
-            // сгруппированы по городам — Кишинёв первым, дальше по алфавиту
-            $pickup_shops = \App\Models\ShopsId::where('active', 1)
+            // Пункты выдачи заказов. Это не все магазины: заказчик подтвердил,
+            // что забрать заказ можно только в отмеченных точках (признак
+            // pickup_point в карточке магазина), и такая точка сейчас одна.
+            $pickup_shops = \App\Models\ShopsId::where('pickup_point', 1)
                 ->has('itemByLang')
                 ->with('itemByLang')
                 ->orderBy('position', 'asc')

@@ -446,6 +446,7 @@ return [
     'product_reviews_title' => 'Recenzii',
     'product_rating_label' => 'Notă',
     'product_reviews_label' => 'Recenzii',
+    'product_reviews_more' => 'Arată mai multe',
     'shades_title' => 'Paleta de nuanțe: fotografii',
     'shades_search' => 'Căutare: cod, denumire sau articol',
     'shades_find' => 'Caută',

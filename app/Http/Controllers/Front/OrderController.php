@@ -64,7 +64,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -85,7 +85,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -142,7 +142,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -164,7 +164,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -209,7 +209,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);
@@ -230,7 +230,7 @@ class OrderController extends Controller
                         'pickup_shop_id' => [
                             'nullable',
                             'required_if:delivery_method,pickup',
-                            Rule::exists('shops_id', 'id')->where('active', 1),
+                            Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
                         'agree' => 'required'
                     ]);

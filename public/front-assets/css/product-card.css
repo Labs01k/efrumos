@@ -795,6 +795,25 @@
 
 .pb-review-text p { margin: 0; }
 
+/* скрытые отзывы до нажатия «показать ещё» */
+.pb-review.is-hidden { display: none; }
+
+.pb-reviews-more {
+    align-self: flex-start;
+    margin-top: 1.6rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: gilroy-semibold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 2rem;
+    color: var(--pb-text);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.pb-reviews-more:hover { color: var(--pb-brand); }
+
 .pb-reviews-empty {
     font-family: gilroy-medium, sans-serif;
     font-size: 1.4rem;

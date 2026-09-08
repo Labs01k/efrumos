@@ -64,7 +64,6 @@
                                    placeholder="{{ __('variables.payment_status_comment_placeholder') }}" style="width:220px;">
                             <button type="button" id="payment-status-save" class="btn btn-sm btn-primary">{{ __('variables.payment_status_save') }}</button>
                             @if ($orders->payment_status === \App\Enums\PaymentStatus::Paid && $orders->pay_method === 'card')
-                                <button type="button" id="payment-refund" class="btn btn-sm btn-outline-danger">{{ __('variables.payment_refund_button') }}</button>
                             @endif
                         </div>
                     </div>
@@ -152,45 +151,11 @@
                                 });
                         });
 
-                        const refundBtn = document.getElementById('payment-refund');
-                        if (refundBtn) {
-                            refundBtn.addEventListener('click', function () {
-                                if (!confirm('{{ __('variables.payment_refund_confirm') }}')) return;
-                                fetch('{{ urlForFunctionLanguage($lang, 'orders/refundPayment') }}', {
-                                    method: 'POST',
-                                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                                    body: new URLSearchParams({ id: {{ $orders->id }} }),
-                                })
-                                    .then(r => {
-                                        if (r.status === 419) throw new Error('Сессия/CSRF-токен устарели — обновите страницу (F5) и попробуйте снова.');
-                                        if (!r.ok) throw new Error('Сервер вернул ошибку ' + r.status);
-                                        return r.json();
-                                    })
-                                    .then(response => {
-                                        const msg = (response.messages && response.messages[0]) || 'Error';
-                                        if (response.status === true) {
-                                            document.getElementById('payment-status-current').textContent = response.text;
-                                            refundBtn.remove();
-                                        }
-                                        if (window.Notiflix) {
-                                            response.status === true ? Notiflix.Notify.info(msg) : Notiflix.Notify.failure(msg);
-                                        } else {
-                                            alert(msg);
-                                        }
-                                        if (response.status === true) {
-                                            setTimeout(() => location.reload(), 800);
-                                        }
-                                    })
-                                    .catch(err => {
-                                        console.error('refundPayment failed:', err);
-                                        if (window.Notiflix) {
-                                            Notiflix.Notify.failure(err.message);
-                                        } else {
-                                            alert(err.message);
-                                        }
-                                    });
-                            });
-                        }
+                        {{-- Кнопка возврата оплаты убрана по решению заказчика (07.09.2026):
+                             возврат через сайт не входит в согласованный объём, порядок
+                             его использования не утверждён, а доступ был у всех, кто
+                             работает с заказами. Возвраты — через банк-клиент. --}}
+
                     </script>
 
                     <hr/>
