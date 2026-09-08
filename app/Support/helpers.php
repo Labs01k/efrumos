@@ -2141,7 +2141,7 @@ function GetParametrsList($goods_subject_id, $lang_id)
  * @param $paginate
  * @return mixed
  */
-function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = null, $podbor = [], $subjects_array = null)
+function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = null, $podbor = [], $subjects_array = null, $collapse_lines = false)
 {
     $GoodsItemId = NModel . 'GoodsItemId';
 
@@ -2533,7 +2533,11 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                     ->orderBy($order_element_filter[0], $order_element_filter[1])
             );*/
             ->orderBy('in_stoc', 'desc')
-            ->orderBy($order_element_filter[0], $order_element_filter[1]);
+            ->orderBy($order_element_filter[0], $order_element_filter[1])
+            // тай-брейк: у товаров сплошь и рядом одинаковые position и цена,
+            // и без него порядок выдачи не тотален — товары прыгают между
+            // страницами пагинации, а представитель линейки недетерминирован
+            ->orderBy('goods_item_id.id', 'asc');
 
         //->get();
     } else {
@@ -2601,7 +2605,11 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
                     ->orderBy($order_element_filter[0], $order_element_filter[1])
             );*/
             ->orderBy('in_stoc', 'desc')
-            ->orderBy($order_element_filter[0], $order_element_filter[1]);
+            ->orderBy($order_element_filter[0], $order_element_filter[1])
+            // тай-брейк: у товаров сплошь и рядом одинаковые position и цена,
+            // и без него порядок выдачи не тотален — товары прыгают между
+            // страницами пагинации, а представитель линейки недетерминирован
+            ->orderBy('goods_item_id.id', 'asc');
         /*->join('goods_item', 'goods_item.goods_item_id', '=', 'goods_item_id.id')
         ->where('lang_id', $lang_id)
         ->select('*', 'goods_item_id.id as id')*/
@@ -2610,12 +2618,83 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
         //->get();
     }
 
+    // одна лёгкая выборка вместо четырёх одинаковых тяжёлых: дальше нужны
+    // только идентификаторы, а модели с шестью eager-загрузками грузились
+    // подряд четыре раза
+    $light_rows = (clone $goods_item_id)->get([
+        'goods_item_id.id as id',
+        'goods_item_id.brand_id',
+        'goods_item_id.goods_subject_id',
+        'goods_item_id.goods_type_id',
+        'goods_item_id.price',
+        'goods_item_id.price_promo',
+    ]);
+
+    $goods_items_ids = $light_rows->pluck('id')->toArray();
+    $goods_brand_ids = $light_rows->pluck('brand_id')->toArray();
+    $goods_subject_ids = $light_rows->pluck('goods_subject_id')->toArray();
+    $goods_type_ids = $light_rows->pluck('goods_type_id')->toArray();
+
     $goods_items_builder = $goods_item_id->with('oImage', 'itemByLang', 'getBrand', 'getBrand.itemByLang', 'checkIfWishItemExist', 'goodsPromoTags');
-    $goods_items_ids = $goods_items_builder->get()->pluck('id')->toArray();
-    $goods_brand_ids = $goods_items_builder->get()->pluck('brand_id')->toArray();
-    $goods_subject_ids = $goods_items_builder->get()->pluck('goods_subject_id')->toArray();
-    $goods_type_ids = $goods_items_builder->get()->pluck('goods_type_id')->toArray();
-    $goods_items_paginate = $goods_items_builder->paginate($paginate);
+
+    if ($collapse_lines) {
+        // Как только покупатель уточнил запрос до конкретного оттенка,
+        // схлопывать нельзя — иначе фильтр по цвету и поиск по номеру
+        // оттенка перестают доводить до нужного товара.
+        $shade_parametr_ids = config('custom.front.shade_parametr_ids', []);
+
+        foreach ($shade_parametr_ids as $one_parametr_id) {
+            if (!empty($podbor['p_' . $one_parametr_id])) {
+                $collapse_lines = false;
+                break;
+            }
+        }
+
+        if (!empty($podbor['brand']) || $shade_code_query) {
+            $collapse_lines = false;
+        }
+    }
+
+    /*
+     * Схлопывание оттенков в одну карточку линейки (ответ заказчика 1.1
+     * от 07.09.2026). Стоит НИЖЕ сбора идентификаторов: по ним гасятся
+     * неподходящие значения фильтров в сайдбаре, и считать их надо по всем
+     * оттенкам, иначе живые значения станут серыми. И ВЫШЕ пагинации:
+     * её total() уходит в счётчик «N товаров» и в число страниц.
+     */
+    if ($collapse_lines) {
+        [$representative_ids, $lines_meta] = \App\Services\Product\ProductLine::collapse($light_rows);
+
+        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+        $page_ids = array_slice($representative_ids, ($page - 1) * $paginate, $paginate);
+        $page_items = collect();
+
+        if (!empty($page_ids)) {
+            $page_items = (clone $goods_items_builder)
+                ->whereIn('goods_item_id.id', $page_ids)
+                ->get()
+                // порядок выдачи задаётся списком представителей, а не запросом
+                ->sortBy(fn ($one_item) => array_search((int) $one_item->id, $page_ids))
+                ->values()
+                ->map(function ($one_item) use ($lines_meta) {
+                    foreach ($lines_meta[(int) $one_item->id] ?? [] as $attribute => $value) {
+                        $one_item->{$attribute} = $value;
+                    }
+
+                    return $one_item;
+                });
+        }
+
+        $goods_items_paginate = new \Illuminate\Pagination\LengthAwarePaginator(
+            $page_items,
+            count($representative_ids),
+            $paginate,
+            $page,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath()]
+        );
+    } else {
+        $goods_items_paginate = $goods_items_builder->paginate($paginate);
+    }
 
     return [
         'goods_items_paginate' => $goods_items_paginate,

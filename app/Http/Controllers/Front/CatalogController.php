@@ -445,7 +445,8 @@ class CatalogController extends Controller
         else
             $goods_items_list = GetItemsPodborList(LANG_ID, $sorting, $count_per_page, null, $filters_elements);*/
 
-        $goods_items = GetItemsPodborList(LANG_ID, $sorting, $count_per_page, $goods_subject_id ?? null, $filters_elements, $subjects_array);
+        // последний аргумент — схлопывание оттенков в одну карточку линейки
+        $goods_items = GetItemsPodborList(LANG_ID, $sorting, $count_per_page, $goods_subject_id ?? null, $filters_elements, $subjects_array, true);
 
         if (!empty($goods_items) && count($goods_items)) {
             $goods_items_list = $goods_items['goods_items_paginate'];
@@ -675,7 +676,8 @@ class CatalogController extends Controller
             }
         }
 
-        $goods_items = GetItemsPodborList(LANG_ID, $sorting, $count_per_page, $goods_subject_id_parent, $filters_elements, $subjects_array);
+        // как и в списке каталога — выдача фильтра схлопывает линейки
+        $goods_items = GetItemsPodborList(LANG_ID, $sorting, $count_per_page, $goods_subject_id_parent, $filters_elements, $subjects_array, true);
 
         if (!empty($goods_items) && count($goods_items)) {
             $goods_items_list = $goods_items['goods_items_paginate'];

@@ -484,4 +484,9 @@ return [
     'shops_km' => 'км',
     'product_set_added' => 'Комплект добавлен в корзину',
     'product_set_partial' => 'Часть товаров комплекта недоступна, добавлено',
+
+    // карточка линейки в каталоге: оттенки схлопнуты в одну позицию
+    'catalog_line_shades' => ':count оттенок|:count оттенка|:count оттенков',
+    'catalog_choose_shade' => 'Выбрать оттенок',
+    'catalog_price_from' => 'от',
 ];

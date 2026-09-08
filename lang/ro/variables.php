@@ -488,4 +488,9 @@ return [
     'shops_km' => 'km',
     'product_set_added' => 'Setul a fost adăugat în coș',
     'product_set_partial' => 'O parte din produse nu sunt disponibile, adăugate',
+
+    // cardul liniei în catalog: nuanțele sunt grupate într-o singură poziție
+    'catalog_line_shades' => ':count nuanță|:count nuanțe|:count de nuanțe',
+    'catalog_choose_shade' => 'Alege nuanța',
+    'catalog_price_from' => 'de la',
 ];
