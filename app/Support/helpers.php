@@ -1278,7 +1278,7 @@ function addEditParameterInItem($parameter_id, $lang_id, $curr_page_id, $item_id
                         $parameter_data = $item_id > 0 ? GetItemMeasureData($parameter_id, $item_id) : []; ?>
                         <input name="parametr_<?= $parameter_id ?>[parametr_value]"
                                class="form-control form-control-sm"
-                               value="<?= !iempty($parameter_data) ? $parameter_data->parametr_value : '' ?>">
+                               value="<?= !empty($parameter_data) ? htmlspecialchars($parameter_data->parametr_value) : '' ?>">
                         <span
                             class="input-group-text"><?= measureName('goods_measure', $parameter->goods_measure_id, $lang_id) ?></span>
                         <?php
@@ -1292,7 +1292,7 @@ function addEditParameterInItem($parameter_id, $lang_id, $curr_page_id, $item_id
             case 'textarea':
                 $parameter_data = $item_id > 0 ? GetItemSimpleData($parameter_id, $item_id, $lang_id) : []; ?>
                 <textarea name="parametr_<?= $parameter_id ?>[parametr_value]" class="form-control"
-                          rows="10"><?= !iempty($parameter_data) ? $parameter_data->parametr_value : '' ?></textarea>
+                          rows="10"><?= !empty($parameter_data) ? htmlspecialchars($parameter_data->parametr_value) : '' ?></textarea>
                 <?php
                 break;
 
