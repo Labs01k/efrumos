@@ -1,0 +1,166 @@
+/* -------------------------------------------------------------------------
+   Шрифты в woff2.
+
+   В main.css каждое начертание Gilroy объявлено только как eot/ttf/svg —
+   woff2 в проекте не было вовсе. TTF весят вчетверо больше и начинают
+   качаться лишь после того, как дочитан и разобран весь CSS, поэтому
+   страница успевала около полутора секунд прожить подменным системным
+   шрифтом и затем разом перерисовывалась.
+
+   Файл подключается ПОСЛЕ main.css: одноимённые @font-face, объявленные
+   позже, перекрывают ранние, поэтому сам main.css править не нужно.
+   TTF оставлен запасным вариантом для старых браузеров.
+   ------------------------------------------------------------------------- */
+
+@font-face {
+    font-family: Roboto-Bold;
+    src: url(../fonts/Roboto-Bold/Roboto-Bold.woff2) format("woff2"),
+         url(../fonts/Roboto-Bold/Roboto-Bold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-black;
+    src: url(../fonts/gilroy-black/gilroy-black.woff2) format("woff2"),
+         url(../fonts/gilroy-black/gilroy-black.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-bold;
+    src: url(../fonts/gilroy-bold/gilroy-bold.woff2) format("woff2"),
+         url(../fonts/gilroy-bold/gilroy-bold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-extrabold;
+    src: url(../fonts/gilroy-extrabold/gilroy-extrabold.woff2) format("woff2"),
+         url(../fonts/gilroy-extrabold/gilroy-extrabold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-heavy;
+    src: url(../fonts/gilroy-heavy/gilroy-heavy.woff2) format("woff2"),
+         url(../fonts/gilroy-heavy/gilroy-heavy.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-light;
+    src: url(../fonts/gilroy-light/gilroy-light.woff2) format("woff2"),
+         url(../fonts/gilroy-light/gilroy-light.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-medium;
+    src: url(../fonts/gilroy-medium/gilroy-medium.woff2) format("woff2"),
+         url(../fonts/gilroy-medium/gilroy-medium.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-regular;
+    src: url(../fonts/gilroy-regular/gilroy-regular.woff2) format("woff2"),
+         url(../fonts/gilroy-regular/gilroy-regular.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-semibold;
+    src: url(../fonts/gilroy-semibold/gilroy-semibold.woff2) format("woff2"),
+         url(../fonts/gilroy-semibold/gilroy-semibold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-thin;
+    src: url(../fonts/gilroy-thin/gilroy-thin.woff2) format("woff2"),
+         url(../fonts/gilroy-thin/gilroy-thin.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: gilroy-ultralight;
+    src: url(../fonts/gilroy-ultralight/gilroy-ultralight.woff2) format("woff2"),
+         url(../fonts/gilroy-ultralight/gilroy-ultralight.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-bold;
+    src: url(../fonts/jost-bold/jost-bold.woff2) format("woff2"),
+         url(../fonts/jost-bold/jost-bold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-extrabold;
+    src: url(../fonts/jost-extrabold/jost-extrabold.woff2) format("woff2"),
+         url(../fonts/jost-extrabold/jost-extrabold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-light;
+    src: url(../fonts/jost-light/jost-light.woff2) format("woff2"),
+         url(../fonts/jost-light/jost-light.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-medium;
+    src: url(../fonts/jost-medium/jost-medium.woff2) format("woff2"),
+         url(../fonts/jost-medium/jost-medium.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-regular;
+    src: url(../fonts/jost-regular/jost-regular.woff2) format("woff2"),
+         url(../fonts/jost-regular/jost-regular.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: jost-semibold;
+    src: url(../fonts/jost-semibold/jost-semibold.woff2) format("woff2"),
+         url(../fonts/jost-semibold/jost-semibold.ttf) format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

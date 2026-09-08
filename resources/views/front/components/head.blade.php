@@ -12,8 +12,23 @@
 <meta name="msapplication-config" content="{{ asset('front-assets/favicon/browserconfig.xml') }}">
 <meta name="theme-color" content="#ffffff">
 
+{{--
+    Начертания, которыми набран первый экран. Без preload браузер узнаёт
+    о шрифтах только после того, как дочитает и разберёт весь CSS, и до тех
+    пор рисует текст подменным системным шрифтом. Больше трёх не грузим —
+    остальные конкурируют за полосу с блокирующим CSS.
+--}}
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="{{ asset('front-assets/fonts/gilroy-medium/gilroy-medium.woff2') }}">
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="{{ asset('front-assets/fonts/gilroy-semibold/gilroy-semibold.woff2') }}">
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="{{ asset('front-assets/fonts/gilroy-bold/gilroy-bold.woff2') }}">
+
 <link rel="stylesheet" href="{{  asset('front-assets/css/libs.min.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{  asset('front-assets/css/main.css?v=').config('custom.front.css_version') }}">
+{{-- перекрывает объявления шрифтов из main.css: там только eot/ttf/svg --}}
+<link rel="stylesheet" href="{{ asset('front-assets/css/fonts-woff2.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{ asset('front-assets/css/validate.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{ asset('front-assets/css/product-card.css?v=').config('custom.front.css_version') }}">
 <link rel="stylesheet" href="{{ asset('front-assets/css/notiflix-3.2.6.min.css') }}">
