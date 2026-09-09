@@ -127,28 +127,42 @@ tar czf - \
   --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
   . | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "tar xzf - -C ~/"
 
+# Everything below used to be one ssh_do() call per step (~9 separate
+# connections in a few seconds: mkdir, composer, .env check, migrate,
+# sql-patches, 2x cache warm, chown, restart). The server started
+# rejecting even valid-key connections mid-run once we hit that many in
+# quick succession (looked exactly like connection-rate throttling, not a
+# key/auth problem — worked, then "Permission denied" on the very next
+# call with the same key seconds later). One ssh connection running a
+# whole remote script fixes it AND is just faster.
+echo "==> Running the rest of the deploy (composer, migrations, patches, caches, restart) in one SSH session"
+ssh_do bash -s <<REMOTE_SCRIPT
+set -euo pipefail
+cd ~
+
 # Laravel needs these to exist even though git doesn't track them (runtime
 # artifacts) — on a server that never had them (fresh dev, this session)
 # they're just missing entirely, not "old and excluded from overwrite".
+mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing bootstrap/cache
+
 # .env at 640 (owner+group read), not 600: php-fpm's pool runs workers as
 # www-data (group), not the deploying user — 600 makes dotenv's safeLoad()
 # silently fail to read it (no exception, just no config at all) for every
-# real web request while `docker exec ... php artisan` (running as root)
+# real web request while \`docker exec ... php artisan\` (running as root)
 # keeps working fine and hides the problem. Found the hard way on dev.
-echo "==> Ensuring storage/bootstrap directories and .env permissions"
-ssh_do "cd ~ && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing bootstrap/cache && chmod 640 .env 2>/dev/null || true"
+chmod 640 .env 2>/dev/null || true
 
-echo "==> composer install (host PHP/composer — richer extension set than the fpm container, see deploy-investigation.md)"
-ssh_do "cd ~ && composer install --no-dev --optimize-autoloader"
-
-if ! ssh_do "test -f ~/.env"; then
+if [ ! -f .env ]; then
   echo "!! No .env on $ENVIRONMENT yet — deploy stopped here on purpose." >&2
   echo "!! Create it by hand first (see manual-deploy-runbook.md step 3), then re-run this script." >&2
   exit 1
 fi
 
-echo "==> Running migrations"
-ssh_do "cd ~ && php artisan migrate --force"
+echo "-- composer install (host PHP/composer — richer extension set than the fpm container, see deploy-investigation.md)"
+composer install --no-dev --optimize-autoloader
+
+echo "-- Running migrations"
+php artisan migrate --force
 
 # database/sql/*.sql — идемпотентные патчи схемы и данных, которые не входят
 # в artisan migrate (структура сайта живёт в дампе). Локально их накатывает
@@ -157,22 +171,24 @@ ssh_do "cd ~ && php artisan migrate --force"
 # Без этого шага на сервере не появятся goods_shop_rests, shade_img,
 # store_guid, orders.pickup_shop_id, координаты магазинов и раздел CMS
 # «Палитра оттенков» — карточка товара и самовывоз упадут.
-echo "==> Applying database/sql patches"
-ssh_do "cd ~ && php artisan db:apply-sql-patches"
+echo "-- Applying database/sql patches"
+php artisan db:apply-sql-patches
 
 # Кеши, которые строятся командами по расписанию: на свежем сервере они пусты
 # до первого запуска scheduler'а, и до тех пор блок «С этим товаром покупают»
 # теряет источник «часто покупают вместе», а витрина вариантов оттенков пуста.
 # Прогреваем сразу, чтобы деплой не оставлял сайт в частично рабочем виде.
 # Регулярность обеспечивает cron (см. напоминание в конце скрипта).
-echo "==> Warming recommendation/variant caches"
-ssh_do "cd ~ && php artisan recommendations:recalc-bought-together && php artisan shades:rebuild-variants"
+echo "-- Warming recommendation/variant caches"
+php artisan recommendations:recalc-bought-together
+php artisan shades:rebuild-variants
 
-echo "==> Fixing storage/bootstrap permissions"
-ssh_do "cd ~ && chown -R \$(whoami):www-data storage bootstrap/cache"
+echo "-- Fixing storage/bootstrap permissions"
+chown -R \$(whoami):www-data storage bootstrap/cache
 
-echo "==> Restarting $CONTAINER to pick up the new code"
-ssh_do "docker restart $CONTAINER"
+echo "-- Restarting $CONTAINER to pick up the new code"
+docker restart $CONTAINER
+REMOTE_SCRIPT
 
 echo
 echo "Done. Deployed to $ENVIRONMENT ($DOMAIN)."
