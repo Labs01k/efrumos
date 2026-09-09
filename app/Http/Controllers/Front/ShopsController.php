@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShopsId;
+use App\Services\GooglePlaces\GooglePlacesService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Страница «Магазины» (п.2 ТЗ): единая интерактивная карта + панель списка.
@@ -69,5 +72,28 @@ class ShopsController extends Controller
         $meta = $menu_id ?? collect([]);
 
         return view($view, get_defined_vars());
+    }
+
+    /**
+     * Epic 2 — часы работы/статус «Открыт-Закрыт»/телефон по Google Place ID,
+     * на момент отображения (короткий кеш в GooglePlacesService, не статичные
+     * данные из CMS). Вызывается по требованию (лениво), не на каждый рендер
+     * страницы списка магазинов — не у каждого магазина есть place_id.
+     */
+    public function ajaxShopPlaceDetails(Request $request, GooglePlacesService $places): JsonResponse
+    {
+        $shop = ShopsId::where('active', 1)->find((int) $request->input('shop_id'));
+
+        if (!$shop || !$shop->google_place_id) {
+            return response()->json(['status' => false]);
+        }
+
+        $details = $places->getDetails($shop->google_place_id);
+
+        if ($details === null) {
+            return response()->json(['status' => false]);
+        }
+
+        return response()->json(['status' => true] + $details);
     }
 }

@@ -145,6 +145,7 @@ Route::middleware('FrontGlobal')->group(function () {
 
         /* Shops */
         Route::get('/shops', [ShopsController::class, 'index'])->name('shops');
+        Route::get('/ajaxShopPlaceDetails', [ShopsController::class, 'ajaxShopPlaceDetails']);
 
         /* Parse */
         Route::get('/parsesubjectsname', [ParseController::class, 'parseGoodsSubjectName']);

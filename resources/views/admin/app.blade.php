@@ -75,7 +75,7 @@
 <script src="{{asset('admin-assets/js/app.js')}}"></script>
 <script src="{{asset('admin-assets/js/plugins/table-responsive-scrollbar-top.js')}}"></script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key={{env('GOOGLE_MAP_API')}}"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{config('custom.front.google_maps_key')}}"></script>
 <script src="{{asset('admin-assets/js/google_map.js')}}"></script>
 <script src="{{asset('admin-assets/js/custom.js?v=').config('custom.back.js_version')}}"></script>
 <script src="{{asset('admin-assets/js/ckeditor5/build/ckeditor.js')}}"></script>
