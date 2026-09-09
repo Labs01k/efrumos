@@ -18,15 +18,19 @@ return [
         // job logs critically either way, so this degrades safely.
         'alert_email' => env('INTEGRATION_ALERT_EMAIL'),
 
-        // TEMPORARY — single flag covering every 1С/Bitrix24 call made
-        // during order processing (SoapOneCOrderGateway, LoggingBitrixDeal-
-        // Gateway). true (default everywhere, including production): stock
-        // check always reports "enough", every write always "succeeds" —
-        // the whole integration chain reaches synced regardless of real
-        // data. false: real stock check, every write throws
-        // IntegrationGatewayException — as honest as currently possible,
-        // since neither system has a real write endpoint/credentials yet.
+        // Legacy combined flag — kept only as the shared fallback default
+        // for the two flags below when they aren't set individually. Don't
+        // read this directly anywhere new; use onec_mock_mode/bitrix_mock_mode.
         'mock_mode' => env('INTEGRATION_MOCK_MODE', true),
+
+        // Split 2026-09-09: 1С now has a real, working order/payment WSDL
+        // (ws_amo.1cws) — SoapOneCOrderGateway can run for real independently
+        // of Bitrix24, which still has no webhook/credentials at all. Each
+        // flag defaults to the legacy combined one, so an env that only sets
+        // INTEGRATION_MOCK_MODE keeps its old all-or-nothing behavior; set
+        // these individually to unmock one system without the other.
+        'onec_mock_mode' => env('ONEC_MOCK_MODE', env('INTEGRATION_MOCK_MODE', true)),
+        'bitrix_mock_mode' => env('BITRIX_MOCK_MODE', env('INTEGRATION_MOCK_MODE', true)),
 
         // Epic 1 / 1.5 — Bitrix24 employee who gets the post-payment task
         // (tasks.task.add RESPONSIBLE_ID). Not known yet — null until the
@@ -103,7 +107,9 @@ return [
         'terminal_id' => env('VICTORIABANK_TERMINAL_ID', '49807132'),
         'merchant_id' => env('VICTORIABANK_MERCHANT_ID', '498000049807132'),
 
-        // Ours — generated locally, not yet re-sent/confirmed after rotation.
+        // Ours — generated locally 2026-09-02, merchant_public.pem sent to
+        // the bank per their onboarding email (2026-09-02, real TID 49807132/
+        // MID 498000049807132 for Solvex Lux SRL — see efrumos-docs/part1).
         // Outside the web root (storage/app is never publicly served).
         'merchant_private_key_path' => env('VICTORIABANK_MERCHANT_PRIVATE_KEY_PATH', storage_path('app/victoriabank-keys/merchant_private.pem')),
         'merchant_public_key_path' => env('VICTORIABANK_MERCHANT_PUBLIC_KEY_PATH', storage_path('app/victoriabank-keys/merchant_public.pem')),
@@ -124,6 +130,38 @@ return [
         'wsdl_url' => env('APP_ENV') === 'production'
             ? env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')
             : env('SOAP_1C_API_TEST_URL', env('SOAP_1C_API_LIVE_URL', 'http://agent.solvex.md/svx/ws/ws_ef.1cws?wsdl')),
+
+        // Отдельный WSDL для заказов/оплат (CreateClientPoint/CreateOrder/
+        // CreatePayment) — тот же веб-сервис, которым уже пользуются
+        // amoCRM/Bitrix24 (отсюда "ws_amo" в имени), адаптирован письмом от
+        // 1С 2026-09-09 под приём заказов напрямую с сайта (isWebSite=true).
+        // Живьём проверен только тестовый адрес; продовый (SOAP_1C_ORDER_API_LIVE_URL)
+        // нужно подтвердить у 1С — см. efrumos-docs/open-decisions.md п.7.
+        'order_wsdl_url' => env('APP_ENV') === 'production'
+            ? env('SOAP_1C_ORDER_API_LIVE_URL')
+            : env('SOAP_1C_ORDER_API_TEST_URL', 'http://agent.solvex.md/test_db/ws/ws_amo.1cws?wsdl'),
+
+        // Owner (код контрагента для CreateClientPoint) — письмо 1С даёт 4
+        // варианта: 27416 (Client B2C), 27703 (Client B2C, fil.
+        // V.Alecsandri), 27119 (Eliteh Trade SRL), 28045 (Client B2C
+        // STRAUS.md — похоже на счёт другого сайта той же компании). Взят
+        // 27416 как наиболее вероятный (общий B2C, без привязки к филиалу
+        // или другому сайту) — не подтверждено клиентом/1С явно, это
+        // обоснованное предположение, не гарантированный факт. Проверить и
+        // при необходимости поправить через ONEC_OWNER_CODE без правки кода.
+        'owner_code' => env('ONEC_OWNER_CODE', 27416),
+
+        // Логин торгового представителя для CreateOrder.AgentId. Письмо 1С
+        // само говорит, что постоянного пока нет: «скорее всего понадобится
+        // создать пользователя типа „Сайт“... для теста можно использовать
+        // 243». Используем тестовое значение, пока не заведут постоянное.
+        'agent_id' => env('ONEC_AGENT_ID', '243'),
+
+        // OrderRoute для CreateOrder — живьём проверенный GetRoutes() отдаёт
+        // код 107 с описанием ровно "WEB" (плюс 113 "WEB-Partner") — сильное
+        // совпадение по названию для заказов с сайта, но 1С явно этот код в
+        // письме не называл, так что это тоже предположение, не факт.
+        'order_route' => env('ONEC_ORDER_ROUTE', 107),
     ],
 
 ];

@@ -22,7 +22,7 @@ class LoggingBitrixDealGateway implements BitrixDealGateway
 {
     public function createDeal(Orders $order): string
     {
-        if (!config('services.integration.mock_mode')) {
+        if (!config('services.integration.bitrix_mock_mode')) {
             throw new IntegrationGatewayException(
                 "Bitrix24 createDeal: no webhook/credentials configured for order #{$order->id}."
             );
@@ -40,7 +40,7 @@ class LoggingBitrixDealGateway implements BitrixDealGateway
 
     public function updateDealStatus(string $dealId, string $status): void
     {
-        if (!config('services.integration.mock_mode')) {
+        if (!config('services.integration.bitrix_mock_mode')) {
             throw new IntegrationGatewayException(
                 "Bitrix24 updateDealStatus: no webhook/credentials configured (deal {$dealId})."
             );
@@ -65,7 +65,7 @@ class LoggingBitrixDealGateway implements BitrixDealGateway
      */
     public function notifyOrderTask(Orders $order, string $dealId): void
     {
-        if (!config('services.integration.mock_mode')) {
+        if (!config('services.integration.bitrix_mock_mode')) {
             throw new IntegrationGatewayException(
                 "Bitrix24 notifyOrderTask: no webhook/credentials configured (deal {$dealId})."
             );
