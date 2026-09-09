@@ -1,28 +1,66 @@
 #!/usr/bin/env bash
-# Manual deploy to dev or prod — one script, explicit env argument, so a
-# copy-pasted command can't silently target the wrong server. See
+# Manual deploy to dev or prod, run over the existing SSH tunnel — explicit
+# env+branch arguments, so a copy-pasted command can't silently target the
+# wrong server or deploy the wrong branch. See
 # efrumos-docs/manual-deploy-runbook.md for the reasoning/background.
 #
-# Usage: bin/server-deploy.sh <dev|prod> [--build-assets]
+# The server never talks to GitHub itself — no deploy key, no server-side
+# git clone (tried a GitHub deploy key first: `gh repo deploy-key add`
+# 404'd, this account isn't a repo admin). Code goes over the same SSH
+# tunnel this script already uses for everything else: rsync of whatever
+# branch is checked out HERE, in this local working tree.
+#
+# Usage: bin/server-deploy.sh <dev|prod> <branch> [--build-assets]
 #
 #   dev|prod        required, no default — picks SSH user/host/container.
+#   branch          required, no default — must match the branch actually
+#                    checked out locally (checked below); this is a
+#                    safety label, not something that triggers a checkout.
 #   --build-assets  also runs `npm run build` locally and uploads public/build
 #                    (the server has no node/npm — see manual-deploy-runbook.md).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 ENVIRONMENT="${1:-}"
+BRANCH="${2:-}"
 BUILD_ASSETS=0
-[ "${2:-}" = "--build-assets" ] && BUILD_ASSETS=1
+shift 2 2>/dev/null || true
+for arg in "$@"; do
+  [ "$arg" = "--build-assets" ] && BUILD_ASSETS=1
+done
 
 if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
-  echo "Usage: $0 <dev|prod> [--build-assets]" >&2
+  echo "Usage: $0 <dev|prod> <branch> [--build-assets]" >&2
   echo "  (no default on purpose — this must be explicit)" >&2
   exit 1
 fi
 
+if [ -z "$BRANCH" ]; then
+  echo "Usage: $0 <dev|prod> <branch> [--build-assets]" >&2
+  echo "  branch is required — no default (used to silently deploy main)." >&2
+  exit 1
+fi
+
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
+  echo "!! Requested branch '$BRANCH' but the local checkout is on '$CURRENT_BRANCH'." >&2
+  echo "!! This script deploys whatever is checked out here — git checkout '$BRANCH' first." >&2
+  exit 1
+fi
+
+# dev is meant to always track stage, not a random feature branch someone
+# happened to have checked out — a plain typo/mistake here would silently
+# ship the wrong thing to what people expect to be "the stage environment".
+if [ "$ENVIRONMENT" = "dev" ] && [ "$BRANCH" != "stage" ]; then
+  echo "!! dev is meant to track 'stage', not '$BRANCH'."
+  read -r -p "Type '$BRANCH' again to confirm you really want dev on a non-stage branch: " BRANCH_CONFIRM
+  if [ "$BRANCH_CONFIRM" != "$BRANCH" ]; then
+    echo "Aborted — confirmation didn't match." >&2
+    exit 1
+  fi
+fi
+
 SSH_KEY="$HOME/.ssh/external"
-REPO="git@github.com:Labs01k/efrumos.git"
 
 if [ "$ENVIRONMENT" = "dev" ]; then
   SSH_TARGET="dev_efrumos_md@efrumos.md"
@@ -34,7 +72,7 @@ else
   DOMAIN="www.efrumos.md"
 fi
 
-echo "==> Target: $ENVIRONMENT ($SSH_TARGET, container $CONTAINER, $DOMAIN)"
+echo "==> Target: $ENVIRONMENT ($SSH_TARGET, container $CONTAINER, $DOMAIN), branch $BRANCH"
 read -r -p "Type '$ENVIRONMENT' again to confirm: " CONFIRM
 if [ "$CONFIRM" != "$ENVIRONMENT" ]; then
   echo "Aborted — confirmation didn't match." >&2
@@ -48,12 +86,45 @@ if [ "$BUILD_ASSETS" = "1" ]; then
   npm ci
   npm run build
   echo "==> Uploading public/build to $ENVIRONMENT"
-  rsync -az -e "ssh -i $SSH_KEY" public/build/ "$SSH_TARGET:~/public/build/"
+  tar czf - -C public build | ssh -i "$SSH_KEY" "$SSH_TARGET" "mkdir -p ~/public && tar xzf - -C ~/public"
 fi
 
-echo "==> Cloning current code to a temp dir on $ENVIRONMENT and syncing it into ~"
-ssh_do "rm -rf /tmp/efrumos-deploy && git clone --depth 1 $REPO /tmp/efrumos-deploy"
-ssh_do "rsync -a --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' /tmp/efrumos-deploy/ ~/ && rm -rf /tmp/efrumos-deploy"
+# public/upfiles — real uploaded files (products/shops/shade photos), NOT
+# the static git snapshot of the same path (38303 files, committed for
+# local dev). A plain rsync (no --delete, but no exclude either) would
+# silently overwrite any real file whose name collides with the older
+# git snapshot. vendor/node_modules/storage — regenerated or already
+# server-local, never overwrite from the local machine's copy.
+echo "==> Syncing local checkout ($BRANCH) to $ENVIRONMENT over the existing SSH tunnel"
+# tar over ssh, not rsync — rsync isn't available on every machine this
+# might run from (e.g. plain Git-Bash/Windows has ssh/scp/tar but no
+# rsync binary at all), and this only needs to work one-directionally,
+# not incrementally. Exclusions mirror the old rsync ones.
+#
+# 2026-09-10 incident: docker-compose.yml was NOT excluded on an earlier
+# version of this script — it overwrote the server's real one (the one
+# actually managing php8.2-{dev,hosting}_efrumos_md) with this repo's local
+# dev compose file (different services entirely: app/nginx/db/redis for
+# Windows/WSL2). Something then reconciled against the new file and
+# deleted the dev container. Never sync compose files or the Dockerfile —
+# server-side container lifecycle is managed by hand, same as .env.
+tar czf - \
+  --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' \
+  --exclude='public/upfiles' --exclude='public/build' --exclude='vendor' \
+  --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' \
+  --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
+  . | ssh -i "$SSH_KEY" "$SSH_TARGET" "tar xzf - -C ~/"
+
+# Laravel needs these to exist even though git doesn't track them (runtime
+# artifacts) — on a server that never had them (fresh dev, this session)
+# they're just missing entirely, not "old and excluded from overwrite".
+# .env at 640 (owner+group read), not 600: php-fpm's pool runs workers as
+# www-data (group), not the deploying user — 600 makes dotenv's safeLoad()
+# silently fail to read it (no exception, just no config at all) for every
+# real web request while `docker exec ... php artisan` (running as root)
+# keeps working fine and hides the problem. Found the hard way on dev.
+echo "==> Ensuring storage/bootstrap directories and .env permissions"
+ssh_do "cd ~ && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing bootstrap/cache && chmod 640 .env 2>/dev/null || true"
 
 echo "==> composer install (host PHP/composer — richer extension set than the fpm container, see deploy-investigation.md)"
 ssh_do "cd ~ && composer install --no-dev --optimize-autoloader"

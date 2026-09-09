@@ -10,15 +10,24 @@
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 <![endif]-->
 
+{{-- Метка окружения в заголовке вкладки — чтобы тестировщик не перепутал
+     stage/dev с реальным прод-сайтом в открытых рядом вкладках браузера.
+     Пусто на production, иначе не тронуто. --}}
+@if(app()->environment('production'))
+    @php($env_tag = '')
+@else
+    @php($env_tag = '[STAGE] ')
+@endif
+
 @if(isset($meta->meta_static))
-    <title>{{$meta->meta_static ?? $meta_default}}</title>
+    <title>{{ $env_tag }}{{$meta->meta_static ?? $meta_default}}</title>
 @else
     @if(isset($meta->itemByLang))
     <meta name="description" content="{{ trim(html_entity_decode($meta->itemByLang->meta_description ? $meta->itemByLang->meta_description : ($meta->itemByLang->body ? substrBySpace($meta->itemByLang->body, 150) : $meta_default), ENT_QUOTES, "UTF-8")) }}">
     <meta name="keywords" content="{{ html_entity_decode(@$meta->itemByLang->meta_keywords ?? $meta_default, ENT_QUOTES, "UTF-8") }}"/>
-    <title>{{ html_entity_decode($meta->itemByLang->meta_title ? $meta->itemByLang->meta_title : ($meta->itemByLang->name ? $meta->itemByLang->name : $meta_default), ENT_QUOTES, "UTF-8") }}</title>
+    <title>{{ $env_tag }}{{ html_entity_decode($meta->itemByLang->meta_title ? $meta->itemByLang->meta_title : ($meta->itemByLang->name ? $meta->itemByLang->name : $meta_default), ENT_QUOTES, "UTF-8") }}</title>
     @else
-    <title>{{ $meta_default }}</title>
+    <title>{{ $env_tag }}{{ $meta_default }}</title>
     <meta name="description" content="{{ $meta_default }}"/>
     @endif
 @endif
