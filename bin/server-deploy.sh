@@ -60,7 +60,16 @@ if [ "$ENVIRONMENT" = "dev" ] && [ "$BRANCH" != "stage" ]; then
   fi
 fi
 
-SSH_KEY="$HOME/.ssh/external"
+# Override with DEPLOY_SSH_KEY=/path/to/key if your key isn't at the
+# default location (e.g. a different machine/account than the original
+# deploy setup).
+SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/external}"
+
+if [ ! -f "$SSH_KEY" ]; then
+  echo "!! SSH key not found at $SSH_KEY" >&2
+  echo "!! Set DEPLOY_SSH_KEY=/path/to/your/key if it's somewhere else." >&2
+  exit 1
+fi
 
 if [ "$ENVIRONMENT" = "dev" ]; then
   SSH_TARGET="dev_efrumos_md@efrumos.md"
@@ -79,14 +88,17 @@ if [ "$CONFIRM" != "$ENVIRONMENT" ]; then
   exit 1
 fi
 
-ssh_do() { ssh -i "$SSH_KEY" "$SSH_TARGET" "$@"; }
+# BatchMode=yes: never fall back to an interactive password prompt (there's
+# no one to type it in a script) — fail fast and loud instead if the key
+# doesn't work, rather than hanging.
+ssh_do() { ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "$@"; }
 
 if [ "$BUILD_ASSETS" = "1" ]; then
   echo "==> Building frontend assets locally (server has no node/npm)"
   npm ci
   npm run build
   echo "==> Uploading public/build to $ENVIRONMENT"
-  tar czf - -C public build | ssh -i "$SSH_KEY" "$SSH_TARGET" "mkdir -p ~/public && tar xzf - -C ~/public"
+  tar czf - -C public build | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/public && tar xzf - -C ~/public"
 fi
 
 # public/upfiles — real uploaded files (products/shops/shade photos), NOT
@@ -113,7 +125,7 @@ tar czf - \
   --exclude='public/upfiles' --exclude='public/build' --exclude='vendor' \
   --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' \
   --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
-  . | ssh -i "$SSH_KEY" "$SSH_TARGET" "tar xzf - -C ~/"
+  . | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "tar xzf - -C ~/"
 
 # Laravel needs these to exist even though git doesn't track them (runtime
 # artifacts) — on a server that never had them (fresh dev, this session)
