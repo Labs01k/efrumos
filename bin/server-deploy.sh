@@ -127,6 +127,16 @@ tar czf - \
   --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
   . | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "tar xzf - -C ~/"
 
+# Only prod skips dev dependencies. dev is meant for actually poking at
+# things (debugbar, ide-helper, faker) — --no-dev there just means anyone
+# who flips DEBUGBAR_ENABLED=true (as happened the first time we deployed
+# here) gets "Class ... not found" instead of a working toolbar.
+if [ "$ENVIRONMENT" = "prod" ]; then
+  COMPOSER_FLAGS="--no-dev --optimize-autoloader"
+else
+  COMPOSER_FLAGS="--optimize-autoloader"
+fi
+
 # Everything below used to be one ssh_do() call per step (~9 separate
 # connections in a few seconds: mkdir, composer, .env check, migrate,
 # sql-patches, 2x cache warm, chown, restart). The server started
@@ -159,7 +169,7 @@ if [ ! -f .env ]; then
 fi
 
 echo "-- composer install (host PHP/composer — richer extension set than the fpm container, see deploy-investigation.md)"
-composer install --no-dev --optimize-autoloader
+composer install $COMPOSER_FLAGS
 
 echo "-- Running migrations"
 php artisan migrate --force
