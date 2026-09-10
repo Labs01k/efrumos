@@ -125,6 +125,7 @@ tar czf - \
   --exclude='public/upfiles' --exclude='public/build' --exclude='vendor' \
   --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' \
   --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
+  --exclude='bootstrap/cache' \
   . | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "tar xzf - -C ~/"
 
 # Only prod skips dev dependencies. dev is meant for actually poking at
