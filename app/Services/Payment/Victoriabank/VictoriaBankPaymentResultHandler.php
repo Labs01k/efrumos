@@ -47,6 +47,17 @@ class VictoriaBankPaymentResultHandler
             return;
         }
 
+        // Тестовый сценарий банка №2 (0 -> 24): авторизация без капчура,
+        // потом отмена. Флаг снимается сразу после теста, в обычной работе
+        // всегда false — см. config/services.php.
+        if (config('services.victoriabank.skip_autocapture')) {
+            Log::warning('VictoriaBank: авто-капчур пропущен (VICTORIABANK_SKIP_AUTOCAPTURE) — заказ авторизован, не списан', [
+                'order' => $order->id,
+                'rrn' => $rrn,
+            ]);
+            return;
+        }
+
         $completion = $this->client->complete((string) $order->id, $amount, (string) $rrn, (string) $intRef);
         $payment->update([
             'provider_status' => 'CAPTURE RC=' . ($completion['RC'] ?? '?'),
