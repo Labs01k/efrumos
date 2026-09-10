@@ -13,5 +13,9 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'payments/bank/callback',
+        // VictoriaBank возвращает браузер на BACKREF POST-запросом со своей
+        // страницы (форма без нашего CSRF-токена). backref() только читает
+        // статус заказа из БД и редиректит дальше — ничего не меняет.
+        'payments/bank/backref/*',
     ];
 }

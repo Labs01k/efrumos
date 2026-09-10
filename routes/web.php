@@ -52,7 +52,11 @@ Route::controller(VictoriaBankController::class)->prefix('payments/bank')->name(
     // GET, not POST — the checkout AJAX response hands the browser this URL
     // and does a plain navigation (window.location), it doesn't submit a form here.
     Route::get('/initiate/{order}', 'initiate')->name('initiate');
-    Route::get('/backref/{order}', 'backref')->name('backref');
+    // GET и POST — VictoriaBank возвращает браузер на BACKREF POST-запросом
+    // (на их странице <form action=BACKREF method=POST> с полями результата),
+    // а не GET-редиректом. backref() всё равно только читает статус из БД,
+    // метод не важен для логики, но роут обязан принять то, что шлёт банк.
+    Route::match(['get', 'post'], '/backref/{order}', 'backref')->name('backref');
     Route::post('/callback', 'callback')->name('callback');
 });
 
