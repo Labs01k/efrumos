@@ -10,13 +10,14 @@ class OrderPayment extends Model
 
     protected $fillable = [
         'orders_id', 'provider', 'external_payment_id', 'rrn', 'int_ref', 'amount_bani', 'currency',
-        'provider_status', 'signature_verified', 'raw_callback_payload', 'confirmed_at',
+        'provider_status', 'signature_verified', 'raw_callback_payload', 'confirmed_at', 'capture_requested_at',
     ];
 
     protected $casts = [
         'signature_verified' => 'boolean',
         'raw_callback_payload' => 'array',
         'confirmed_at' => 'datetime',
+        'capture_requested_at' => 'datetime',
     ];
 
     public function order()

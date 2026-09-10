@@ -58,7 +58,36 @@ class VictoriaBankPaymentResultHandler
             return;
         }
 
-        $completion = $this->client->complete((string) $order->id, $amount, (string) $rrn, (string) $intRef);
+        // Идемпотентность capture: TRTYPE=21 должен уйти в банк ровно один раз
+        // на авторизацию. handle() может вызваться повторно — банк дублирует
+        // server-callback (ретраи), плюс возможна гонка callback vs
+        // PollVictoriaBankStatusJob. Атомарная заявка: кто первым проставил
+        // capture_requested_at (WHERE ... IS NULL), тот и делает капчур.
+        $claimed = OrderPayment::query()
+            ->whereKey($payment->id)
+            ->whereNull('capture_requested_at')
+            ->update(['capture_requested_at' => now()]);
+
+        if ($claimed === 0) {
+            // Другой вызов handle() (callback или опрос) уже забрал заявку и
+            // отвечает за capture и перевод статуса — второй TRTYPE=21 не шлём.
+            Log::info('VictoriaBank: повторный TRTYPE=21 пропущен — capture уже инициирован', [
+                'order' => $order->id,
+                'source' => $source,
+            ]);
+
+            return;
+        }
+
+        try {
+            $completion = $this->client->complete((string) $order->id, $amount, (string) $rrn, (string) $intRef);
+        } catch (\Throwable $e) {
+            // Сетевой сбой при обращении к банку — TRTYPE=21 в банк не ушёл,
+            // снимаем заявку, чтобы следующий callback/опрос смог повторить.
+            $payment->forceFill(['capture_requested_at' => null])->save();
+            throw $e;
+        }
+
         $payment->update([
             'provider_status' => 'CAPTURE RC=' . ($completion['RC'] ?? '?'),
             'confirmed_at' => now(),
