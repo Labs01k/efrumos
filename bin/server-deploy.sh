@@ -132,7 +132,7 @@ BUILD_EXCLUDE=(--exclude='public/build')
 
 # ONE ssh connection for the whole deploy: the code tarball is streamed on
 # stdin and the remote script starts by extracting it (`tar xzf -`), then
-# runs composer/migrate/patches/caches/restart in the same session.
+# runs composer/migrate/patches/caches/fpm-reload in the same session.
 #
 # Why one connection and not one-per-step (or even two): this host has
 # aggressive connection-rate limiting — a second key auth seconds after a
@@ -151,7 +151,7 @@ BUILD_EXCLUDE=(--exclude='public/build')
 # something reconciled against it and deleted the dev container. Never sync
 # compose files or the Dockerfile — server-side container lifecycle is by
 # hand, same as .env.
-echo "==> Deploying $BRANCH to $ENVIRONMENT in one SSH session (sync + composer + migrations + patches + caches + restart)"
+echo "==> Deploying $BRANCH to $ENVIRONMENT in one SSH session (sync + composer + migrations + patches + caches + fpm reload)"
 tar czf - \
   --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' \
   --exclude='public/upfiles' "${BUILD_EXCLUDE[@]}" --exclude='vendor' \
@@ -215,8 +215,17 @@ echo "-- Fixing storage/bootstrap permissions"
 # before the restart below (set -e would otherwise kill it here).
 chown -R \$(whoami):www-data storage bootstrap/cache 2>/dev/null || true
 
-echo "-- Restarting $CONTAINER to pick up the new code"
-docker restart $CONTAINER
+# NEVER \`docker restart $CONTAINER\` here. The container is run by a
+# Puppet-managed systemd unit (docker-$CONTAINER.service) whose ExecStart is
+# \`docker start -a <name>\` in the foreground. \`docker restart\` makes that
+# attached client exit 0 -> systemd (Restart=on-failure) treats it as a
+# clean stop -> runs ExecStop -> \`docker stop && docker rm\` -> the container
+# is DESTROYED and the site 502s until Puppet or an admin recreates it
+# (incident 2026-09-10, twice). To pick up new autoloader/opcache we only
+# need php-fpm (PID 1 in the container) to reload — SIGUSR2 does a graceful
+# reload without touching the container lifecycle.
+echo "-- Reloading php-fpm in $CONTAINER (graceful, no container restart — see comment)"
+docker exec $CONTAINER kill -USR2 1 2>/dev/null || echo "   (couldn't signal php-fpm; opcache will revalidate on its own)"
 
 echo "-- Post-deploy checks"
 php artisan migrate:status 2>&1 | tail -n 5 || true
