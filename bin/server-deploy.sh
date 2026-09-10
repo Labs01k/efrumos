@@ -209,10 +209,18 @@ php artisan recommendations:recalc-bought-together
 php artisan shades:rebuild-variants
 
 echo "-- Fixing storage/bootstrap permissions"
-chown -R \$(whoami):www-data storage bootstrap/cache
+# Best-effort: runtime files created by php-fpm's www-data (logs, compiled
+# views, sessions) can't be chown'd by the deploying user and don't need to
+# be — they're already group-writable. Never let this abort the deploy
+# before the restart below (set -e would otherwise kill it here).
+chown -R \$(whoami):www-data storage bootstrap/cache 2>/dev/null || true
 
 echo "-- Restarting $CONTAINER to pick up the new code"
 docker restart $CONTAINER
+
+echo "-- Post-deploy checks"
+php artisan migrate:status 2>&1 | tail -n 5 || true
+curl -sS -o /dev/null -w '   HTTP %{http_code} https://$DOMAIN/\n' "https://$DOMAIN/" || true
 REMOTE_SCRIPT
 )"
 
