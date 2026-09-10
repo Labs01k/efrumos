@@ -225,7 +225,11 @@ chown -R \$(whoami):www-data storage bootstrap/cache 2>/dev/null || true
 # need php-fpm (PID 1 in the container) to reload — SIGUSR2 does a graceful
 # reload without touching the container lifecycle.
 echo "-- Reloading php-fpm in $CONTAINER (graceful, no container restart — see comment)"
-docker exec $CONTAINER kill -USR2 1 2>/dev/null || echo "   (couldn't signal php-fpm; opcache will revalidate on its own)"
+# \`docker kill --signal\`, not \`docker exec ... kill\`: the php:8.2 image is
+# minimal and ships no kill binary. This delivers USR2 straight to PID 1
+# (php-fpm master -> graceful worker reload, picks up new opcache) without
+# touching the container lifecycle.
+docker kill --signal=USR2 $CONTAINER 2>/dev/null || echo "   (couldn't signal php-fpm; opcache will revalidate on its own)"
 
 echo "-- Post-deploy checks"
 php artisan migrate:status 2>&1 | tail -n 5 || true
