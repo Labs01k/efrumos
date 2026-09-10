@@ -35,6 +35,20 @@ class VictoriaBankPaymentResultHandler
         $intRef = trim((string) ($result['INT_REF'] ?? '')) ?: $payment->int_ref;
         $amount = (float) ($result['AMOUNT'] ?? ($payment->amount_bani / 100));
 
+        // Капчур уже отработал на предыдущем уведомлении — банк повторно
+        // прислал server-callback. Обновляем только идентификаторы, но НЕ
+        // трогаем provider_status (иначе "CAPTURE RC=00" затирается обратно
+        // на "ACTION=0 RC=00") и НЕ уходим второй раз в капчур.
+        if ($payment->confirmed_at !== null) {
+            $payment->update(['rrn' => $rrn, 'int_ref' => $intRef]);
+            Log::info('VictoriaBank: callback после уже выполненного капчура — игнорируем', [
+                'order' => $order->id,
+                'source' => $source,
+            ]);
+
+            return;
+        }
+
         $payment->update([
             'rrn' => $rrn,
             'int_ref' => $intRef,
