@@ -91,14 +91,21 @@ fi
 # BatchMode=yes: never fall back to an interactive password prompt (there's
 # no one to type it in a script) — fail fast and loud instead if the key
 # doesn't work, rather than hanging.
-ssh_do() { ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "$@"; }
+#
+# ControlMaster=no / ControlPath=none: this host resets multiplexed master
+# connections ("mux_client_request_session: read from master failed:
+# Connection reset by peer" / "Failed to connect to new control master"),
+# and a stale ~/.ssh/sockets/* then breaks every deploy. Force plain,
+# independent connections. Combined with the single-session deploy below,
+# the whole run is exactly ONE ssh connection — this host's connection-rate
+# limiting denies a second key auth made seconds after a successful one.
+SSH_OPTS=(-i "$SSH_KEY" -o BatchMode=yes -o ControlMaster=no -o ControlPath=none)
+ssh_do() { ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "$@"; }
 
 if [ "$BUILD_ASSETS" = "1" ]; then
   echo "==> Building frontend assets locally (server has no node/npm)"
   npm ci
   npm run build
-  echo "==> Uploading public/build to $ENVIRONMENT"
-  tar czf - -C public build | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/public && tar xzf - -C ~/public"
 fi
 
 # public/upfiles — real uploaded files (products/shops/shade photos), NOT
@@ -107,27 +114,6 @@ fi
 # silently overwrite any real file whose name collides with the older
 # git snapshot. vendor/node_modules/storage — regenerated or already
 # server-local, never overwrite from the local machine's copy.
-echo "==> Syncing local checkout ($BRANCH) to $ENVIRONMENT over the existing SSH tunnel"
-# tar over ssh, not rsync — rsync isn't available on every machine this
-# might run from (e.g. plain Git-Bash/Windows has ssh/scp/tar but no
-# rsync binary at all), and this only needs to work one-directionally,
-# not incrementally. Exclusions mirror the old rsync ones.
-#
-# 2026-09-10 incident: docker-compose.yml was NOT excluded on an earlier
-# version of this script — it overwrote the server's real one (the one
-# actually managing php8.2-{dev,hosting}_efrumos_md) with this repo's local
-# dev compose file (different services entirely: app/nginx/db/redis for
-# Windows/WSL2). Something then reconciled against the new file and
-# deleted the dev container. Never sync compose files or the Dockerfile —
-# server-side container lifecycle is managed by hand, same as .env.
-tar czf - \
-  --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' \
-  --exclude='public/upfiles' --exclude='public/build' --exclude='vendor' \
-  --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' \
-  --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
-  --exclude='bootstrap/cache' \
-  . | ssh -i "$SSH_KEY" -o BatchMode=yes "$SSH_TARGET" "tar xzf - -C ~/"
-
 # Only prod skips dev dependencies. dev is meant for actually poking at
 # things (debugbar, ide-helper, faker) — --no-dev there just means anyone
 # who flips DEBUGBAR_ENABLED=true (as happened the first time we deployed
@@ -138,18 +124,46 @@ else
   COMPOSER_FLAGS="--optimize-autoloader"
 fi
 
-# Everything below used to be one ssh_do() call per step (~9 separate
-# connections in a few seconds: mkdir, composer, .env check, migrate,
-# sql-patches, 2x cache warm, chown, restart). The server started
-# rejecting even valid-key connections mid-run once we hit that many in
-# quick succession (looked exactly like connection-rate throttling, not a
-# key/auth problem — worked, then "Permission denied" on the very next
-# call with the same key seconds later). One ssh connection running a
-# whole remote script fixes it AND is just faster.
-echo "==> Running the rest of the deploy (composer, migrations, patches, caches, restart) in one SSH session"
-ssh_do bash -s <<REMOTE_SCRIPT
+# public/build — normally regenerated server-side... except the server has
+# no node/npm, so with --build-assets we ship the local build in the same
+# tarball (drop it from the exclude list below).
+BUILD_EXCLUDE=(--exclude='public/build')
+[ "$BUILD_ASSETS" = "1" ] && BUILD_EXCLUDE=()
+
+# ONE ssh connection for the whole deploy: the code tarball is streamed on
+# stdin and the remote script starts by extracting it (`tar xzf -`), then
+# runs composer/migrate/patches/caches/restart in the same session.
+#
+# Why one connection and not one-per-step (or even two): this host has
+# aggressive connection-rate limiting — a second key auth seconds after a
+# successful one gets "Permission denied (publickey,password)" even though
+# the key is fine (seen repeatedly). ControlMaster multiplexing isn't a way
+# around it either: this host resets the mux master and a stale
+# ~/.ssh/sockets/* then wedges every later deploy.
+#
+# tar over ssh, not rsync — rsync isn't on every machine this runs from
+# (plain Git-Bash/Windows has ssh/tar but no rsync). One-directional, not
+# incremental, so tar is enough. Exclusions mirror the old rsync ones.
+#
+# 2026-09-10 incident: docker-compose.yml was NOT excluded on an earlier
+# version — it overwrote the server's real one (managing
+# php8.2-{dev,hosting}_efrumos_md) with this repo's local dev compose file;
+# something reconciled against it and deleted the dev container. Never sync
+# compose files or the Dockerfile — server-side container lifecycle is by
+# hand, same as .env.
+echo "==> Deploying $BRANCH to $ENVIRONMENT in one SSH session (sync + composer + migrations + patches + caches + restart)"
+tar czf - \
+  --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' \
+  --exclude='public/upfiles' "${BUILD_EXCLUDE[@]}" --exclude='vendor' \
+  --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' \
+  --exclude='docker-compose*.yml' --exclude='Dockerfile' --exclude='docker' \
+  --exclude='bootstrap/cache' \
+  . | ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "$(cat <<REMOTE_SCRIPT
 set -euo pipefail
 cd ~
+
+echo "-- Extracting synced code"
+tar xzf -
 
 # Laravel needs these to exist even though git doesn't track them (runtime
 # artifacts) — on a server that never had them (fresh dev, this session)
@@ -200,6 +214,7 @@ chown -R \$(whoami):www-data storage bootstrap/cache
 echo "-- Restarting $CONTAINER to pick up the new code"
 docker restart $CONTAINER
 REMOTE_SCRIPT
+)"
 
 echo
 echo "Done. Deployed to $ENVIRONMENT ($DOMAIN)."
