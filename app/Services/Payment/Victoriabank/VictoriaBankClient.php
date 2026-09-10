@@ -173,10 +173,15 @@ class VictoriaBankClient
     }
 
     /**
-     * TRTYPE=24 — refund a completed transaction, full or partial. Only one
-     * reversal is allowed per transaction; a second attempt returns RC=95
-     * (already reversed — not necessarily a failure, check records first).
-     * Unlike TRTYPE=21, the bank responds with a URL-encoded string, not HTML.
+     * TRTYPE=24 — refund/reversal, full or partial. Only one reversal is
+     * allowed per transaction; a second attempt returns RC=95 (already
+     * reversed — not necessarily a failure, check records first).
+     *
+     * Живой тест на ecomt.victoriabank.md 2026-09-10: ответ приходит HTML-
+     * страницей с hidden-полями (ACTION/RC/RRN/INT_REF/APPROVAL/P_SIGN), точно
+     * как у TRTYPE=21, а НЕ URL-encoded строкой, как раньше предполагалось
+     * здесь. Парсим тем же parseHtmlHiddenInputs(); на случай, если боевой
+     * контур всё же отдаёт URL-encoded — fallback на parse_str.
      */
     public function reverse(string $orderId, float $amount, string $rrn, string $intRef): array
     {
@@ -199,7 +204,13 @@ class VictoriaBankClient
             'P_SIGN' => $pSign,
         ]);
 
-        parse_str($response->body(), $result);
+        $body = $response->body();
+
+        if (stripos($body, '<html') !== false || stripos($body, 'name=') !== false) {
+            return self::parseHtmlHiddenInputs($body);
+        }
+
+        parse_str($body, $result);
 
         return $result;
     }
