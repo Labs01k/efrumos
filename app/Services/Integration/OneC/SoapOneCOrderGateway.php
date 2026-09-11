@@ -214,10 +214,16 @@ class SoapOneCOrderGateway implements OneCOrderGateway
             $address = trim(($order->pickupShop->itemByLang->name ?? '') . ', ' . ($order->pickupShop->itemByLang->address ?? ''), ', ');
         }
 
+        // Owner зависит от способа доставки — см. комментарий у
+        // config('services.onec') про owner_code_delivery/owner_code_pickup.
+        $ownerCode = $order->delivery_method === 'delivery'
+            ? config('services.onec.owner_code_delivery')
+            : config('services.onec.owner_code_pickup');
+
         $response = $client->CreateClientPoint([
             'ClientPointInData' => [
                 'Description' => $fullName,
-                'Owner' => (int) config('services.onec.owner_code'),
+                'Owner' => (int) $ownerCode,
                 'City' => $cityCode,
                 'Adress' => $address,
                 'OrderRoute' => (int) config('services.onec.order_route'),
