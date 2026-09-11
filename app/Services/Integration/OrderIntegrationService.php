@@ -2,7 +2,6 @@
 
 namespace App\Services\Integration;
 
-use App\Contracts\Integration\BitrixDealGateway;
 use App\Contracts\Integration\OneCOrderGateway;
 use App\Exceptions\Integration\InsufficientStockException;
 use App\Exceptions\Integration\IntegrationGatewayException;
@@ -12,20 +11,24 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Epic 0 / 0.1 — accepts an order from the site and drives it through
- * check+reserve+create in 1С and create-deal in Bitrix24, as one logical
- * operation from the caller's point of view.
+ * check+reserve+create in 1С, as one logical operation from the caller's
+ * point of view.
  *
  * Idempotent by construction (0.3): submitOrder() always starts from the
- * order's IntegrationIdMapping row (unique per orders_id) and skips any leg
- * already marked synced, so a retried/duplicate call never creates a second
- * 1С document or Bitrix24 deal. Each leg's failure is isolated (0.4) — a 1С
- * success with a Bitrix24 failure leaves the 1С side alone on retry.
+ * order's IntegrationIdMapping row (unique per orders_id) and skips the leg
+ * if already marked synced, so a retried/duplicate call never creates a
+ * second 1С document.
+ *
+ * 2026-09-11 — Bitrix24 integration cancelled by the client (was mock-only,
+ * never had real credentials). Used to also drive create-deal in Bitrix24
+ * as a second, isolated leg (syncToBitrix()) — removed. The manager-facing
+ * CRM is Platon/Progression (App\Services\AmoOrder\SendOrderToAmoCrm),
+ * called separately at order creation, unaffected by this.
  */
 class OrderIntegrationService
 {
     public function __construct(
         private readonly OneCOrderGateway $oneC,
-        private readonly BitrixDealGateway $bitrix,
     ) {
     }
 
@@ -38,10 +41,6 @@ class OrderIntegrationService
 
         if ($mapping->onec_status !== 'synced') {
             $this->syncToOneC($order, $mapping);
-        }
-
-        if ($mapping->bitrix_status !== 'synced') {
-            $this->syncToBitrix($order, $mapping);
         }
 
         return $mapping->fresh();
@@ -89,24 +88,6 @@ class OrderIntegrationService
             $mapping->update(['onec_status' => 'failed', 'last_error' => $e->getMessage()]);
             Log::error('OrderIntegrationService: 1С sync failed', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
             throw new IntegrationGatewayException("1С sync failed for order {$order->id}: {$e->getMessage()}", previous: $e);
-        }
-    }
-
-    private function syncToBitrix(Orders $order, IntegrationIdMapping $mapping): void
-    {
-        try {
-            $dealId = $this->bitrix->createDeal($order);
-
-            $mapping->update([
-                'bitrix_deal_id' => $dealId,
-                'bitrix_status' => 'synced',
-                'last_error' => null,
-            ]);
-        } catch (\Throwable $e) {
-            $mapping->increment('bitrix_attempts');
-            $mapping->update(['bitrix_status' => 'failed', 'last_error' => $e->getMessage()]);
-            Log::error('OrderIntegrationService: Bitrix24 sync failed', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
-            throw new IntegrationGatewayException("Bitrix24 sync failed for order {$order->id}: {$e->getMessage()}", previous: $e);
         }
     }
 

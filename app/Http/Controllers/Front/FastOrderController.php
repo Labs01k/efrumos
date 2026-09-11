@@ -124,7 +124,7 @@ class FastOrderController extends Controller
         $sendOrderToAmoCrm->sendOrderToAmoCrm($order_new, $orders_data, $orders_users, $user_info);
 
         // Epic 0 / 0.1 — same as the regular checkout flow, a fast order needs
-        // to reach 1С/Bitrix24 too.
+        // to reach 1С too.
         SubmitOrderToIntegrationLayerJob::dispatch($order_new->id);
 
         return response()->json([

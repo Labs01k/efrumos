@@ -415,8 +415,8 @@ class OrderController extends Controller
                 //For AMO CRM
                 $sendOrderToAmoCrm->sendOrderToAmoCrm($order_new, $orders_data, $orders_users, $user_info, $user_district);
 
-                // Epic 0 / 0.1 — push the order into 1С + Bitrix24. Queued (not
-                // called inline) so a slow/unavailable 1С or Bitrix24 doesn't
+                // Epic 0 / 0.1 — push the order into 1С. Queued (not
+                // called inline) so a slow/unavailable 1С doesn't
                 // hold up the customer's checkout response; retries/alerting
                 // are handled by the job itself (0.4).
                 SubmitOrderToIntegrationLayerJob::dispatch($order_new->id);

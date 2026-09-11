@@ -13,30 +13,18 @@ return [
     ],
 
     'integration' => [
-        // Epic 0 / 0.4 — who gets notified when 1С/Bitrix24 sync exhausts
-        // its retries. Empty by default: no address is known yet, and the
-        // job logs critically either way, so this degrades safely.
+        // Epic 0 / 0.4 — who gets notified when 1С sync exhausts its
+        // retries. Empty by default: no address is known yet, and the job
+        // logs critically either way, so this degrades safely.
         'alert_email' => env('INTEGRATION_ALERT_EMAIL'),
 
-        // Legacy combined flag — kept only as the shared fallback default
-        // for the two flags below when they aren't set individually. Don't
-        // read this directly anywhere new; use onec_mock_mode/bitrix_mock_mode.
+        // Legacy name from when this also covered Bitrix24 (cancelled by
+        // the client 2026-09-11 — see git history for BITRIX_MOCK_MODE/
+        // bitrix_responsible_id if that ever needs resurrecting). Kept as
+        // the fallback default so an existing env with only
+        // INTEGRATION_MOCK_MODE set keeps working unchanged.
         'mock_mode' => env('INTEGRATION_MOCK_MODE', true),
-
-        // Split 2026-09-09: 1С now has a real, working order/payment WSDL
-        // (ws_amo.1cws) — SoapOneCOrderGateway can run for real independently
-        // of Bitrix24, which still has no webhook/credentials at all. Each
-        // flag defaults to the legacy combined one, so an env that only sets
-        // INTEGRATION_MOCK_MODE keeps its old all-or-nothing behavior; set
-        // these individually to unmock one system without the other.
         'onec_mock_mode' => env('ONEC_MOCK_MODE', env('INTEGRATION_MOCK_MODE', true)),
-        'bitrix_mock_mode' => env('BITRIX_MOCK_MODE', env('INTEGRATION_MOCK_MODE', true)),
-
-        // Epic 1 / 1.5 — Bitrix24 employee who gets the post-payment task
-        // (tasks.task.add RESPONSIBLE_ID). Not known yet — null until the
-        // client says who; LoggingBitrixDealGateway logs a clear warning
-        // and skips the task rather than guessing an id.
-        'bitrix_responsible_id' => env('BITRIX24_RESPONSIBLE_ID'),
     ],
 
     /*

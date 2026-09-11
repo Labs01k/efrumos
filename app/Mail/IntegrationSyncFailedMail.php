@@ -26,7 +26,7 @@ class IntegrationSyncFailedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Заказ #{$this->ordersId} не синхронизирован с 1С/Bitrix24",
+            subject: "Заказ #{$this->ordersId} не синхронизирован с 1С",
         );
     }
 

@@ -16,10 +16,10 @@ use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 /**
- * Epic 0 / 0.4 — the retry half of "не допускать рассинхронизации": 1С or
- * Bitrix24 being down at order-creation time doesn't lose the order, it
- * retries with backoff. failed() fires only once tries are exhausted, and
- * is the "ответственный сотрудник получает уведомление" acceptance criterion.
+ * Epic 0 / 0.4 — the retry half of "не допускать рассинхронизации": 1С
+ * being down at order-creation time doesn't lose the order, it retries with
+ * backoff. failed() fires only once tries are exhausted, and is the
+ * "ответственный сотрудник получает уведомление" acceptance criterion.
  */
 class SubmitOrderToIntegrationLayerJob implements ShouldQueue
 {
@@ -52,7 +52,7 @@ class SubmitOrderToIntegrationLayerJob implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        Log::critical('SubmitOrderToIntegrationLayerJob: exhausted retries, order not synced to 1С/Bitrix24', [
+        Log::critical('SubmitOrderToIntegrationLayerJob: exhausted retries, order not synced to 1С', [
             'orders_id' => $this->ordersId,
             'error' => $exception?->getMessage(),
         ]);
