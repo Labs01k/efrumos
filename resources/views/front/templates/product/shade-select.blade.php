@@ -8,7 +8,7 @@
 @if(!empty($shades) && count($shades))
     @php $active_shade = collect($shades)->firstWhere('is_current', true) ?? $shades->first(); @endphp
 
-    <div class="pb-field pb-field--gap-8 pb-shade" data-shade-select>
+    <div class="pb-field pb-field--gap-8 pb-shade" data-shade-select data-image-base="{{ asset('upfiles/goods-items') }}/">
         <span class="pb-field-label">{{ trans('variables.product_shade') }}</span>
 
         <div class="pb-shade-trigger" role="combobox" tabindex="0" aria-expanded="false">
@@ -33,6 +33,11 @@
             странице. Ссылки оставляем в разметке: по ним ходят и покупатель
             без JavaScript, и поисковик (перелинковка внутри линейки).
             Свотчи скрытого списка браузер не загружает, пока его не откроют.
+
+            data-title и data-images нужны для мгновенной смены оттенка: по ним
+            JS сразу меняет заголовок и галерею (фото предзагружены при открытии
+            списка и наведении), а остальное подтягивает страница оттенка.
+            В data-images — только имена файлов, путь один на весь список.
         --}}
         <ul class="pb-dropdown" role="listbox">
             @foreach($shades as $one_shade)
@@ -40,12 +45,16 @@
                     $shade_classes = ($one_shade->is_current ? ' is-selected' : '')
                         . (!$one_shade->in_stoc || $one_shade->products_count <= 0 ? ' is-out' : '');
                     $shade_title = $one_shade->shade_label;
+                    $shade_photos = $one_shade->oImages
+                        ->filter(fn ($one_image) => $one_image->img && file_exists('upfiles/goods-items/' . $one_image->img))
+                        ->pluck('img')
+                        ->implode(',');
                     $shade_image = $one_shade->shade_swatch
                         ?: ($one_shade->oImage && $one_shade->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_shade->oImage->img))
                             ? asset('upfiles/goods-items/s/' . showImg($one_shade->oImage->img))
                             : asset('front-assets/img/no-image-xs.png'));
                 @endphp
-                <li><a class="pb-dropdown-item{{ $shade_classes }}" href="{{ route('catalog-product', ['product', $one_shade->alias]) }}" role="option" data-code="{{ $one_shade->shade_code }}" data-name="{{ $one_shade->shade_name }}"><span class="pb-swatch{{ $one_shade->shade_swatch ? ' pb-swatch--photo' : '' }}" style="background-image:url({{ $shade_image }})"></span><span>{{ $shade_title }}</span></a></li>
+                <li><a class="pb-dropdown-item{{ $shade_classes }}" href="{{ route('catalog-product', ['product', $one_shade->alias]) }}" role="option" data-code="{{ $one_shade->shade_code }}" data-name="{{ $one_shade->shade_name }}" data-title="{{ $one_shade->itemByLang->name ?? '' }}" data-images="{{ $shade_photos }}"><span class="pb-swatch{{ $one_shade->shade_swatch ? ' pb-swatch--photo' : '' }}" style="background-image:url({{ $shade_image }})"></span><span>{{ $shade_title }}</span></a></li>
             @endforeach
             <li class="pb-dropdown-empty" hidden>{{ trans('variables.product_shade_not_found') }}</li>
         </ul>

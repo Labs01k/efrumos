@@ -105,6 +105,7 @@
             function open() {
                 root.classList.add('is-open');
                 trigger.setAttribute('aria-expanded', 'true');
+                preloadVisible();
                 if (search) {
                     search.value = '';
                     filter('');
@@ -115,6 +116,7 @@
             function close() {
                 root.classList.remove('is-open');
                 trigger.setAttribute('aria-expanded', 'false');
+                hidePreview();
             }
 
             function filter(query) {
@@ -157,23 +159,290 @@
                 if (!root.contains(event.target)) close();
             });
 
-            // выбор оттенка: подменяем данные товара без перезагрузки (п.6 ТЗ)
-            Array.prototype.forEach.call(root.querySelectorAll('.pb-dropdown-item'), function (item) {
+            // открытый список: фото видимых в нём оттенков грузим заранее,
+            // чтобы выбранный оттенок показался сразу, а не после загрузки
+            var list = root.querySelector('.pb-dropdown');
+            var items = root.querySelectorAll('.pb-dropdown-item');
+            var visibleObserver = null;
+
+            function preloadVisible() {
+                if (visibleObserver || !list || !('IntersectionObserver' in window) || saveData()) return;
+
+                visibleObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) preloadImage((shadeImages(entry.target)[0] || {}).big);
+                    });
+                }, { root: list });
+
+                Array.prototype.forEach.call(items, function (item) { visibleObserver.observe(item); });
+            }
+
+            Array.prototype.forEach.call(items, function (item) {
+                var dwell = null;
+
+                // мышью: фото оттенка сразу в галерее, страница оттенка — в фоне,
+                // если курсор задержался (пролёт по списку сервер не нагружает)
+                item.addEventListener('pointerenter', function (event) {
+                    if (event.pointerType !== 'mouse') return;
+                    previewShade(item);
+                    dwell = setTimeout(function () { prefetchPage(item.href); }, 80);
+                });
+                item.addEventListener('pointerleave', function () { clearTimeout(dwell); });
+
+                // пальцем: от касания до клика есть сотня-другая миллисекунд
+                item.addEventListener('touchstart', function () { prefetchPage(item.href); }, { passive: true });
+
                 item.addEventListener('click', function (event) {
-                    if (item.classList.contains('is-selected')) { event.preventDefault(); close(); return; }
                     event.preventDefault();
                     close();
-                    swapProduct(item.href, true);
+                    if (!item.classList.contains('is-selected')) selectShade(item, true);
                 });
             });
+
+            if (list) list.addEventListener('pointerleave', hidePreview);
         });
     }
 
     /* ------------------------------------------------------------------
-       Смена оттенка без перезагрузки: тянем страницу оттенка, подменяем
-       галерею, заголовок, цену, кнопки, характеристики и адрес страницы.
+       Смена оттенка без перезагрузки.
+
+       1. Сразу, из данных списка: отметка в селекте, заголовок и галерея.
+          Фото к этому моменту обычно уже в кэше браузера (предзагрузка при
+          открытии списка и наведении), пока нет — видна его миниатюра.
+       2. Следом — страница оттенка (часто уже скачанная при наведении):
+          цена, кнопки, характеристики, отзывы, адрес в <head>.
+          До её прихода кнопки покупки неактивны: они ещё про прошлый оттенок.
        Любое расхождение разметки — честный переход по ссылке.
        ------------------------------------------------------------------ */
+
+    function saveData() {
+        return !!(navigator.connection && navigator.connection.saveData);
+    }
+
+    /** Фото оттенка из data-images: оригинал для галереи и миниатюра s/. */
+    function shadeImages(item) {
+        var root = item.closest('[data-shade-select]');
+        var base = root ? root.dataset.imageBase || '' : '';
+
+        return (item.dataset.images || '').split(',').filter(Boolean).map(function (name) {
+            return {
+                big: base + name,
+                thumb: base + 's/' + name.replace(/\.(jpe?g|png|gif)$/i, '.webp')
+            };
+        });
+    }
+
+    var preloaded = {};
+
+    function preloadImage(src) {
+        if (!src || preloaded[src]) return;
+
+        var img = new Image();
+        img.decoding = 'async';
+        img.src = src;
+        preloaded[src] = img;
+    }
+
+    function isImageReady(src) {
+        var img = preloaded[src];
+        return !!(img && img.complete && img.naturalWidth);
+    }
+
+    /* Страницы оттенков: наведение скачивает, клик берёт готовое. Минута
+       жизни, не больше десяти штук — страница весит ~600 КБ. */
+    var PAGE_TTL = 60000;
+    var pageCache = {};
+
+    function fetchPage(url) {
+        var hit = pageCache[url];
+        if (hit && Date.now() - hit.at < PAGE_TTL) return hit.promise;
+
+        var promise = fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+            .then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.text();
+            });
+
+        delete pageCache[url];
+        pageCache[url] = { at: Date.now(), promise: promise };
+        promise.catch(function () {
+            if (pageCache[url] && pageCache[url].promise === promise) delete pageCache[url];
+        });
+
+        var urls = Object.keys(pageCache);
+        if (urls.length > 10) delete pageCache[urls[0]];
+
+        return promise;
+    }
+
+    function prefetchPage(url) {
+        if (url === window.location.href || saveData()) return;
+        fetchPage(url).catch(function () {});
+    }
+
+    // избранное и корзина меняют разметку товара — скачанные заранее страницы устарели
+    document.addEventListener('click', function (event) {
+        if (event.target.closest && event.target.closest('.add-to-wish, .open-add-to-cart')) {
+            pageCache = {};
+        }
+    }, true);
+
+    /* Наведение на оттенок в списке: его фото поверх галереи. */
+    function previewShade(item) {
+        var stage = document.querySelector('[data-pb-gallery] .pb-gallery-stage');
+        var image = shadeImages(item)[0];
+
+        if (!stage || !image || item.classList.contains('is-selected')) {
+            hidePreview();
+            return;
+        }
+
+        var preview = stage.querySelector('.pb-gallery-preview');
+        if (!preview) {
+            preview = document.createElement('span');
+            preview.className = 'pb-gallery-preview';
+            preview.setAttribute('aria-hidden', 'true');
+            preview.appendChild(document.createElement('img'));
+            stage.appendChild(preview);
+        }
+
+        var img = preview.firstChild;
+        preview.style.backgroundImage = 'url("' + image.thumb + '")';
+
+        if (img.getAttribute('src') !== image.big) {
+            img.classList.remove('is-loaded');
+            img.onload = function () { img.classList.add('is-loaded'); };
+            img.src = image.big;
+        }
+
+        preview.classList.add('is-visible');
+    }
+
+    function hidePreview() {
+        var preview = document.querySelector('.pb-gallery-preview.is-visible');
+        if (preview) preview.classList.remove('is-visible');
+    }
+
+    /* Отметка выбранного оттенка в селекте. */
+    function markSelected(item) {
+        var root = item.closest('[data-shade-select]');
+        if (!root) return;
+
+        Array.prototype.forEach.call(root.querySelectorAll('.pb-dropdown-item.is-selected'), function (one) {
+            one.classList.remove('is-selected');
+        });
+        item.classList.add('is-selected');
+
+        var swatch = item.querySelector('.pb-swatch');
+        var label = item.querySelector('.pb-swatch + span');
+        var trigger_swatch = root.querySelector('.pb-shade-trigger .pb-swatch');
+        var trigger_value = root.querySelector('.pb-shade-value');
+
+        if (swatch && trigger_swatch) {
+            trigger_swatch.className = swatch.className;
+            trigger_swatch.setAttribute('style', swatch.getAttribute('style') || '');
+        }
+        if (label && trigger_value) trigger_value.textContent = label.textContent;
+    }
+
+    /* Галерея оттенка из data-images. Разметку не сочиняем, а клонируем
+       текущую — так она не разойдётся с blade. */
+    function renderShadeGallery(item) {
+        var images = shadeImages(item);
+        var gallery = document.querySelector('[data-pb-gallery]');
+        if (!gallery || !images.length) return;
+
+        var slide_tpl = gallery.querySelector('a.pb-gallery-slide');
+        var thumb_tpl = gallery.querySelector('.pb-gallery-thumb');
+        var dot_tpl = gallery.querySelector('.pb-gallery-dot');
+        // у текущего товара нет фото — шаблонов нет, ждём страницу оттенка
+        if (!slide_tpl || !thumb_tpl || !dot_tpl) return;
+
+        var next = gallery.cloneNode(true);
+        var track = next.querySelector('[data-pb-track]');
+        var thumbs = next.querySelector('[data-pb-thumbs]');
+        var dots = next.querySelector('[data-pb-dots]');
+        var title = item.dataset.title || '';
+
+        next.removeAttribute('data-pb-ready');
+        track.textContent = '';
+        thumbs.textContent = '';
+        dots.textContent = '';
+
+        images.forEach(function (image, i) {
+            var slide = slide_tpl.cloneNode(true);
+            var slide_img = slide.querySelector('img');
+            slide.href = image.big;
+            slide_img.alt = title + ' - image ' + (i + 1);
+
+            if (i === 0) {
+                slide_img.removeAttribute('loading');
+                // фото ещё не скачано — под ним растянутая миниатюра, а не пустота
+                if (!isImageReady(image.big)) {
+                    slide.style.background = '#fff url("' + image.thumb + '") center / contain no-repeat';
+                    slide_img.addEventListener('load', function () { slide.style.background = ''; });
+                }
+            } else {
+                slide_img.setAttribute('loading', 'lazy');
+            }
+            slide_img.src = image.big;
+            track.appendChild(slide);
+
+            var thumb = thumb_tpl.cloneNode(true);
+            var thumb_img = thumb.querySelector('img');
+            thumb.classList.toggle('is-active', i === 0);
+            thumb.dataset.pbGo = i;
+            thumb.setAttribute('aria-label', title + ' — ' + (i + 1));
+            if (thumb_img) {
+                thumb_img.src = image.thumb;
+                thumb_img.alt = title + ' - thumbs image ' + (i + 1);
+            }
+            thumbs.appendChild(thumb);
+
+            var dot = dot_tpl.cloneNode(true);
+            dot.classList.toggle('is-active', i === 0);
+            dot.dataset.pbGo = i;
+            dots.appendChild(dot);
+        });
+
+        next.classList.toggle('pb-gallery--single', images.length <= 1);
+        Array.prototype.forEach.call(next.querySelectorAll('[data-pb-thumbs-prev], [data-pb-thumbs-next]'), function (button) {
+            button.style.display = images.length > 4 ? '' : 'none';
+        });
+
+        gallery.replaceWith(next);
+        initGallery();
+    }
+
+    var switchToken = 0;
+    var lastPath = window.location.pathname;
+
+    function selectShade(item, push) {
+        var url = item.href;
+        var token = ++switchToken;
+        var page = document.querySelector('.pb-page');
+        var title = document.querySelector('.pb-product .product-end-content-inner h1');
+
+        hidePreview();
+        markSelected(item);
+        renderShadeGallery(item);
+        if (title && item.dataset.title) title.textContent = item.dataset.title;
+        if (page) page.classList.add('is-shade-pending');
+
+        if (push) window.history.pushState({ pbShade: true }, '', url);
+        lastPath = window.location.pathname;
+
+        fetchPage(url)
+            .then(function (html) {
+                // пока шла загрузка, выбрали другой оттенок — этот ответ уже не нужен
+                if (token !== switchToken) return;
+                applyShadePage(html);
+                if (page) page.classList.remove('is-shade-pending');
+            })
+            .catch(function () {
+                if (token === switchToken) window.location.replace(url);
+            });
+    }
 
     /*
        Блоки, которые целиком принадлежат товару и меняются вместе с оттенком.
@@ -186,6 +455,7 @@
         '.product-end-content',   // заголовок, объём, оттенок, цена, кнопки, акции
         '.pb-product-info',       // табы, характеристики, доставка, преимущества
         '.pb-product-stock',      // наличие по магазинам
+        '.pb-product-reviews',    // отзывы у каждого оттенка свои
         '.pb-product-set',        // «С этим покупают» — иначе комплект кладёт старый оттенок
         '.pb-product-similar',
         '.breadcrumbs-wrapper',
@@ -217,6 +487,32 @@
         else if (cur_ld && !next_ld) cur_ld.remove();
     }
 
+    /* Окна «Купить в один клик» и «Написать отзыв» живут вне подменяемых
+       блоков — без этого заказ и отзыв уходили на первый открытый оттенок. */
+    function swapForms(doc) {
+        ['.one-click', '.review-modal'].forEach(function (modal) {
+            ['goods_item_id', 'current_url'].forEach(function (name) {
+                var selector = modal + ' input[name="' + name + '"]';
+                var cur = document.querySelector(selector);
+                var next = doc.querySelector(selector);
+                if (cur && next) {
+                    cur.setAttribute('value', next.value);
+                    cur.value = next.value;
+                }
+            });
+        });
+
+        var cur_desc = document.querySelector('.one-click-desc');
+        var next_desc = doc.querySelector('.one-click-desc');
+        if (cur_desc && next_desc) cur_desc.innerHTML = next_desc.innerHTML;
+    }
+
+    function gallerySources(gallery) {
+        return Array.prototype.map.call(gallery.querySelectorAll('.pb-gallery-slide img'), function (img) {
+            return img.getAttribute('src');
+        }).join('|');
+    }
+
     function restoreScroll(y) {
         if (!y) return;
 
@@ -225,90 +521,80 @@
         setTimeout(function () { window.scrollTo(0, y); }, 250);
     }
 
-    var lastPath = window.location.pathname;
+    function applyShadePage(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var pairs = [];
 
-    function swapProduct(url, push) {
-        var gallery = document.querySelector('[data-pb-gallery]');
-        if (gallery) gallery.classList.add('is-switching');
+        for (var i = 0; i < SWAP_TARGETS.length; i++) {
+            var cur = document.querySelector(SWAP_TARGETS[i]);
+            var next = doc.querySelector(SWAP_TARGETS[i]);
+            if (!cur && !next) continue;
+            if (!cur || !next) throw new Error('markup mismatch: ' + SWAP_TARGETS[i]);
+            // галерея уже собрана из тех же фото — не трогаем, иначе мигнёт
+            if (SWAP_TARGETS[i] === '[data-pb-gallery]' && gallerySources(cur) === gallerySources(next)) continue;
+            pairs.push([cur, next]);
+        }
 
-        fetch(url, { headers: { 'X-Requested-With': 'fetch' } })
-            .then(function (response) {
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                return response.text();
-            })
-            .then(function (html) {
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                var pairs = [];
+        // страница не должна прыгать: положение прокрутки сохраняем
+        var scroll_y = window.scrollY;
 
-                for (var i = 0; i < SWAP_TARGETS.length; i++) {
-                    var cur = document.querySelector(SWAP_TARGETS[i]);
-                    var next = doc.querySelector(SWAP_TARGETS[i]);
-                    if (!cur && !next) continue;
-                    if (!cur || !next) throw new Error('markup mismatch: ' + SWAP_TARGETS[i]);
-                    pairs.push([cur, next]);
-                }
+        pairs.forEach(function (pair) {
+            pair[0].replaceWith(document.importNode(pair[1], true));
+        });
 
-                // страница не должна прыгать: положение прокрутки сохраняем
-                var scroll_y = window.scrollY;
+        // необязательные блоки: появляются и исчезают вместе с наличием
+        OPTIONAL_TARGETS.forEach(function (selector) {
+            var cur = document.querySelector(selector);
+            var next = doc.querySelector(selector);
+            var page = document.querySelector('.pb-page');
 
-                pairs.forEach(function (pair) {
-                    pair[0].replaceWith(document.importNode(pair[1], true));
-                });
+            if (cur && next) cur.replaceWith(document.importNode(next, true));
+            else if (cur && !next) cur.remove();
+            else if (!cur && next && page) page.appendChild(document.importNode(next, true));
+        });
 
-                // необязательные блоки: появляются и исчезают вместе с наличием
-                OPTIONAL_TARGETS.forEach(function (selector) {
-                    var cur = document.querySelector(selector);
-                    var next = doc.querySelector(selector);
-                    var page = document.querySelector('.pb-page');
+        swapHead(doc);
+        swapForms(doc);
+        document.title = doc.title || document.title;
 
-                    if (cur && next) cur.replaceWith(document.importNode(next, true));
-                    else if (cur && !next) cur.remove();
-                    else if (!cur && next && page) page.appendChild(document.importNode(next, true));
-                });
+        initGallery();
+        initShadeSelect();
+        initTopBar(true);
 
-                swapHead(doc);
-                document.title = doc.title || document.title;
-                if (push) window.history.pushState({ pbShade: true }, '', url);
-                lastPath = window.location.pathname;
+        // блоки подменились целиком — обработчики вешаем заново
+        initCitySelect();
+        initShopsToggle();
+        initNearestShop();
+        initSetAdd();
+        initSimilarSliders();
+        initReviewsMore();
 
-                initGallery();
-                initShadeSelect();
-                initTopBar(true);
+        var pb_product = document.querySelector('.pb-product');
+        var stock_block = document.querySelector('.pb-product-stock');
+        if (pb_product && stock_block) {
+            pb_product.classList.toggle(
+                'pb-product--no-stock',
+                !stock_block.querySelector('[data-city-select], [data-shops]')
+            );
+        }
 
-                // блоки подменились целиком — обработчики вешаем заново
-                initCitySelect();
-                initShopsToggle();
-                initNearestShop();
-                initSetAdd();
-                initSimilarSliders();
-
-                var pb_product = document.querySelector('.pb-product');
-                var stock_block = document.querySelector('.pb-product-stock');
-                if (pb_product && stock_block) {
-                    pb_product.classList.toggle(
-                        'pb-product--no-stock',
-                        !stock_block.querySelector('[data-city-select], [data-shops]')
-                    );
-                }
-
-                // активную вкладку теперь проставляет сервер, дожимать кликом не нужно
-
-                // высота страницы после подмены набирается не сразу (ленивые
-                // картинки), поэтому возвращаем позицию ещё раз в следующем
-                // кадре и после догрузки — иначе браузер упирается в короткий
-                // документ и прокрутка «прыгает» вверх
-                restoreScroll(scroll_y);
-            })
-            .catch(function () {
-                window.location.href = url;
-            });
+        // высота страницы после подмены набирается не сразу (ленивые
+        // картинки), поэтому возвращаем позицию ещё раз в следующем
+        // кадре и после догрузки — иначе браузер упирается в короткий
+        // документ и прокрутка «прыгает» вверх
+        restoreScroll(scroll_y);
     }
 
     window.addEventListener('popstate', function () {
         // fancybox тоже дёргает историю хешами — реагируем только на смену пути
-        if (window.location.pathname !== lastPath) {
-            swapProduct(window.location.href, false);
-        }
+        if (window.location.pathname === lastPath) return;
+
+        var item = Array.prototype.find.call(document.querySelectorAll('.pb-dropdown-item'), function (one) {
+            return one.pathname === window.location.pathname;
+        });
+
+        if (item) selectShade(item, false);
+        else window.location.reload();
     });
 
     /* --------------------------------------- мобильная верхняя панель */

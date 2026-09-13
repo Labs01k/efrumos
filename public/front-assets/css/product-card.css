@@ -235,9 +235,41 @@
 .pb-gallery--single .pb-gallery-arrow,
 .pb-gallery--single .pb-gallery-dots { display: none; }
 
-/* смена оттенка: фото подменяется без мигания */
-.pb-gallery.is-switching .pb-gallery-slide img { opacity: 0; }
-.pb-gallery-slide img { transition: opacity .2s ease; }
+/* наведение на оттенок в списке: его фото поверх галереи,
+   пока оригинал не скачан — растянутая миниатюра */
+.pb-gallery-preview {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: none;
+    background: #fff center / contain no-repeat;
+    border-radius: .4rem;
+    pointer-events: none;
+}
+
+.pb-gallery-preview.is-visible { display: block; }
+
+.pb-gallery-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+}
+
+.pb-gallery-preview img.is-loaded { opacity: 1; }
+
+/* смена оттенка: фото и заголовок уже новые, а цена и кнопки ждут страницу
+   оттенка — до неё кнопки ещё про прошлый оттенок, поэтому неактивны.
+   Приглушение с задержкой: скачанная заранее страница успевает без него. */
+.pb-page.is-shade-pending .product-end-price,
+.pb-page.is-shade-pending .pb-cta-row,
+.pb-page.is-shade-pending .product-end-link,
+.pb-page.is-shade-pending .pb-bar--bottom,
+.pb-page.is-shade-pending .pb-bar-heart {
+    opacity: .5;
+    pointer-events: none;
+    transition: opacity .15s ease .15s;
+}
 
 /* ==================================================================
    Правая колонка (нода 786:15112): заголовок, объём, оттенок,

@@ -81,7 +81,9 @@ class ShadePalette
             // в линейке могут лежать не только оттенки (например оксид) — берём только тот же тип
             ->where('goods_type_id', $goods_item->goods_type_id)
             ->has('itemByLang')
-            ->with('itemByLang', 'oImage')
+            // oImages — для мгновенной смены оттенка: галерея строится на клиенте
+            // до того, как придёт страница оттенка (см. shade-select.blade.php)
+            ->with('itemByLang', 'oImage', 'oImages')
             ->get()
             ->map(function ($one_shade) use ($goods_item) {
                 $one_shade->shade_code = self::shadeCode($one_shade->itemByLang->name ?? '', $one_shade->articol);
