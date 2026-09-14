@@ -70,6 +70,13 @@ class ShadePaletteController extends Controller
         ], [
             'shade_photo.mimes' => __('variables.custom_image_mime'),
             'shade_photo.max' => __('variables.custom_image_size'),
+            // PHP сам режет upload раньше, чем сюда доедет max:4096 — если
+            // upload_max_filesize на сервере меньше нашего лимита (см.
+            // php-conf.d/site-php-settings.ini), Laravel неявно проверяет
+            // "uploaded" и без этого сообщения показал бы покупателю сырой
+            // ключ перевода. Тот же текст, что и max — для пользователя это
+            // один и тот же "файл слишком большой".
+            'shade_photo.uploaded' => __('variables.custom_image_size', ['max' => 4096]),
         ]);
 
         if ($item->fails()) {
@@ -123,6 +130,8 @@ class ShadePaletteController extends Controller
         ], [
             'shade_photos.*.mimes' => __('variables.custom_image_mime'),
             'shade_photos.*.max' => __('variables.custom_image_size'),
+            // см. комментарий у shade_photo.uploaded в saveImg()
+            'shade_photos.*.uploaded' => __('variables.custom_image_size', ['max' => 4096]),
         ]);
 
         if ($item->fails()) {

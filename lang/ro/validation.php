@@ -79,6 +79,7 @@ return [
     'string'               => 'Cîmpul atributului :attribute trebuie să fie un șir de caractere.',
     'timezone'             => 'Cîmpul atributului :attribute trebuie să fie o zonă validă.',
     'unique'               => 'Cîmpul atributului :attribute există deja.',
+    'uploaded'             => 'Fișierul :attribute nu a putut fi încărcat (posibil prea mare).',
     'url'                  => 'Cîmpul atributului :attribute nu are un format valid.',
 
     /*

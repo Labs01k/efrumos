@@ -78,6 +78,7 @@ return [
     'string'               => ' :attribute должен быть строкой символов.',
     'timezone'             => ' :attribute должен быть be a valid zone.',
     'unique'               => ' :attribute уже был использован.',
+    'uploaded'             => 'Не удалось загрузить файл :attribute (возможно, превышен допустимый размер).',
     'url'                  => 'Неверный формат атрибута :attribute .',
 
     /*
