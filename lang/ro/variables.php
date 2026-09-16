@@ -510,7 +510,7 @@ return [
     'shops_back' => 'Înapoi',
     'shops_m' => 'm',
     'shops_km' => 'km',
-    'product_set_added' => 'Setul a fost adăugat în coș',
+    'product_set_error' => 'Setul nu a putut fi adăugat în coș. Încercați din nou.',
     'product_set_partial' => 'O parte din produse nu sunt disponibile, adăugate',
 
     // cardul liniei în catalog: nuanțele sunt grupate într-o singură poziție

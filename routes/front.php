@@ -54,6 +54,7 @@ Route::middleware('FrontGlobal')->group(function () {
             Route::get('/cart', 'index')->name('cart');
             Route::get('/checkout', 'index')->name('checkout');
             Route::post('/ajaxAddToCart', 'ajaxAddToCart');
+            Route::post('/ajaxAddSetToCart', 'ajaxAddSetToCart');
             Route::post('/ajaxDestroyItemCart', 'ajaxDestroyItemCart');
             Route::post('/ajaxDestroyAllItemsCart', 'ajaxDestroyAllItemsCart');
             //Route::post('/ajaxSelectUserAddress', 'ajaxSelectUserAddress');

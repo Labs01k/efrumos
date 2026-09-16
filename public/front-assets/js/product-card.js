@@ -283,7 +283,7 @@
 
     // избранное и корзина меняют разметку товара — скачанные заранее страницы устарели
     document.addEventListener('click', function (event) {
-        if (event.target.closest && event.target.closest('.add-to-wish, .open-add-to-cart')) {
+        if (event.target.closest && event.target.closest('.add-to-wish, .open-add-to-cart, .add-set-to-basket')) {
             pageCache = {};
         }
     }, true);
@@ -648,40 +648,52 @@
     }
 
     /**
-     * «Добавить весь комплект»: позиции добавляются ПОСЛЕДОВАТЕЛЬНО — параллельные
-     * запросы гонялись бы за создание корзины и дублировали строки. Отказ по одной
-     * позиции (кончилась между загрузкой и кликом) не прерывает остальные: в конце
-     * показываем итог и обновляем шапку корзины из последнего успешного ответа.
+     * «Добавить весь комплект» — один запрос ajaxAddSetToCart на все позиции.
+     * Недоступная позиция (кончилась между загрузкой и кликом) не прерывает
+     * остальные: сервер возвращает её в refused, покупатель видит, какие
+     * товары не добавились. Пока идёт запрос — лоадер на самой кнопке,
+     * по ответу открывается корзина сбоку с уже добавленными товарами.
      */
     function initSetAdd() {
         var buttons = document.querySelectorAll('.add-set-to-basket');
 
-        function addOne(id) {
+        function addSet(ids) {
             var body = new FormData();
-            body.append('goods_item_id', id);
-            body.append('number', 1);
+            ids.forEach(function (id) { body.append('goods_item_ids[]', id); });
 
-            return fetch('/' + document.documentElement.lang + '/ajaxAddToCart', {
+            return fetch('/' + document.documentElement.lang + '/ajaxAddSetToCart', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="_token"]').content,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
+                credentials: 'same-origin',
                 body: body
-            }).then(function (response) { return response.json(); });
+            }).then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            });
         }
 
         function applyCartResponse(data) {
-            var count = document.querySelector('.header-basket-count');
-            if (count) { count.style.display = ''; count.innerHTML = data.basket_count; }
+            Array.prototype.forEach.call(document.querySelectorAll('.header-basket-count'), function (count) {
+                count.style.display = '';
+                count.innerHTML = data.basket_count;
+            });
             var price = document.querySelector('.header-basket-price');
             if (price && window.getDefaultPriceFormat) price.innerHTML = getDefaultPriceFormat(data.total_price);
-            var header_items = document.querySelector('.render-header-basket-items');
-            if (header_items) header_items.innerHTML = data.header_basket_items_view;
-            var modal = document.querySelector('.render-modal-add-to-basket');
-            if (modal) modal.innerHTML = data.modal_add_to_basket;
-            var right = document.querySelector('.render-right-header-basket');
-            if (right) right.innerHTML = data.modal_show_basket;
+            var sidebar = document.querySelector('.render-right-header-basket');
+            if (sidebar && data.modal_show_basket) sidebar.innerHTML = data.modal_show_basket;
+        }
+
+        function notify(type, text, timeout) {
+            if (window.Notiflix) Notiflix.Notify[type](text, { position: 'center-top', timeout: timeout, messageMaxLength: 500 });
+        }
+
+        function setBusy(button, busy) {
+            button.classList.toggle('is-loading', busy);
+            if (busy) button.setAttribute('aria-busy', 'true');
+            else button.removeAttribute('aria-busy');
         }
 
         Array.prototype.forEach.call(buttons, function (button) {
@@ -690,34 +702,37 @@
 
             button.addEventListener('click', function (event) {
                 event.preventDefault();
-                if (button.dataset.pbBusy) return;
-                button.dataset.pbBusy = '1';
+                if (button.classList.contains('is-loading')) return;
 
                 var ids = (button.dataset.goodsIds || '').split(',').filter(Boolean);
-                var added = 0;
-                var refused = 0;
-                var last_ok = null;
+                setBusy(button, true);
 
-                var queue = ids.reduce(function (chain, id) {
-                    return chain.then(function () {
-                        return addOne(id).then(function (data) {
-                            if (data && data.status === true) { added++; last_ok = data; }
-                            else refused++;
-                        }).catch(function () { refused++; });
-                    });
-                }, Promise.resolve());
+                addSet(ids).then(function (data) {
+                    var refused = data.refused || [];
+                    var added = (data.added || []).length;
 
-                queue.then(function () {
-                    delete button.dataset.pbBusy;
-                    if (last_ok) applyCartResponse(last_ok);
-
-                    if (window.Notiflix) {
-                        if (refused === 0) {
-                            Notiflix.Notify.success((button.dataset.labelAdded || 'OK') + ' (' + added + ')', { position: 'center-top', timeout: 3000 });
-                        } else {
-                            Notiflix.Notify.warning((button.dataset.labelPartial || '!') + ' (' + added + '/' + ids.length + ')', { position: 'center-top', timeout: 4000 });
+                    if (added) {
+                        applyCartResponse(data);
+                        (data.goods_objects || []).forEach(function (one) {
+                            if (window.onProductClick) onProductClick('add_to_cart', one);
+                        });
+                        if (window.openCommonModal) {
+                            // разметка корзины только что заменена: без пересчёта стилей
+                            // новая панель появится сразу, без выезда (cart-sidebar.css)
+                            void document.querySelector('.basket-modal').offsetWidth;
+                            openCommonModal('.basket-modal');
                         }
                     }
+
+                    if (refused.length) {
+                        var names = refused.map(function (one) { return one.name; }).filter(Boolean);
+                        notify('warning', (button.dataset.labelPartial || '!') + ' (' + added + '/' + ids.length + ')'
+                            + (names.length ? ': ' + names.join(', ') : ''), 6000);
+                    }
+                }).catch(function () {
+                    notify('failure', button.dataset.labelError || 'Error', 4000);
+                }).then(function () {
+                    setBusy(button, false);
                 });
             });
         });

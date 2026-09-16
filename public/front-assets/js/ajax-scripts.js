@@ -423,11 +423,21 @@ $(document).on('click', '.remove-basket-item', function (e) {
                     else
                         $('.for-free-delivery-row').hide();
 
-                } else {
+                } else if ($('.basket-item').length) {
+                    // страница корзины или оформления: без товаров ей нечего
+                    // показывать, кроме пустого состояния — его рисует сервер
                     $('.header-basket-count').hide();
                     setTimeout(function () {
                         location.reload();
                     }, 1000);
+                } else {
+                    // корзина сбоку: как при удалении любого другого товара —
+                    // без перезагрузки, сразу пустое состояние
+                    $('.header-basket-count').hide();
+                    $('.header-basket-price').html(getDefaultPriceFormat(0));
+                    if (response.modal_show_basket) {
+                        $('.render-right-header-basket').html(response.modal_show_basket).addClass('active');
+                    }
                 }
             }
         }

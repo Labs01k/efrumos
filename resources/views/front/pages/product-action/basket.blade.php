@@ -4,6 +4,9 @@
 @stop
 
 @section('google-tag-manager')
+    {{-- у пустой корзины нет товаров для события: раньше в скрипт уходило
+         «items: » без значения, и в консоли была SyntaxError --}}
+    @if(!empty($goods_objects))
     <script>
         dataLayer.push({ ecommerce: null });  // Clear the previous ecommerce object.
         dataLayer.push({
@@ -11,10 +14,11 @@
             ecommerce: {
                 currency: "MDL",
                 value: {!! priceFormatForGA4($discount_goods_price && $discount_goods_price > 0 ? $total_price + $costul_livrarei - $discount_goods_price : $total_price + $costul_livrarei) ?? '' !!},
-                items: {!! $goods_objects ?? '' !!}
+                items: {!! $goods_objects !!}
             }
         });
     </script>
+    @endif
 
 @stop
 

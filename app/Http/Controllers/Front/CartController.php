@@ -435,6 +435,115 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * «Добавить весь комплект» (п.3 ТЗ) одним запросом. Раньше фронт слал
+     * ajaxAddToCart на каждую позицию по очереди, и каждый ответ рендерил
+     * модалку с бестселлерами — 9 позиций шли 5–10 секунд.
+     *
+     * Недоступная позиция (кончилась между загрузкой страницы и кликом)
+     * не прерывает остальные: она уходит в refused с причиной, остальные
+     * добавляются. Отдаём только то, что нужно шапке и корзине сбоку.
+     */
+    public function ajaxAddSetToCart(Request $request)
+    {
+        $ids = collect((array) $request->input('goods_item_ids'))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->take(50)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['status' => false, 'message' => ShowLabelById(272)]);
+        }
+
+        $goods_items = GoodsItemId::whereIn('id', $ids)
+            ->where('active', 1)
+            ->where('deleted', 0)
+            ->with('itemByLang', 'oImage', 'getBrand', 'getBrand.itemByLang')
+            ->get()
+            ->keyBy('id');
+
+        $basket_id = BasketId::updateOrCreate(['id' => Cookie::get('basket')], [
+            'user_ip' => $request->ip()
+        ]);
+
+        $added = [];
+        $refused = [];
+
+        foreach ($ids as $id) {
+            $goods_item = $goods_items->get($id);
+            $goods_price = $goods_item ? getGoodsPrice($goods_item) : null;
+
+            if (!$goods_item || !$goods_price || $goods_item->in_stoc == 0 || $goods_item->products_count <= 0) {
+                $refused[] = [
+                    'id' => $id,
+                    'name' => $goods_item->itemByLang->name ?? null,
+                    'message' => $goods_item && !$goods_price ? ShowLabelById(264) : ShowLabelById(272),
+                ];
+                continue;
+            }
+
+            $basket = Basket::where('goods_item_id', $goods_item->id)
+                ->where('basket_id', $basket_id->id)
+                ->first();
+
+            Basket::updateOrCreate(['id' => $basket ? $basket->id : 0], [
+                'basket_id' => $basket_id->id,
+                'goods_item_id' => $goods_item->id,
+                'items_count' => $basket ? $basket->items_count + 1 : 1,
+                'goods_price' => $goods_price->price,
+                'goods_name' => $goods_item->itemByLang->name,
+                'goods_one_c_code' => $goods_item->one_c_code
+            ]);
+
+            $added[] = $goods_item;
+        }
+
+        if ($added) {
+            Cookie::queue('basket', $basket_id->id, config('custom.front.cookie_user_remember_time'));
+        }
+
+        $count_all_goods = Basket::where('basket_id', $basket_id->id)->sum('items_count');
+        $all_basket_items = Basket::where('basket_id', $basket_id->id)->get();
+
+        $total_price = 0;
+        foreach ($all_basket_items as $one_item) {
+            $total_price += getGoodsPrice($one_item->goodsItemId)->price * $one_item->items_count;
+        }
+
+        //For GA4
+        $goods_objects = GoogleEcommerce::goodsCollectionsToObjects($all_basket_items, 1);
+        //For FB Pixel
+        $goods_items_ids = json_encode($all_basket_items->pluck('goods_one_c_code')->toArray());
+
+        $render_modal_show_basket = view('front.templates.header-basket-items', [
+            'header_total_price' => $total_price,
+            'basket_count' => $count_all_goods,
+            'header_basket_items' => $all_basket_items,
+            'goods_objects' => $goods_objects,
+            'goods_items_ids' => $goods_items_ids,
+        ])->render();
+
+        foreach ($added as $goods_item) {
+            $goods_collect = collect();
+            $goods_collect->goods_price = getGoodsPrice($goods_item)->price;
+            $goods_collect->goods_item = $goods_item;
+            FacebookPixelConversion::pixelEvent('AddToCart', $goods_collect);
+        }
+
+        return response()->json([
+            'status' => count($added) > 0,
+            'added' => collect($added)->pluck('id'),
+            'refused' => $refused,
+            'basket_count' => $count_all_goods,
+            'total_price' => $total_price,
+            'modal_show_basket' => $render_modal_show_basket,
+            //For GA4
+            'goods_objects' => collect($added)->map(fn ($goods_item) => json_decode(GoogleEcommerce::oneGoodsCollectionToObjects($goods_item)))->values(),
+        ]);
+    }
+
     public function ajaxDiffSumItemCart(Request $request)
     {
         $goods_item_id = intval($request->input('goods_item_id'));
@@ -609,7 +718,9 @@ class CartController extends Controller
             ->where('basket_id', $cookie_basket)
             ->delete();
 
-        $count_all_goods = Basket::where('basket_id', $cookie_basket)->count('id');
+        // сумма штук, как в шапке при загрузке страницы и при добавлении —
+        // count('id') давал число строк, и счётчик прыгал после удаления
+        $count_all_goods = Basket::where('basket_id', $cookie_basket)->sum('items_count');
 
         $basket_item_after_delete = Basket::where('basket_id', $cookie_basket)
             ->count();
@@ -663,6 +774,11 @@ class CartController extends Controller
             'sub_total' => $total_price,
             'total_price' => $total_price + $costul_livrarei - $discount_goods_price,
             'message' => ShowLabelById(48),
+            // корзина опустела — боковая корзина показывает пустое состояние
+            // без перезагрузки страницы
+            'modal_show_basket' => $basket_item_after_delete < 1
+                ? view('front.templates.header-basket-items', ['header_basket_items' => []])->render()
+                : null,
             //For GA4
             'goods_object' => json_decode($goods_object)
         ]);

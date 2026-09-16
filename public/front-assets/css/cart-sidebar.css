@@ -1,0 +1,43 @@
+/*
+ * Корзина сбоку (.basket-modal): выезд справа и затемнение фона.
+ * main.js открывает и закрывает её классом .active на .common-modal, а
+ * main.css прячет модалки через display:none — его не анимировать, поэтому
+ * здесь корзина всегда в потоке и прячется visibility с задержкой на время
+ * анимации закрытия.
+ */
+.basket-modal {
+    display: block;
+    visibility: hidden;
+    pointer-events: none;
+    transition: visibility 0s linear .3s;
+}
+
+.basket-modal.active {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+.basket-modal .common-modal-bg {
+    opacity: 0;
+    transition: opacity .3s ease;
+}
+
+.basket-modal.active .common-modal-bg { opacity: .4; }
+
+.basket-modal .common-modal-wrapper {
+    -webkit-transform: translateX(100%);
+    transform: translateX(100%);
+    transition: transform .3s cubic-bezier(.32, .72, 0, 1);
+}
+
+.basket-modal.active .common-modal-wrapper {
+    -webkit-transform: none;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .basket-modal,
+    .basket-modal .common-modal-bg,
+    .basket-modal .common-modal-wrapper { transition: none; }
+}

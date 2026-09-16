@@ -453,7 +453,7 @@ return [
     'shops_back' => 'Back',
     'shops_m' => 'm',
     'shops_km' => 'km',
-    'product_set_added' => 'Set added to cart',
+    'product_set_error' => 'The set could not be added to the cart. Please try again.',
     'product_set_partial' => 'Some items are unavailable, added',
     'goods_reviews' => 'review|reviews',
 ];

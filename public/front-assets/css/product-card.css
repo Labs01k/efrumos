@@ -1122,6 +1122,25 @@
 
 .rec-set-add:hover { background: #000; color: #fff; }
 
+/* запрос «весь комплект» идёт: содержимое держит размер кнопки, поверх — лоадер */
+.rec-set-add.is-loading { cursor: progress; }
+.rec-set-add.is-loading > * { visibility: hidden; }
+
+.rec-set-add.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin: auto;
+    border: .25rem solid rgba(255, 255, 255, .3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: rec-set-spin .7s linear infinite;
+}
+
+@keyframes rec-set-spin { to { transform: rotate(360deg); } }
+
 .rec-set-add-text {
     display: flex;
     flex-direction: column;

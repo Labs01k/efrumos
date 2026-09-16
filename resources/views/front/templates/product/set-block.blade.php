@@ -73,10 +73,12 @@
                 </div>
             @endforeach
 
-            <a href="javascript:;" class="rec-set-add add-set-to-basket open-add-to-cart"
+            {{-- без open-add-to-cart: та модалка про один товар и открывалась
+                 пустой на всё время запроса; по ответу открывается корзина сбоку --}}
+            <a href="javascript:;" class="rec-set-add add-set-to-basket"
                data-goods-ids="{{ $set_rows->pluck('id')->implode(',') }}"
-               data-label-added="{{ trans('variables.product_set_added') }}"
-               data-label-partial="{{ trans('variables.product_set_partial') }}">
+               data-label-partial="{{ trans('variables.product_set_partial') }}"
+               data-label-error="{{ trans('variables.product_set_error') }}">
                 <span class="rec-set-add-text">
                     <span class="rec-set-add-caption">{{ trans('variables.product_add_set') }}</span>
                     <span class="rec-set-add-sum">
