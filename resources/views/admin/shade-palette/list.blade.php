@@ -28,6 +28,9 @@
                     @endif
                     @if(session('shade_error'))
                         <div class="alert alert-danger">{{ session('shade_error') }}</div>
+                    @elseif(request('upload_error') === 'batch_size')
+                        {{-- POST больше post_max_size — см. Handler::register() --}}
+                        <div class="alert alert-danger">{{ __('variables.shades_error_batch_size', ['max' => \App\Http\Controllers\Admin\ShadePaletteController::uploadLimits()['post_mb']]) }}</div>
                     @endif
 
                     <form method="GET" action="{{ url(LANG . '/back/goods/shades') }}"
@@ -102,7 +105,7 @@
                                                   action="{{ url(LANG . '/back/goods/shades/saveimg/' . $one_item->id) }}"
                                                   class="d-inline-flex gap-1 align-items-center">
                                                 @csrf
-                                                <input type="file" name="shade_photo" accept="image/*"
+                                                <input type="file" name="shade_photo" accept="image/jpeg,image/png,image/webp" data-shade-upload
                                                        class="form-control form-control-sm" style="max-width: 220px;"
                                                        required>
                                                 <button type="submit" class="btn btn-sm btn-primary">
@@ -135,5 +138,7 @@
             </div>
         </div>
     </div>
+
+    @include('admin.shade-palette.upload-check')
 
 @endsection

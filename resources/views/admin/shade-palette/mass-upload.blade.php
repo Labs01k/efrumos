@@ -24,6 +24,9 @@
 
                     @if(session('shade_error'))
                         <div class="alert alert-danger">{{ session('shade_error') }}</div>
+                    @elseif(request('upload_error') === 'batch_size')
+                        {{-- POST больше post_max_size — см. Handler::register() --}}
+                        <div class="alert alert-danger">{{ __('variables.shades_error_batch_size', ['max' => \App\Http\Controllers\Admin\ShadePaletteController::uploadLimits()['post_mb']]) }}</div>
                     @endif
 
                     <div class="alert alert-info">{{ __('variables.shades_mass_hint') }}</div>
@@ -42,8 +45,8 @@
                         </div>
                         <div class="col-md-5">
                             <label class="form-label">{{ __('variables.shades_photo') }}</label>
-                            <input type="file" name="shade_photos[]" accept="image/*" multiple
-                                   class="form-control" required>
+                            <input type="file" name="shade_photos[]" accept="image/jpeg,image/png,image/webp" multiple
+                                   class="form-control" required data-shade-upload>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">{{ __('variables.shades_upload') }}</button>
@@ -54,5 +57,7 @@
             </div>
         </div>
     </div>
+
+    @include('admin.shade-palette.upload-check')
 
 @endsection

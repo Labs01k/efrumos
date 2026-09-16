@@ -7,8 +7,9 @@ use App\Models\BrandId;
 use App\Models\GoodsItemId;
 use App\Services\Product\ShadePalette;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 /**
  * CMS-раздел «Палитра оттенков» (п.6 ТЗ): управление фотографиями оттенков.
@@ -20,6 +21,14 @@ use Illuminate\Support\Facades\Validator;
 class ShadePaletteController extends Controller
 {
     private const UPLOAD_DIR = 'upfiles/goods-shades';
+
+    /** Лимит на одно фото оттенка, КБ. */
+    private const MAX_PHOTO_KB = 4096;
+
+    /** Больше — картинка не поместится в memory_limit при создании миниатюр. */
+    private const MAX_PHOTO_PIXELS = 25000000;
+
+    private const PHOTO_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 
     /** Список красок-оттенков: поиск по коду, названию или артикулу. */
     public function index(Request $request)
@@ -65,27 +74,18 @@ class ShadePaletteController extends Controller
     /** Загрузка или замена фотографии одного оттенка. */
     public function saveImg(Request $request, $id)
     {
-        $item = Validator::make($request->all(), [
-            'shade_photo' => 'required|image|mimes:jpeg,png,jpg,webp|max:4096',
-        ], [
-            'shade_photo.mimes' => __('variables.custom_image_mime'),
-            'shade_photo.max' => __('variables.custom_image_size'),
-            // PHP сам режет upload раньше, чем сюда доедет max:4096 — если
-            // upload_max_filesize на сервере меньше нашего лимита (см.
-            // php-conf.d/site-php-settings.ini), Laravel неявно проверяет
-            // "uploaded" и без этого сообщения показал бы покупателю сырой
-            // ключ перевода. Тот же текст, что и max — для пользователя это
-            // один и тот же "файл слишком большой".
-            'shade_photo.uploaded' => __('variables.custom_image_size', ['max' => 4096]),
-        ]);
+        $goods_item = GoodsItemId::findOrFail($id);
+        $file = $request->file('shade_photo');
 
-        if ($item->fails()) {
-            return redirect()->back()->with('shade_error', implode(' ', $item->messages()->all()));
+        $problem = $file ? $this->photoProblem($file) : __('variables.shades_error_no_files');
+
+        if ($problem === null && !$this->storePhoto($goods_item, $file)) {
+            $problem = __('variables.shades_error_corrupt');
         }
 
-        $goods_item = GoodsItemId::findOrFail($id);
-
-        $file_name = $this->storePhoto($goods_item, $request->file('shade_photo'));
+        if ($problem !== null) {
+            return redirect()->back()->with('shade_error', $problem);
+        }
 
         return redirect()->back()->with('shade_saved', $goods_item->id);
     }
@@ -124,18 +124,10 @@ class ShadePaletteController extends Controller
 
         $modules_name = $this->menu()['modules_name'];
 
-        $item = Validator::make($request->all(), [
-            'shade_photos' => 'required',
-            'shade_photos.*' => 'image|mimes:jpeg,png,jpg,webp|max:4096',
-        ], [
-            'shade_photos.*.mimes' => __('variables.custom_image_mime'),
-            'shade_photos.*.max' => __('variables.custom_image_size'),
-            // см. комментарий у shade_photo.uploaded в saveImg()
-            'shade_photos.*.uploaded' => __('variables.custom_image_size', ['max' => 4096]),
-        ]);
+        $files = array_filter((array) $request->file('shade_photos'));
 
-        if ($item->fails()) {
-            return redirect()->back()->with('shade_error', implode(' ', $item->messages()->all()));
+        if (!$files) {
+            return redirect()->back()->with('shade_error', __('variables.shades_error_no_files'));
         }
 
         $brand_id = (int) $request->input('brand');
@@ -144,7 +136,6 @@ class ShadePaletteController extends Controller
         // код оттенка → товар (только выбранная линейка)
         $by_articol = [];
         $by_code = [];
-        $code_conflicts = [];
 
         $dyes = $this->dyesQuery()->with('itemByLang')->get();
 
@@ -167,9 +158,19 @@ class ShadePaletteController extends Controller
             'replaced' => [],    // фото уже было и заменено
             'unmatched' => [],   // имя файла ни с чем не совпало
             'ambiguous' => [],   // совпало с несколькими товарами
+            'rejected' => [],    // файл не принят: размер, формат, битый — [имя файла, причина]
         ];
 
-        foreach ((array) $request->file('shade_photos') as $one_file) {
+        foreach ($files as $one_file) {
+            // битый или слишком большой файл не должен ни к чему привязаться
+            // и тем более затереть уже загруженное фото
+            $problem = $this->photoProblem($one_file);
+
+            if ($problem !== null) {
+                $report['rejected'][] = ['file' => $one_file->getClientOriginalName(), 'reason' => $problem];
+                continue;
+            }
+
             $base = pathinfo($one_file->getClientOriginalName(), PATHINFO_FILENAME);
             $key = $this->normalizeCode($base);
 
@@ -191,7 +192,13 @@ class ShadePaletteController extends Controller
             $goods_item = $candidates[0];
             $had_photo = (bool) $goods_item->shade_img;
 
-            $this->storePhoto($goods_item, $one_file);
+            if (!$this->storePhoto($goods_item, $one_file)) {
+                $report['rejected'][] = [
+                    'file' => $one_file->getClientOriginalName(),
+                    'reason' => __('variables.shades_error_corrupt'),
+                ];
+                continue;
+            }
 
             $report[$had_photo ? 'replaced' : 'saved'][] = [
                 'file' => $one_file->getClientOriginalName(),
@@ -233,43 +240,133 @@ class ShadePaletteController extends Controller
         return mb_strtolower(str_replace(['-', '_', ' '], '/', trim($value)));
     }
 
-    /** Сохраняет файл и миниатюру, удаляет старое фото, пишет shade_img. */
-    private function storePhoto(GoodsItemId $goods_item, $file): string
+    /**
+     * Лимиты загрузки для формы: JS проверяет выбор файлов до отправки, потому
+     * что PHP за пределами лимитов молча выкидывает лишние файлы или весь POST.
+     */
+    public static function uploadLimits(): array
     {
-        if (!File::exists(self::UPLOAD_DIR)) {
-            File::makeDirectory(self::UPLOAD_DIR, 0755, true);
-        }
-
-        $this->removePhotoFiles($goods_item->shade_img);
-
-        $file_name = $goods_item->id . '-' . time() . '.' . strtolower($file->getClientOriginalExtension());
-        $file->move(self::UPLOAD_DIR, $file_name);
-
-        // миниатюры (.webp): s — свотч в палитре, m — карточка в каталоге и рекомендациях
-        foreach (array_keys(ShadePalette::SHADE_THUMB_SIZES) as $size) {
-            ShadePalette::makeShadeThumb($file_name, $size);
-        }
-
-        $goods_item->update(['shade_img' => $file_name]);
-
-        return $file_name;
+        return [
+            'file_bytes' => self::MAX_PHOTO_KB * 1024,
+            'file_mb' => self::MAX_PHOTO_KB / 1024,
+            'post_bytes' => self::iniBytes(ini_get('post_max_size')),
+            'post_mb' => round(self::iniBytes(ini_get('post_max_size')) / 1048576),
+            'max_files' => (int) ini_get('max_file_uploads'),
+        ];
     }
 
-    /** Удаляет оригинал и миниатюру фото оттенка. */
+    /** «8M» → 8388608. 0 — лимита нет. */
+    private static function iniBytes($value): int
+    {
+        $value = trim((string) $value);
+        $number = (int) $value;
+
+        switch (strtolower(substr($value, -1))) {
+            case 'g': return $number * 1073741824;
+            case 'm': return $number * 1048576;
+            case 'k': return $number * 1024;
+            default: return $number;
+        }
+    }
+
+    /**
+     * Почему файл нельзя принять как фото оттенка; null — можно. Текст причины
+     * показывается администратору как есть. Декодируемость проверяет
+     * storePhoto(): картинку всё равно разбирать ради миниатюр.
+     */
+    private function photoProblem(UploadedFile $file): ?string
+    {
+        if (!$file->isValid()) {
+            // файл больше upload_max_filesize PHP отрезает ещё до нас
+            return in_array($file->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? __('variables.shades_error_size', ['max' => self::MAX_PHOTO_KB / 1024])
+                : __('variables.shades_error_upload');
+        }
+
+        if ($file->getSize() > self::MAX_PHOTO_KB * 1024) {
+            return __('variables.shades_error_size', ['max' => self::MAX_PHOTO_KB / 1024]);
+        }
+
+        if (!in_array($file->getMimeType(), self::PHOTO_MIMES, true)) {
+            return __('variables.shades_error_type');
+        }
+
+        $size = @getimagesize($file->getRealPath());
+
+        if (!$size || !in_array($size['mime'] ?? null, self::PHOTO_MIMES, true)) {
+            return __('variables.shades_error_corrupt');
+        }
+
+        // картинка разбирается в память целиком: 50 Мп — это ~200 МБ,
+        // больше memory_limit, и PHP упал бы фатальной ошибкой
+        if ($size[0] * $size[1] > self::MAX_PHOTO_PIXELS) {
+            return __('variables.shades_error_dimensions', ['width' => $size[0], 'height' => $size[1]]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Сохраняет фото оттенка: файл, миниатюры, shade_img — и только потом
+     * удаляет старое фото. Если картинку не удалось разобрать (битый файл),
+     * новое убирается, старое фото остаётся, возвращается false.
+     */
+    private function storePhoto(GoodsItemId $goods_item, UploadedFile $file): bool
+    {
+        $dir = public_path(self::UPLOAD_DIR);
+
+        if (!File::exists($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+
+        // случайный хвост: один оттенок может прийти в пакете дважды за секунду
+        $file_name = $goods_item->id . '-' . time() . '-' . Str::lower(Str::random(6))
+            . '.' . strtolower($file->getClientOriginalExtension());
+        $file->move($dir, $file_name);
+
+        // по умолчанию GD молча дорисовывает серым обрезанный JPEG — нам нужна ошибка
+        $ignore_jpeg_warnings = ini_set('gd.jpeg_ignore_warning', '0');
+
+        try {
+            // миниатюры (.webp): s — свотч в палитре, m — карточка в каталоге и рекомендациях
+            foreach (array_keys(ShadePalette::SHADE_THUMB_SIZES) as $size) {
+                ShadePalette::makeShadeThumb($file_name, $size);
+
+                if (!File::exists($dir . '/' . $size . '/' . showImg($file_name))) {
+                    throw new \RuntimeException('Не удалось создать миниатюру ' . $size . ' для ' . $file_name);
+                }
+            }
+        } catch (\Throwable $e) {
+            // битый JPEG: GD не читает его вовсе или ругается на обрыв данных
+            $this->removePhotoFiles($file_name);
+
+            return false;
+        } finally {
+            if ($ignore_jpeg_warnings !== false) {
+                ini_set('gd.jpeg_ignore_warning', $ignore_jpeg_warnings);
+            }
+        }
+
+        $old_file_name = $goods_item->shade_img;
+        $goods_item->update(['shade_img' => $file_name]);
+        $this->removePhotoFiles($old_file_name);
+
+        return true;
+    }
+
+    /** Удаляет оригинал и миниатюры фото оттенка. */
     private function removePhotoFiles(?string $file_name): void
     {
         if (!$file_name) {
             return;
         }
 
-        if (File::exists(self::UPLOAD_DIR . '/' . $file_name)) {
-            File::delete(self::UPLOAD_DIR . '/' . $file_name);
-        }
+        $dir = public_path(self::UPLOAD_DIR);
+
+        File::delete($dir . '/' . $file_name);
 
         foreach (array_keys(ShadePalette::SHADE_THUMB_SIZES) as $size) {
-            if (File::exists(self::UPLOAD_DIR . '/' . $size . '/' . showImg($file_name))) {
-                File::delete(self::UPLOAD_DIR . '/' . $size . '/' . showImg($file_name));
-            }
+            File::delete($dir . '/' . $size . '/' . showImg($file_name));
         }
     }
 }

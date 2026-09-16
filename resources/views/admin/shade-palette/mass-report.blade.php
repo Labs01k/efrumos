@@ -32,24 +32,29 @@
                     </div>
 
                     <div class="row mb-4">
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md">
                             <div class="alert alert-success mb-0 text-center">
                                 <b>{{ count($report['saved']) }}</b><br>{{ __('variables.shades_saved_count') }}
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md">
                             <div class="alert alert-info mb-0 text-center">
                                 <b>{{ count($report['replaced']) }}</b><br>{{ __('variables.shades_replaced_count') }}
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md">
                             <div class="alert alert-warning mb-0 text-center">
                                 <b>{{ count($report['ambiguous']) }}</b><br>{{ __('variables.shades_ambiguous') }}
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md">
                             <div class="alert alert-danger mb-0 text-center">
                                 <b>{{ count($report['unmatched']) }}</b><br>{{ __('variables.shades_unmatched') }}
+                            </div>
+                        </div>
+                        <div class="col-6 col-md">
+                            <div class="alert alert-danger mb-0 text-center">
+                                <b>{{ count($report['rejected']) }}</b><br>{{ __('variables.shades_rejected') }}
                             </div>
                         </div>
                     </div>
@@ -79,6 +84,19 @@
                                             {{ $one_candidate->itemByLang->name ?? '' }}@if(!$loop->last), @endif
                                         @endforeach
                                     </td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    @endif
+
+                    {{-- файлы, которые не приняты вовсе: ни к чему не привязаны, старые фото не тронуты --}}
+                    @if(count($report['rejected']))
+                        <h6>{{ __('variables.shades_rejected') }}</h6>
+                        <table class="table table-sm mb-4">
+                            @foreach($report['rejected'] as $one_row)
+                                <tr>
+                                    <td style="width: 30%;"><code>{{ $one_row['file'] }}</code></td>
+                                    <td>{{ $one_row['reason'] }}</td>
                                 </tr>
                             @endforeach
                         </table>

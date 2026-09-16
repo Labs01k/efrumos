@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -45,6 +46,21 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // Пакет фото оттенков больше post_max_size: PHP выбросил весь POST,
+        // и вместо страницы 413 возвращаем администратора к форме с понятной
+        // ошибкой. Сессии здесь ещё нет (проверка идёт до неё), поэтому
+        // ошибка едет параметром адреса.
+        $this->renderable(function (PostTooLargeException $e, $request) {
+            if (!preg_match('~/back/goods/shades/~', $request->path() . '/')) {
+                return null;
+            }
+
+            $back = $request->headers->get('referer') ?: url($request->segment(1) . '/back/goods/shades/massupload');
+            $back = preg_replace('~([?&])upload_error=[^&]*&?~', '$1', $back);
+
+            return redirect(rtrim($back, '?&') . (str_contains($back, '?') ? '&' : '?') . 'upload_error=batch_size');
         });
     }
 }
