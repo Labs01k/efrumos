@@ -55,9 +55,10 @@ Breadcrumbs::for('cabinet-password', function ($trail) {
 });
 //End cabinet
 
-Breadcrumbs::for ('checkout-success-page', function ($trail) {
+Breadcrumbs::for ('checkout-success-page', function ($trail, $title = null) {
     $trail->parent('/');
-    $trail->push(ShowLabelById(162), 'checkout-success');
+    // $title — исход оплаты картой (ошибка, обработка); без него — «Заказ завершён»
+    $trail->push($title ?: ShowLabelById(162), 'checkout-success');
 });
 
 Breadcrumbs::for ('checkout-success-register-page', function ($trail) {

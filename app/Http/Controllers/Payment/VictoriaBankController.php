@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\Payment\PollVictoriaBankStatusJob;
 use App\Models\OrderPayment;
 use App\Models\Orders;
+use App\Services\Payment\OrderPaymentStatusService;
 use App\Services\Payment\Victoriabank\VictoriaBankClient;
 use App\Services\Payment\Victoriabank\VictoriaBankPaymentResultHandler;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,10 @@ class VictoriaBankController extends Controller
             return redirect($this->localizedHomeUrl($lang));
         }
 
-        if ($order->pay_method !== 'card' || $order->payment_status === PaymentStatus::Paid) {
+        $status = $order->payment_status ?? PaymentStatus::Pending;
+        $is_retry = $status !== PaymentStatus::Pending;
+
+        if ($order->pay_method !== 'card' || ($is_retry && !$order->canRetryPayment())) {
             return redirect($this->localizedHomeUrl($lang));
         }
 
@@ -48,13 +52,18 @@ class VictoriaBankController extends Controller
 
         // Reuse the pending attempt if the customer is retrying (e.g. they
         // abandoned 3DS and came back) instead of piling up new rows.
+        // Попытку, по которой уже заявлен капчур, не переиспользуем: её
+        // авторизация — отдельные деньги, и заявка на неё не должна ни
+        // заблокировать капчур новой попытки, ни позволить второй.
         $payment = $order->payments()
             ->where('provider', 'victoriabank')
             ->whereNull('confirmed_at')
+            ->whereNull('capture_requested_at')
             ->first();
 
         if ($payment) {
-            $payment->update(['amount_bani' => (int) round($amount * 100)]);
+            // RRN/INT_REF прошлой, отклонённой попытки не должны уйти в капчур новой
+            $payment->update(['amount_bani' => (int) round($amount * 100), 'rrn' => null, 'int_ref' => null]);
         } else {
             OrderPayment::create([
                 'orders_id' => $order->id,
@@ -83,6 +92,23 @@ class VictoriaBankController extends Controller
                 'order' => $order->id,
                 'payment_error' => 1,
             ]));
+        }
+
+        // Повтор после ошибки: заказ снова ждёт оплаты. Только когда форма
+        // банка собрана — иначе заказ застрял бы в Pending без попытки.
+        // Без этого опрос статуса не запустится (он работает только с
+        // Pending), а покупатель, вернувшись раньше callback, увидел бы
+        // старую ошибку вместо «платёж обрабатывается».
+        if ($is_retry) {
+            app(OrderPaymentStatusService::class)->transition(
+                order: $order,
+                to: PaymentStatus::Pending,
+                source: 'payment_retry',
+                comment: 'Покупатель повторил оплату после статуса ' . $status->value,
+                // Cancelled → Pending переходом не разрешён: отмену банком
+                // пропускает canRetryPayment() выше, отмену менеджером — нет
+                force: $status === PaymentStatus::Cancelled,
+            );
         }
 
         // Fallback in case the callback never arrives (bank docs: TRTYPE=90

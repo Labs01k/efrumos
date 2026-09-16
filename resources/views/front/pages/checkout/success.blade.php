@@ -39,7 +39,7 @@
 
         <div class="breadcrumbs-wrapper">
             <div class="container">
-                {{ Breadcrumbs::render('checkout-success-page') }}
+                {{ Breadcrumbs::render('checkout-success-page', $page_title ?? null) }}
             </div>
         </div>
 
@@ -66,9 +66,11 @@
                             {{-- по макету (нода 787:17933): повторная попытка и возврат
                                  в корзину; повтор оплаты — требование п.1 ТЗ --}}
                             <div class="basket-end-link">
-                                <a href="{{ route('payments.bank.initiate', ['order' => $order_id, 'lang' => LANG]) }}" class="btn btn-primary">
-                                    {{ trans('variables.checkout_retry_payment') }}
-                                </a>
+                                @if($can_retry_payment ?? false)
+                                    <a href="{{ route('payments.bank.initiate', ['order' => $order_id, 'lang' => LANG]) }}" class="btn btn-primary">
+                                        {{ trans('variables.checkout_retry_payment') }}
+                                    </a>
+                                @endif
                                 <a href="{{ route('cart') }}">{{ trans('variables.checkout_back_to_cart') }}</a>
                             </div>
                         @break

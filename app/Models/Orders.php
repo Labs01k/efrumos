@@ -34,7 +34,34 @@ class Orders extends Model
 
     public function payments()
     {
-        return $this->hasMany(OrderPayment::class, 'orders_id', 'id')->orderBy('created_at', 'desc');
+        // id вторым ключом: повтор оплаты может создать попытку в ту же секунду,
+        // а callback и опрос берут первую строку как текущую попытку
+        return $this->hasMany(OrderPayment::class, 'orders_id', 'id')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+    }
+
+    /**
+     * Можно ли повторить оплату картой (п.1 ТЗ, только из оформления заказа).
+     * Да — после ошибки оплаты или отмены на стороне банка (покупатель
+     * отказался на странице банка). Нет — если заказ отменил менеджер:
+     * повтор не должен оживлять отменённый в CMS заказ.
+     */
+    public function canRetryPayment(): bool
+    {
+        if ($this->pay_method !== 'card') {
+            return false;
+        }
+
+        if ($this->payment_status === PaymentStatus::Failed) {
+            return true;
+        }
+
+        if ($this->payment_status !== PaymentStatus::Cancelled) {
+            return false;
+        }
+
+        $cancelled_by = $this->paymentStatusLogs()->where('to_status', PaymentStatus::Cancelled->value)->value('source');
+
+        return in_array($cancelled_by, ['bank_callback', 'status_poll'], true);
     }
 
     public function ordersData()

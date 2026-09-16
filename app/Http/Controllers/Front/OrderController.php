@@ -497,6 +497,12 @@ class OrderController extends Controller
                 $payment_outcome = 'failed';
             }
 
+            // повтор ведёт в банк только там, где initiate() его примет:
+            // заказ ещё ждёт оплаты или оплата не прошла; отменённый
+            // менеджером заказ показывает ошибку без кнопки
+            $can_retry_payment = $payment_outcome === 'failed'
+                && ($order->payment_status === \App\Enums\PaymentStatus::Pending || $order->canRetryPayment());
+
             if ($payment_outcome === 'paid' && $orders->basket->isNotEmpty()) {
                 $goods_objects = GoogleEcommerce::goodsCollectionsToObjects($orders->basket, 1);
                 $goods_items_ids = json_encode($orders->basket->pluck('goods_one_c_code')->toArray());
@@ -517,8 +523,16 @@ class OrderController extends Controller
             $checkout_success_message = getItemByAlias('success-order-message', 'MenuId');
             $order_id = $order->id;
 
+            // вкладка и хлебные крошки — по фактическому исходу оплаты:
+            // «Заказ завершён» над «Не удалось оплатить» вводит в заблуждение
+            $page_title = match ($payment_outcome) {
+                'failed' => trans('variables.checkout_failed_title'),
+                'processing' => trans('variables.checkout_processing_title'),
+                default => ShowLabelById(162),
+            };
+
             $meta = collect([]);
-            $meta->meta_static = ShowLabelById(162) . ' - ' . env('APP_NAME') ?? env('APP_NAME');
+            $meta->meta_static = $page_title . ' - ' . env('APP_NAME');
 
             return view($view, get_defined_vars());
         }
