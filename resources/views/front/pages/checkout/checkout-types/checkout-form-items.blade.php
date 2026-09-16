@@ -18,7 +18,10 @@
     <div class="form-item">
         <label for="checkout-email">{{ ShowLabelById(34) }}</label>
         <input type="email" id="checkout-email" name="email"
-               value="{{ request()->input('type') != 'without' && $global_user ? $global_user->email : '' }}" {{ $global_user ? 'readonly' : '' }}>
+               value="{{ request()->input('type') != 'without' && $global_user ? $global_user->email : '' }}"
+               {{-- email аккаунта не меняется при заказе, но «Заказ без авторизации» —
+                    это гостевой заказ со своим email, и вошедший покупатель должен его ввести --}}
+               {{ $global_user && request()->input('type') != 'without' ? 'readonly' : '' }}>
     </div>
 </div>
 <div class="basket-account-title">{{ ShowLabelById(212) }}</div>
