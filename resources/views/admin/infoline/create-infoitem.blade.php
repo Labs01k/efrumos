@@ -87,19 +87,17 @@
                                             </div>
                                         @endif
 
-                                        @if(!empty($goods_list) && count($goods_list))
-                                            <div class="mb-3">
-                                                <label for="goods_list"
-                                                       class="form-label">{{__('variables.product')}}</label>
-                                                <select name="goods_list[]" id="goods_list"
-                                                        class="form-select multiple-select" multiple>
-                                                    @foreach($goods_list as $one_goods)
-                                                        <option
-                                                            value="{{ $one_goods->id ?? '' }}">{{ $one_goods->itemByLang->name ?? '' }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        @endif
+                                        <div class="mb-3">
+                                            @include('admin.templates.goods-picker', [
+                                                'name' => 'goods_list',
+                                                'label' => __('variables.product'),
+                                                'selected' => $selected_goods,
+                                                'search_url' => urlForLanguage($lang, 'searchgoods'),
+                                                'exclude_id' => null,
+                                                'max' => null,
+                                                'hint' => null,
+                                            ])
+                                        </div>
 
                                         @if(request()->segment(4) == 'blog' || request()->segment(4) == 'news')
                                             <span class="text-primary">{{__('variables.banner_size')}} - 1600x600</span>

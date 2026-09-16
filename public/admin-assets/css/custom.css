@@ -184,3 +184,9 @@
 .table-responsive-scrollbar-top > div {
     height: 1px !important;
 }
+
+/* Выбор товаров с поиском (admin/templates/goods-picker.blade.php): названия длинные — чип переносится, а не обрезается */
+[data-goods-picker] + .select2 .select2-selection__choice {
+    white-space: normal;
+    max-width: 100%;
+}

@@ -17,7 +17,9 @@ use Illuminate\Support\Facades\DB;
 class ProductRecommendations
 {
     private const MIN_ITEMS = 4;
-    private const MAX_ITEMS = 8;
+
+    /** Больше блок не показывает — и больше закрепить в CMS нельзя. */
+    public const MAX_ITEMS = 8;
 
     /** За какой период считаем совместные покупки (п.3 ТЗ). */
     private const CO_PURCHASE_MONTHS = 12;
@@ -263,7 +265,29 @@ class ProductRecommendations
 
     /* ------------------------------------------------------------ общий запрос */
 
-    /** Активные товары в наличии — то, что вообще может попасть в блоки. */
+    /**
+     * Почему товар не может попасть в блоки рекомендаций; null — может.
+     * Те же условия, что в baseQuery(): CMS по ним не даёт закрепить товар,
+     * который витрина всё равно молча пропустит.
+     */
+    public static function unavailableReason(GoodsItemId $goods_item): ?string
+    {
+        if ($goods_item->deleted) {
+            return __('variables.recommendations_reason_deleted');
+        }
+
+        if (!$goods_item->active) {
+            return __('variables.recommendations_reason_inactive');
+        }
+
+        if (!$goods_item->in_stoc || $goods_item->products_count <= 0) {
+            return __('variables.recommendations_reason_out_of_stock');
+        }
+
+        return null;
+    }
+
+    /** Активные товары в наличии — то, что вообще может попасть в блоки. См. unavailableReason(). */
     private static function baseQuery()
     {
         return GoodsItemId::where('active', 1)

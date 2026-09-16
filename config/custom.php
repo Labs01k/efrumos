@@ -35,8 +35,8 @@ return [
         'default_latitude' => 47.02465276374675,
         'default_longitude' => 28.83242893218994,
         # Style Versions
-        'js_version' => 13,
-        'css_version' => 13
+        'js_version' => 14,
+        'css_version' => 14
     ],
 
     'front' => [

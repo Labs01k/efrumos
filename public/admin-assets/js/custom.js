@@ -142,6 +142,55 @@
         $('.single-select').select2();
         $('.multiple-select').select2();
 
+        /*
+         * Выбор товаров с поиском на сервере (admin/templates/goods-picker.blade.php).
+         * У товара может быть reason — почему его нельзя выбрать (в выдаче) или
+         * почему он не показывается на сайте (уже выбранный).
+         */
+        $('[data-goods-picker]').each(function () {
+            var $select = $(this);
+            var lang = $select.data('lang') || {};
+
+            function withReason(text, reason) {
+                var $item = $('<span>').text(text);
+                if (reason) $item.append(' ', $('<small class="text-danger">').text('— ' + reason));
+                return $item;
+            }
+
+            // у выбранного причина первой, иначе её отрезает длинное название
+            function selectedChip(text, reason) {
+                if (!reason) return $('<span>').text(text);
+                return $('<span class="text-danger">').text('⚠ ' + reason + ': ').append($('<span class="text-body">').text(text));
+            }
+
+            $select.select2({
+                width: '100%',
+                maximumSelectionLength: parseInt($select.data('max'), 10) || 0,
+                ajax: {
+                    url: $select.data('url'),
+                    dataType: 'json',
+                    delay: 250,
+                    cache: true,
+                    data: function (params) {
+                        return { q: params.term || '', page: params.page || 1, exclude: $select.data('exclude') || '' };
+                    }
+                },
+                templateResult: function (item) {
+                    return item.loading ? item.text : withReason(item.text, item.reason);
+                },
+                templateSelection: function (item) {
+                    return selectedChip(item.text, item.reason || $(item.element).data('reason'));
+                },
+                language: {
+                    searching: function () { return lang.searching; },
+                    noResults: function () { return lang.noResults; },
+                    loadingMore: function () { return lang.loadingMore; },
+                    errorLoading: function () { return lang.errorLoading; },
+                    maximumSelected: function () { return lang.maximumSelected; }
+                }
+            });
+        });
+
         /*Bootstrap 4 style*/
         /*$('.single-select').select2({
             theme: 'bootstrap4',

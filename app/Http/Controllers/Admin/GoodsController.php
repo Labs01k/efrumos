@@ -26,6 +26,8 @@ use App\Models\GoodsSubjectId;
 use App\Models\GoodsSubjectImages;
 use App\Models\GoodsTypeId;
 use App\Services\GoodsRequest1C\GoodsRequest1C;
+use App\Services\Admin\GoodsPicker;
+use App\Services\Product\ProductRecommendations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\File;
@@ -791,13 +793,10 @@ class GoodsController extends Controller
                 return $item;
             })->sortBy('name');
 
-        $goods_list = GoodsItemId::where('active', 1)
-            ->where('deleted', 0)
-            ->with('itemByLang')
-            ->get()->transform(function ($item) {
-                $item->name = $item->itemByLang?->name;
-                return $item;
-            })->sortBy('name');
+        // закреплённых рекомендаций у нового товара нет: товары ищутся
+        // в селекте запросом (searchRecommendations), каталог в форму не грузим
+        $pinned_similar = collect();
+        $pinned_compatible = collect();
 
         return view($view, get_defined_vars());
     }
@@ -876,15 +875,103 @@ class GoodsController extends Controller
                 return $item;
             })->sortBy('name');
 
-        $goods_list = GoodsItemId::where('active', 1)
-            ->where('deleted', 0)
-            ->with('itemByLang')
-            ->get()->transform(function ($item) {
-                $item->name = $item->itemByLang?->name;
-                return $item;
-            })->sortBy('name');
+        $pinned_similar = $this->pinnedRecommendations($goods_item_id->produse_similare);
+        $pinned_compatible = $this->pinnedRecommendations($goods_item_id->produse_compatibile);
 
         return view($view, get_defined_vars());
+    }
+
+    /**
+     * Поиск товаров для закрепления в «Похожих» и «С этим товаром покупают»
+     * (select2 ajax). Раньше в форму товара грузился весь каталог — ~4,9 тыс.
+     * option в каждом из двух селектов, и страница тормозила.
+     *
+     * Товары, которые витрина не покажет (нет в наличии), в выдаче есть, но
+     * выбрать их нельзя: рядом написана причина.
+     */
+    public function searchRecommendations(Request $request)
+    {
+        [$found, $more] = GoodsPicker::search(
+            (string) $request->input('q'),
+            (int) $request->input('page', 1),
+            (int) $request->input('exclude') ?: null,
+            // сначала то, что можно закрепить
+            fn ($query) => $query->orderByRaw('(in_stoc = 1 AND products_count > 0) DESC'),
+        );
+
+        return response()->json([
+            'results' => GoodsPicker::results($found, fn ($one_goods) => ProductRecommendations::unavailableReason($one_goods)),
+            'pagination' => ['more' => $more],
+        ]);
+    }
+
+    /** Закреплённые товары в сохранённом порядке, с причиной, если витрина их не покажет. */
+    private function pinnedRecommendations(?string $ids): \Illuminate\Support\Collection
+    {
+        return GoodsPicker::byIds($ids)->map(function ($one_goods) {
+            $one_goods->picker_label = GoodsPicker::label($one_goods);
+            $one_goods->picker_reason = ProductRecommendations::unavailableReason($one_goods);
+
+            return $one_goods;
+        });
+    }
+
+    /**
+     * Проверка закреплённых рекомендаций перед сохранением: не больше
+     * MAX_ITEMS (больше блок не показывает), не сам товар, и ни одного
+     * НОВОГО закрепления, которое витрина молча пропустит. Уже закреплённые
+     * товары, которые с тех пор кончились, не мешают сохранить карточку:
+     * их остаток ведёт 1С, и при поступлении они вернутся в блок сами.
+     *
+     * @return array<string, array<int, string>> ошибки в формате ответа saveItem
+     */
+    private function recommendationPinErrors(Request $request, $id): array
+    {
+        $current = $id ? GoodsItemId::find($id) : null;
+        $errors = [];
+
+        foreach (['produse_similare' => 'product_similar', 'produse_compatibile' => 'product_bought_together'] as $field => $label_key) {
+            $ids = collect((array) $request->input($field))->map(fn ($one) => (int) $one)->filter()->unique();
+            // в ошибке — название блока на сайте, оно короче подписи поля
+            $label = __('variables.' . $label_key);
+
+            if ($ids->count() > ProductRecommendations::MAX_ITEMS) {
+                $errors[$field] = [__('variables.recommendations_error_max', ['field' => $label, 'max' => ProductRecommendations::MAX_ITEMS])];
+                continue;
+            }
+
+            if ($id && $ids->contains((int) $id)) {
+                $errors[$field] = [__('variables.recommendations_error_self', ['field' => $label])];
+                continue;
+            }
+
+            $saved = array_map('intval', explode(',', (string) ($current->{$field} ?? '')));
+            $added = $ids->diff($saved);
+
+            if ($added->isEmpty()) {
+                continue;
+            }
+
+            $found = GoodsItemId::whereIn('id', $added)->with('itemByLang')->get()->keyBy('id');
+
+            $refused = $added->map(function ($one_id) use ($found) {
+                $one_goods = $found->get($one_id);
+
+                if (!$one_goods) {
+                    return '#' . $one_id . ' — ' . __('variables.recommendations_reason_deleted');
+                }
+
+                $reason = ProductRecommendations::unavailableReason($one_goods);
+
+                return $reason ? ($one_goods->itemByLang->name ?? '#' . $one_id) . ' — ' . $reason : null;
+            })->filter();
+
+            if ($refused->isNotEmpty()) {
+                $errors[$field] = [__('variables.recommendations_error_unavailable', ['field' => $label, 'items' => $refused->implode('; ')])];
+            }
+        }
+
+        return $errors;
     }
 
     public function saveItem(Request $request, $id, $lang_id)
@@ -915,6 +1002,15 @@ class GoodsController extends Controller
             return response()->json([
                 'status' => false,
                 'messages' => $item->messages(),
+            ]);
+        }
+
+        $pin_errors = $this->recommendationPinErrors($request, $id);
+
+        if ($pin_errors) {
+            return response()->json([
+                'status' => false,
+                'messages' => $pin_errors,
             ]);
         }
 

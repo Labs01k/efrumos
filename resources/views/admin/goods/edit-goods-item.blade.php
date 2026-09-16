@@ -109,34 +109,7 @@
                                         </div>
 
 
-                                        @if(!empty($goods_list) && count($goods_list))
-                                            <div class="position-relative d-flex justify-content-between mt-5">
-                                                <div>
-                                                    <h5 class="card-title">{{__('variables.products_replaced_and_complementary')}}</h5>
-                                                </div>
-                                            </div>
-                                            <hr>
-
-                                            <div class="mb-3">
-                                                <label for="produse_similare"
-                                                       class="form-label">{{__('variables.products_replaced')}}</label>
-                                                <select class="form-select multiple-select" name="produse_similare[]" id="produse_similare" multiple>
-                                                    @foreach($goods_list as $one_goods)
-                                                        <option value="{{ $one_goods->id ?? '' }}" {{ in_array($one_goods->id,explode(',',$goods_item_id->produse_similare))? 'selected' : '' }}>{{$one_goods->itemByLang->name ?? '' }} | {{ $one_goods->one_c_code ?? '' }} | {{ $one_goods->articol or '' }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label for="produse_compatibile"
-                                                       class="form-label">{{__('variables.products_complementary')}}</label>
-                                                <select class="form-select multiple-select" name="produse_compatibile[]" id="produse_compatibile" multiple>
-                                                    @foreach($goods_list as $one_goods)
-                                                        <option value="{{ $one_goods->id ?? '' }}" {{ in_array($one_goods->id,explode(',',$goods_item_id->produse_compatibile))? 'selected' : '' }}>{{$one_goods->itemByLang->name ?? '' }} | {{ $one_goods->one_c_code ?? '' }} | {{ $one_goods->articol or '' }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        @endif
+                                        @include('admin.goods.recommendation-pins', ['exclude_id' => $goods_item_id->id])
 
                                         @if(!empty($goods_parameters) && count($goods_parameters))
                                             @php

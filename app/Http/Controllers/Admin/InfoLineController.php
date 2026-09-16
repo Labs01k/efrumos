@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\GoodsItem;
-use App\Models\GoodsItemId;
 use App\Models\GoodsPromo;
 use App\Models\InfoItem;
 use App\Models\InfoItemId;
 use App\Models\InfoLine;
 use App\Models\InfoLineId;
 use App\Models\InfoLineImages;
+use App\Services\Admin\GoodsPicker;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -493,12 +492,8 @@ class InfoLineController extends Controller
 
         $modules_name = $this->menu()['modules_name'];
 
-        $goods_list = GoodsItemId::where('active', 1)
-            ->where('deleted', 0)
-            ->has('itemByLang')
-            ->with('itemByLang')
-            ->get()
-            ->sortBy('name');
+        // товары ищутся в селекте запросом (searchGoods), каталог в форму не грузим
+        $selected_goods = collect();
 
         $curr_date = Carbon::now()->format('Y-m-d');
 
@@ -539,12 +534,7 @@ class InfoLineController extends Controller
             ->orderBy('position', 'asc')
             ->get();
 
-        $goods_list = GoodsItemId::where('active', 1)
-            ->where('deleted', 0)
-            ->has('itemByLang')
-            ->with('itemByLang')
-            ->get()
-            ->sortBy('name');
+        $selected_goods = GoodsPicker::byIds($info_item_id->goods_list);
 
         $curr_date = Carbon::now()->format('Y-m-d');
 
@@ -552,6 +542,21 @@ class InfoLineController extends Controller
             ->get();
 
         return view($view, get_defined_vars());
+    }
+
+    /**
+     * Поиск товаров для поля «Товары» материала (select2 ajax). Раньше форма
+     * рендерила весь каталог — ~4,9 тыс. option. Наличие не проверяем:
+     * блог, новости и акции показывают товары и без остатка.
+     */
+    public function searchGoods(Request $request)
+    {
+        [$found, $more] = GoodsPicker::search((string) $request->input('q'), (int) $request->input('page', 1));
+
+        return response()->json([
+            'results' => GoodsPicker::results($found),
+            'pagination' => ['more' => $more],
+        ]);
     }
 
     public function infoItemsCart()
