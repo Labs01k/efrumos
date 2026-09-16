@@ -42,7 +42,7 @@
                     <div class="order-details-img">
                         <a href="{{ route('catalog-product', ['product', $one_basket_item->goodsItemId->alias]) }}">
                             <img
-                                src="{{ $one_basket_item->goodsItemId->oImage && $one_basket_item->goodsItemId->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_basket_item->goodsItemId->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_basket_item->goodsItemId->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_basket_item->goodsItemId, 's', 'no-image-xs.png') }}"
                                 alt="{{ $one_basket_item->goodsItemId->itemByLang->name ?? '' }}">
                         </a>
                     </div>

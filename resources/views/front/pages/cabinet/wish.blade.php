@@ -45,7 +45,7 @@
                                                 <div class="cabinet-table-img">
                                                     <a href="{{ route('catalog-product', ['product', $one_goods->alias]) }}">
                                                         <img
-                                                            src="{{ $one_goods->oImage && $one_goods->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_goods->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_goods->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}" style="width: 84px;"
+                                                            src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_goods, 's', 'no-image-xs.png') }}" style="width: 84px;"
                                                             alt="{{ $one_goods->itemByLang->name ?? '' }}">
                                                     </a>
                                                 </div>

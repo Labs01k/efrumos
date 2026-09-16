@@ -33,9 +33,7 @@
                 @endphp
                 <div class="rec-set-row">
                     <div class="rec-set-photo">
-                        <img src="{{ $one_row->oImage && $one_row->oImage->img && file_exists('upfiles/goods-items/m/' . showImg($one_row->oImage->img))
-                                    ? asset('upfiles/goods-items/m/' . showImg($one_row->oImage->img))
-                                    : asset('front-assets/img/no-image-goods-m.png') }}"
+                        <img src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_row) }}"
                              loading="lazy" alt="{{ $one_row->itemByLang->name ?? '' }}">
                     </div>
                     <div class="rec-set-info">
@@ -91,9 +89,7 @@
                 <span class="rec-set-add-aside">
                     <span class="rec-set-avatars">
                         @foreach($set_rows->take(3) as $one_row)
-                            <img src="{{ $one_row->oImage && $one_row->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_row->oImage->img))
-                                        ? asset('upfiles/goods-items/s/' . showImg($one_row->oImage->img))
-                                        : asset('front-assets/img/no-image-goods-m.png') }}" loading="lazy" alt="">
+                            <img src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_row, 's') }}" loading="lazy" alt="">
                         @endforeach
                     </span>
                     @if($set_rows->count() > 3)

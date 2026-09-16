@@ -73,7 +73,7 @@
                             <p style="margin: 0;">
                                 <a href="{{ route('catalog-product', ['product', $basket->goodsItemId->alias]) }}">
                                     <img
-                                        src="{{ $basket->goodsItemId->oImage && $basket->goodsItemId->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($basket->goodsItemId->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($basket->goodsItemId->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                        src="{{ \App\Services\Product\ShadePalette::cardImageUrl($basket->goodsItemId, 's', 'no-image-xs.png') }}"
                                         width="50px" height="50px"
                                         alt="{{ $basket->goodsItemId->itemByLang->name ?? '' }}">
                                 </a>

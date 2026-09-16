@@ -22,7 +22,7 @@
                             <div class="basket-modal-item-img">
                                 <a href="{{ route('catalog-product', ['product', $one_basket_item->goodsItemId->alias]) }}">
                                     <img
-                                        src="{{ $one_basket_item->oImage && $one_basket_item->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_basket_item->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_basket_item->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                        src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_basket_item->goodsItemId, 's', 'no-image-xs.png') }}"
                                         alt="{{ $one_basket_item->goods_name ?? '' }}">
                                 </a>
                             </div>

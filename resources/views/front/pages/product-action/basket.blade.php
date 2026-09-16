@@ -55,7 +55,7 @@
                                         <div class="basket-img">
                                             <a href="{{ route('catalog-product', ['product', $goods_item[$one_basket_item->id]->alias]) }}">
                                                 <img
-                                                    src="{{ $goods_item[$one_basket_item->id]->oImage && $goods_item[$one_basket_item->id]->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($goods_item[$one_basket_item->id]->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($goods_item[$one_basket_item->id]->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                                    src="{{ \App\Services\Product\ShadePalette::cardImageUrl($goods_item[$one_basket_item->id], 's', 'no-image-xs.png') }}"
                                                     alt="{{ $goods_item[$one_basket_item->id]->itemByLang->name ?? '' }}">
                                             </a>
                                         </div>
@@ -156,7 +156,7 @@
                                                             <label for="gift-{{ $one_promo_cadou->goods_item_id ?? '' }}-{{ $one_basket_item->id ?? '' }}" class="select-gift" data-related-id="{{ $one_promo_cadou->one_c_id ?? '' }}" data-promo-id="{{ $one_promo_cadou->goods_promo_id ?? '' }}" data-basket-id="{{ $one_basket_item->id ?? '' }}">
                                                                 <span class="free-gift-img">
                                                                     <img
-                                                                        src="{{ $one_promo_cadou->getGoodsItemId->oImage && $one_promo_cadou->getGoodsItemId->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_promo_cadou->getGoodsItemId->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_promo_cadou->getGoodsItemId->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                                                        src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_promo_cadou->getGoodsItemId, 's', 'no-image-xs.png') }}"
                                                                         alt="{{ $one_promo_cadou->getGoodsItemId->itemByLang->name ?? '' }}">
                                                                 </span>
                                                                 <span class="free-gift-text">

@@ -101,7 +101,7 @@
                                 <p style="margin: 0;">
                                     <a href="{{ route('catalog-product', ['product', $one_basket_item->goodsItemId->alias]) }}">
                                         <img
-                                            src="{{ $one_basket_item->goodsItemId->oImage && $one_basket_item->goodsItemId->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_basket_item->goodsItemId->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_basket_item->goodsItemId->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"  width="50px" height="50px"
+                                            src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_basket_item->goodsItemId, 's', 'no-image-xs.png') }}"  width="50px" height="50px"
                                             alt="{{ $one_basket_item->goodsItemId->itemByLang->name ?? '' }}">
                                     </a>
                                 </p>
@@ -126,7 +126,7 @@
                                     <p style="margin: 0;">
                                         <a href="{{ route('catalog-product', ['product', $cadou->alias]) }}">
                                             <img
-                                                src="{{ $cadou->oImage && $cadou->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($cadou->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($cadou->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}" width="50px" height="50px"
+                                                src="{{ \App\Services\Product\ShadePalette::cardImageUrl($cadou, 's', 'no-image-xs.png') }}" width="50px" height="50px"
                                                 alt="{{ $cadou->itemByLang->name ?? '' }}">
                                         </a>
                                     </p>

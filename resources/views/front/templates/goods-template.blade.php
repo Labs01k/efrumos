@@ -23,13 +23,19 @@
             $line_title .= ', ' . $one_goods->getType->itemByLang->name;
         }
     }
+
+    // Фото оттенка из CMS — у карточки конкретного оттенка. Карточка линейки
+    // представляет все оттенки сразу, фото одного из них там было бы обманом.
+    $card_image = $is_line
+        ? (($one_goods->oImage->img ?? null) && file_exists('upfiles/goods-items/m/' . showImg($one_goods->oImage->img)) ? asset('upfiles/goods-items/m/' . showImg($one_goods->oImage->img)) : asset('front-assets/img/no-image-goods-m.png'))
+        : \App\Services\Product\ShadePalette::cardImageUrl($one_goods);
 @endphp
 <div class="goods-item{{ $one_goods->in_stoc == 0 ? ' out-of-stock' : '' }}{{ $is_line ? ' goods-item--line' : '' }}">
     <div class="goods-item-img">
         <a href="{{ route('catalog-product', ['product', $one_goods->alias]) }}"
            onclick='onProductClick("select_item", {!! \App\Services\GA4\GoogleEcommerce::oneGoodsCollectionToObjects($one_goods) !!})'>
             <img
-                src="{{ $one_goods->oImage && $one_goods->oImage->img && file_exists('upfiles/goods-items/m/' . showImg($one_goods->oImage->img)) ? asset('upfiles/goods-items/m/'. showImg($one_goods->oImage->img)) : asset('front-assets/img/no-image-goods-m.png') }}"
+                src="{{ $card_image }}"
                 loading="lazy"
                 alt="{{ $one_goods->itemByLang->name ?? '' }}">
         </a>

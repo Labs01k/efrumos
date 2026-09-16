@@ -239,17 +239,16 @@ class ShadePaletteController extends Controller
         if (!File::exists(self::UPLOAD_DIR)) {
             File::makeDirectory(self::UPLOAD_DIR, 0755, true);
         }
-        if (!File::exists(self::UPLOAD_DIR . '/s')) {
-            File::makeDirectory(self::UPLOAD_DIR . '/s', 0755, true);
-        }
 
         $this->removePhotoFiles($goods_item->shade_img);
 
         $file_name = $goods_item->id . '-' . time() . '.' . strtolower($file->getClientOriginalExtension());
         $file->move(self::UPLOAD_DIR, $file_name);
 
-        // миниатюра под свотч в палитре (сохранится как .webp)
-        CreateImageManipulator('goods-shades', self::UPLOAD_DIR . '/s/', $file_name, 100, 100);
+        // миниатюры (.webp): s — свотч в палитре, m — карточка в каталоге и рекомендациях
+        foreach (array_keys(ShadePalette::SHADE_THUMB_SIZES) as $size) {
+            ShadePalette::makeShadeThumb($file_name, $size);
+        }
 
         $goods_item->update(['shade_img' => $file_name]);
 
@@ -267,8 +266,10 @@ class ShadePaletteController extends Controller
             File::delete(self::UPLOAD_DIR . '/' . $file_name);
         }
 
-        if (File::exists(self::UPLOAD_DIR . '/s/' . showImg($file_name))) {
-            File::delete(self::UPLOAD_DIR . '/s/' . showImg($file_name));
+        foreach (array_keys(ShadePalette::SHADE_THUMB_SIZES) as $size) {
+            if (File::exists(self::UPLOAD_DIR . '/' . $size . '/' . showImg($file_name))) {
+                File::delete(self::UPLOAD_DIR . '/' . $size . '/' . showImg($file_name));
+            }
         }
     }
 }

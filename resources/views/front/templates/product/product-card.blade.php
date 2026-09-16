@@ -23,9 +23,7 @@
             </div>
         @endif
         <a href="{{ $card_link }}">
-            <img src="{{ $one_goods->oImage && $one_goods->oImage->img && file_exists('upfiles/goods-items/m/' . showImg($one_goods->oImage->img))
-                        ? asset('upfiles/goods-items/m/' . showImg($one_goods->oImage->img))
-                        : asset('front-assets/img/no-image-goods-m.png') }}"
+            <img src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_goods) }}"
                  loading="lazy" alt="{{ $one_goods->itemByLang->name ?? '' }}">
         </a>
     </div>

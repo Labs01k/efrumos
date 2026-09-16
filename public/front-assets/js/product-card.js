@@ -219,15 +219,16 @@
         return !!(navigator.connection && navigator.connection.saveData);
     }
 
-    /** Фото оттенка из data-images: оригинал для галереи и миниатюра s/. */
+    /** Фото оттенка из data-images (пути от upfiles/): оригинал для галереи
+        и миниатюра s/ рядом с ним — goods-items/a.jpg → goods-items/s/a.webp. */
     function shadeImages(item) {
         var root = item.closest('[data-shade-select]');
         var base = root ? root.dataset.imageBase || '' : '';
 
-        return (item.dataset.images || '').split(',').filter(Boolean).map(function (name) {
+        return (item.dataset.images || '').split(',').filter(Boolean).map(function (path) {
             return {
-                big: base + name,
-                thumb: base + 's/' + name.replace(/\.(jpe?g|png|gif)$/i, '.webp')
+                big: base + path,
+                thumb: base + path.replace(/([^\/]+)$/, 's/$1').replace(/\.(jpe?g|png|gif)$/i, '.webp')
             };
         });
     }

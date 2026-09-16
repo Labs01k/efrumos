@@ -34,7 +34,7 @@
                 <div class="search-results-img">
                     <a href="{{ route('catalog-product', ['product', $one_goods->alias]) }}">
                         <img
-                            src="{{ $one_goods->oImage && $one_goods->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($one_goods->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($one_goods->oImage->img)) : asset('front-assets/img/no-image-goods-m.png') }}"
+                            src="{{ \App\Services\Product\ShadePalette::cardImageUrl($one_goods, 's') }}"
                             loading="lazy"
                             alt="{{ $one_goods->itemByLang->name ?? '' }}">
                     </a>

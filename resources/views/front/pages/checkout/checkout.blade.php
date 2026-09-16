@@ -77,7 +77,7 @@
                                             <div class="order-summary-item">
                                                 <div class="order-summary-item-img">
                                                     <img
-                                                        src="{{ $goods_item[$one_basket_item->id]->oImage && $goods_item[$one_basket_item->id]->oImage->img && file_exists('upfiles/goods-items/s/' . showImg($goods_item[$one_basket_item->id]->oImage->img)) ? asset('upfiles/goods-items/s/'. showImg($goods_item[$one_basket_item->id]->oImage->img)) : asset('front-assets/img/no-image-xs.png') }}"
+                                                        src="{{ \App\Services\Product\ShadePalette::cardImageUrl($goods_item[$one_basket_item->id], 's', 'no-image-xs.png') }}"
                                                         alt="{{ $goods_item[$one_basket_item->id]->itemByLang->name ?? '' }}">
                                                 </div>
                                                 <div class="order-summary-item-text">

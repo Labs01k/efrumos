@@ -297,6 +297,8 @@ class CatalogController extends Controller
         $set_goods = ProductRecommendations::boughtTogether($goods_item);
         $similar_goods = ProductRecommendations::similar($goods_item);
         $shades = ShadePalette::for($goods_item);
+        // фото оттенка из CMS идёт в галерею первым, за ним фото товара
+        $gallery_images = ShadePalette::galleryImages($goods_item);
         // Разметка варианта товара (isVariantOf → ProductGroup) осмысленна только
         // там, где линейка оттенков реально есть: у одиночной краски без палитры
         // группы вариантов не существует, и поисковику её обещать нечего.
@@ -319,8 +321,10 @@ class CatalogController extends Controller
 
         //For meta tags
         $meta = $goods_item ?? collect([]);
-        if ($meta && $meta->oImage && $meta->oImage->img)
-            $meta->current_meta_img = asset('upfiles/goods-items/' . $meta->oImage->img);
+        // превью ссылки в соцсетях — то же фото, что первым в галерее
+        $meta_image = $gallery_images->first();
+        if ($meta && $meta_image)
+            $meta->current_meta_img = $meta_image['big'];
 
 
         return view($view, get_defined_vars());

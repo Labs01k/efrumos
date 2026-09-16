@@ -20,6 +20,9 @@ class ShadePalette
     /** Палитру показываем, только если в линейке есть хотя бы столько оттенков. */
     private const MIN_SHADES = 2;
 
+    /** Миниатюры фото оттенка из CMS — те же размеры, что у фото товара. */
+    public const SHADE_THUMB_SIZES = ['s' => [100, 100], 'm' => [264, 320]];
+
     /** Краска ли это: тип товара входит в список «красок» из конфига. */
     public static function isDye(GoodsItemId $goods_item): bool
     {
@@ -224,6 +227,122 @@ class ShadePalette
         }
 
         return null;
+    }
+
+    /**
+     * Главное фото товара в миниатюре — везде, где товар показан картинкой
+     * (каталог, рекомендации, поиск, корзина, заказ, письма): фото оттенка
+     * из CMS, если загружено, иначе первое фото товара. $size — папка
+     * миниатюры: m — карточка 264×320, s — аватарка 100×100.
+     */
+    public static function cardImageUrl(?GoodsItemId $goods_item, string $size = 'm', string $placeholder = 'no-image-goods-m.png'): string
+    {
+        if (!$goods_item) {
+            return asset('front-assets/img/' . $placeholder);
+        }
+
+        if ($goods_item->shade_img) {
+            $thumb = self::shadeThumb($goods_item->shade_img, $size);
+
+            if ($thumb) {
+                return asset('upfiles/goods-shades/' . $thumb);
+            }
+        }
+
+        $img = $goods_item->oImage->img ?? null;
+
+        if ($img && file_exists(public_path('upfiles/goods-items/' . $size . '/' . showImg($img)))) {
+            return asset('upfiles/goods-items/' . $size . '/' . showImg($img));
+        }
+
+        return asset('front-assets/img/' . $placeholder);
+    }
+
+    /**
+     * Миниатюра фото оттенка относительно upfiles/goods-shades/. Миниатюры m/
+     * у фото, загруженных до карточек в каталоге, нет — создаём её при первом
+     * показе, пока не получилось — отдаём оригинал. null — файла нет вовсе.
+     */
+    private static function shadeThumb(string $file_name, string $size): ?string
+    {
+        $dir = public_path('upfiles/goods-shades');
+
+        if (file_exists($dir . '/' . $size . '/' . showImg($file_name))) {
+            return $size . '/' . showImg($file_name);
+        }
+
+        if (!file_exists($dir . '/' . $file_name)) {
+            return null;
+        }
+
+        if (isset(self::SHADE_THUMB_SIZES[$size])) {
+            try {
+                self::makeShadeThumb($file_name, $size);
+
+                if (file_exists($dir . '/' . $size . '/' . showImg($file_name))) {
+                    return $size . '/' . showImg($file_name);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $file_name;
+    }
+
+    /** Создаёт миниатюру фото оттенка в upfiles/goods-shades/{size}/. */
+    public static function makeShadeThumb(string $file_name, string $size): void
+    {
+        [$width, $height] = self::SHADE_THUMB_SIZES[$size];
+        $dir = public_path('upfiles/goods-shades/' . $size);
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // CreateImageManipulator сам дописывает upfiles/ к пути-источнику,
+        // поэтому путь к оригиналу — относительно public/, а не абсолютный
+        $cwd = getcwd();
+        chdir(public_path());
+
+        try {
+            CreateImageManipulator('goods-shades', $dir . '/', $file_name, $width, $height);
+        } finally {
+            chdir($cwd);
+        }
+    }
+
+    /**
+     * Фото галереи товара: фото оттенка из CMS первым (оно и есть главное фото
+     * оттенка), за ним фото товара. Пути — относительно upfiles/, миниатюра
+     * лежит рядом в s/ в webp. Единый источник для галереи на странице и для
+     * data-images в селекте оттенков, иначе после замены фото в CMS свотч
+     * показывал новое фото, а галерея — старое.
+     */
+    public static function galleryImages(GoodsItemId $goods_item): Collection
+    {
+        $images = collect();
+
+        if ($goods_item->shade_img && file_exists(public_path('upfiles/goods-shades/' . $goods_item->shade_img))) {
+            $images->push(['path' => 'goods-shades/' . $goods_item->shade_img, 'alt' => $goods_item->itemByLang->name ?? '']);
+        }
+
+        foreach ($goods_item->oImages as $one_image) {
+            if ($one_image->img && file_exists(public_path('upfiles/goods-items/' . $one_image->img))) {
+                $images->push(['path' => 'goods-items/' . $one_image->img, 'alt' => $one_image->itemByLang->name ?? '']);
+            }
+        }
+
+        return $images->map(function ($one_image) {
+            $thumb = preg_replace('~([^/]+)$~', 's/$1', showImg($one_image['path']));
+
+            return $one_image + [
+                'big' => asset('upfiles/' . $one_image['path']),
+                'thumb' => file_exists(public_path('upfiles/' . $thumb))
+                    ? asset('upfiles/' . $thumb)
+                    : asset('front-assets/img/no-image-xs.png'),
+            ];
+        });
     }
 
     /**

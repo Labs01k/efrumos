@@ -15,7 +15,7 @@
 <div class="quick-view-inner">
     <div class="quick-view-img">
         <img
-            src="{{ $goods_item->oImage && $goods_item->oImage->img && file_exists('upfiles/goods-items/m/' . showImg($goods_item->oImage->img)) ? asset('upfiles/goods-items/m/'. showImg($goods_item->oImage->img)) : asset('front-assets/img/no-image-goods-m.png') }}"
+            src="{{ \App\Services\Product\ShadePalette::cardImageUrl($goods_item) }}"
             loading="lazy"
             alt="{{ $goods_item->itemByLang->name ?? '' }}">
     </div>
