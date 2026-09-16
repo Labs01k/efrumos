@@ -1,0 +1,170 @@
+/*
+ * Результат оформления и оплаты заказа (/checkout-success, /checkout-fail).
+ * Макет «1. Онлайн-оплата»: успех — ноды 783:8422 (1024) и 787:17968 (375),
+ * ошибка — 787:17932 и 787:17989. Окно 360px поверх затемнения, на 375 —
+ * во всю ширину с полями 24px.
+ */
+/* .page-content > .checkout-result — перебивает отступ последнего блока страницы из main.css */
+.page-content > .checkout-result {
+    --cr-accent: #20c997;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.4rem;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, .4);
+}
+
+.page-content > .checkout-result--failed { --cr-accent: #dc3545; }
+.page-content > .checkout-result--processing { --cr-accent: #6c757d; }
+
+.checkout-result-window {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.4rem;
+    width: 100%;
+    max-width: 36rem;
+    margin: auto;
+    padding: 2.4rem 1.6rem 1.6rem;
+    overflow: hidden;
+    border: 1px solid #eeeeee;
+    border-radius: .4rem;
+    background: #fff;
+    text-align: center;
+}
+
+/* мазки кистью на фоне окна: цвет — акцент исхода, прозрачность 4% */
+.checkout-result-window::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36rem;
+    height: 27.8rem;
+    transform: translate(-50%, -50%);
+    background: var(--cr-accent);
+    opacity: .04;
+    -webkit-mask: url('../img/checkout-result-waves.svg') center / 100% 100% no-repeat;
+    mask: url('../img/checkout-result-waves.svg') center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+
+.checkout-result-window > * { position: relative; }
+
+.checkout-result-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.4rem;
+    height: 4.4rem;
+    color: #141b34;
+}
+
+.checkout-result-close svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.33;
+    stroke-linecap: round;
+}
+
+.checkout-result-close:hover { color: #db6e97; }
+
+.checkout-result-icon svg {
+    display: block;
+    width: 6.4rem;
+    height: 6.4rem;
+}
+
+.checkout-result-icon circle { fill: var(--cr-accent); }
+
+.checkout-result-icon path {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.checkout-result-text {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    width: 100%;
+}
+
+.checkout-result-text h1 {
+    margin: 0;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 2rem;
+    line-height: 2.4rem;
+    color: #21252a;
+}
+
+.checkout-result-text p,
+.checkout-result-cms,
+.checkout-result-cms p {
+    margin: 0;
+    font-family: gilroy-medium, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: #465061;
+}
+
+.checkout-result-cms p + p { margin-top: .8rem; }
+
+.checkout-result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+    width: 100%;
+}
+
+.checkout-result-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3.6rem;
+    padding: .8rem 1.6rem;
+    border: .2rem solid #21252a;
+    border-radius: .4rem;
+    background: #21252a;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    text-transform: uppercase;
+    color: #fff;
+    text-decoration: none !important;
+    transition: background-color .2s, border-color .2s, color .2s;
+}
+
+.checkout-result-button:hover {
+    border-color: #000;
+    background: #000;
+    color: #fff;
+}
+
+.checkout-result-button--outline {
+    background: transparent;
+    color: #21252a;
+}
+
+.checkout-result-button--outline:hover {
+    border-color: #21252a;
+    background: #21252a;
+    color: #fff;
+}
+
+/* на телефоне окно во всю ширину с полями, как в макете 375 */
+@media (max-width: 575px) {
+    .checkout-result-window { max-width: none; }
+}

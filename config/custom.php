@@ -104,8 +104,8 @@ return [
 
         # поднимать при каждом изменении front-assets, иначе вернувшиеся
         # посетители получают старые css/js из кеша браузера
-        'js_version' => 65,
-        'css_version' => 65,
+        'js_version' => 66,
+        'css_version' => 66,
         'svg_version' => 1,
     ],
 
