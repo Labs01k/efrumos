@@ -94,6 +94,18 @@ class OrdersController extends Controller
         $statusValue = $request->input('payment_status');
         $comment = $request->input('comment');
 
+        // order_payment_status_logs.comment — VARCHAR(500); соединение БД не
+        // в strict-режиме (config('database.connections.mysql.strict')=false),
+        // поэтому MySQL молча обрезает переполнение вместо ошибки — валидируем
+        // сами, чтобы админ не терял часть текста незаметно.
+        if ($comment !== null && mb_strlen($comment) > 500) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['Комментарий не должен превышать 500 символов (сейчас ' . mb_strlen($comment) . ').'],
+            ]);
+        }
+
         $order = Orders::find($id);
         if (is_null($order)) {
             return response()->json([

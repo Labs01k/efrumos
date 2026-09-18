@@ -85,7 +85,7 @@
                                 <tbody>
                                 @foreach ($payment_status_logs as $log)
                                     <tr>
-                                        <td>{{ getDefaultDateFormat($log->created_at) }}</td>
+                                        <td>{{ getDefaultDateFormatAdmin($log->created_at) }}</td>
                                         <td>{{ $log->from_status ? \App\Enums\PaymentStatus::from($log->from_status)->label() : '—' }}</td>
                                         <td>{{ \App\Enums\PaymentStatus::from($log->to_status)->label() }}</td>
                                         <td>{{ $log->source }}</td>
