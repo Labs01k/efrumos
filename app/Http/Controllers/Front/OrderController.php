@@ -59,7 +59,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',
@@ -80,7 +82,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',
@@ -137,7 +141,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',
@@ -159,7 +165,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',
@@ -204,7 +212,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',
@@ -225,7 +235,9 @@ class OrderController extends Controller
                         ],
                         'delivery_method' => [
                             'required',
-                            Rule::in(['pickup', 'delivery', 'nova_courier', 'nova_terminal']),
+                            Rule::in(config('custom.front.nova_poshta_enabled')
+                                ? ['pickup', 'delivery', 'nova_courier', 'nova_terminal']
+                                : ['pickup', 'delivery']),
                         ],
                         'pickup_shop_id' => [
                             'nullable',

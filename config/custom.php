@@ -93,6 +93,18 @@ return [
         # Включить: ONLINE_PAYMENT_ENABLED=true в .env (после проверки оплаты).
         'online_payment_enabled' => env('ONLINE_PAYMENT_ENABLED', false),
 
+        # Доставка Nova Poshta (delivery_method=nova_courier/nova_terminal).
+        # УЖЕ СКРЫТА в чекауте на фронте, но бэкенд до этого флага всё равно
+        # принимал оба значения в валидации — заказ ушёл бы в 1С под Owner
+        # `services.onec.owner_code_courier_service` (28045). 2026-09-11
+        # выяснилось, что 28045 — код контрагента Straus.md, с которым
+        # больше не сотрудничают, а не Nova Poshta (см. efrumos-docs/
+        # 1c-ws-amo-qa-2026-09-11.md, раздел 1). Правильный код для Nova
+        # Poshta 1С ещё не присылали. Не включать, пока не подтвердят.
+        # Включить: NOVA_POSHTA_ENABLED=true в .env (после ответа 1С и
+        # обновления owner_code_courier_service на правильный код).
+        'nova_poshta_enabled' => env('NOVA_POSHTA_ENABLED', false),
+
         # Ключ Google Maps JavaScript API для страницы магазинов (п.2 ТЗ).
         # Пока ключа нет, карта рендерится на Leaflet/OSM — адаптер в shops-page.js.
         'google_maps_key' => env('GOOGLE_MAPS_KEY'),

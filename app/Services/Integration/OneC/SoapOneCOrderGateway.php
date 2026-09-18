@@ -215,10 +215,12 @@ class SoapOneCOrderGateway implements OneCOrderGateway
         }
 
         // Owner зависит от способа доставки — см. комментарий у
-        // config('services.onec') про owner_code_*. nova_courier/nova_terminal
-        // (Nova Poshta) — сторонняя курьерская служба, отдельный код от
-        // "самовывоз из нашего магазина"; сейчас эти варианты скрыты в
-        // чекауте, ветка на будущее.
+        // config('services.onec') про owner_code_*. Ветка nova_courier/
+        // nova_terminal — не в задачах текущего этапа (не наша разработка,
+        // дремлющий код из первого коммита); валидация в OrderController
+        // сейчас не пускает эти значения дальше формы, пока не включат флаг
+        // custom.front.nova_poshta_enabled — эта ветка match() практически
+        // не выполняется.
         $ownerCode = match ($order->delivery_method) {
             'delivery' => config('services.onec.owner_code_delivery'),
             'nova_courier', 'nova_terminal' => config('services.onec.owner_code_courier_service'),
