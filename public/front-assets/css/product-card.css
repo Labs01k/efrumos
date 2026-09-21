@@ -955,7 +955,7 @@
 .pb-shops:not(.is-expanded) .pb-shop-item.is-out { display: none; }
 
 /* товара нет нигде: весь список видим сразу, кнопка сворачивания не рендерится */
-.pb-shops--all-out .pb-shop-item.is-out { display: flex; }
+.pb-shops.pb-shops--all-out .pb-shop-item.is-out { display: flex; }
 
 /* ближайший магазин с наличием — как выбранный магазин в макете страницы магазинов */
 .pb-shop-item.is-nearest .pb-shop-title span:first-child { color: var(--pb-brand); }
