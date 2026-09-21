@@ -55,8 +55,11 @@ class ImportFrom1C extends Controller
         return $this->getExchange(true, 'update');
     }
 
-    public function _getProductsArray($type = false, $json_action = null)
+    public function _getProductsArray($type = false, $json_action = null, ?string $file_path = null)
     {
+        // $file_path нужен artisan-команде onec:sync-stock; маршруты его не передают
+        $file_path ??= public_path('upfiles/1c-files/big_full_exchange.json');
+
         //FullExchange update after download file
         if($type && $json_action == 'update'){
 
@@ -64,8 +67,7 @@ class ImportFrom1C extends Controller
             // $json_file = file_get_contents(public_path('upfiles/1c-files/big_full_exchange.json'));
             // $responseArrayData = json_decode($json_file, true);
 
-            $path = public_path('upfiles/1c-files/big_full_exchange.json');
-            $json_file = file_get_contents($path);
+            $json_file = file_get_contents($file_path);
 
             // 1. УДАЛЕНИЕ BOM (Частая проблема 1С)
             // Удаляем невидимый маркер в начале файла, если он есть
@@ -130,7 +132,7 @@ class ImportFrom1C extends Controller
 
             //FullExchange download big file
             if ($type && $json_action == 'download') {
-                return file_put_contents(public_path('upfiles/1c-files/big_full_exchange.json'),$json_code);
+                return file_put_contents($file_path, $json_code);
             }
 
             $responseArrayData = json_decode($json_code, true);
@@ -142,10 +144,10 @@ class ImportFrom1C extends Controller
         return [];
     }
 
-    public function getExchange($type = false, $json_action = null)
+    public function getExchange($type = false, $json_action = null, ?string $file_path = null)
     {
         // var_dump('CONNECT SOAP WSDL');
-        $data = $this->_getProductsArray($type, $json_action);
+        $data = $this->_getProductsArray($type, $json_action, $file_path);
 
         if (!empty($data) && count($data)) {
 
