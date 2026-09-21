@@ -41,6 +41,14 @@ class SubmitOrderToIntegrationLayerJob implements ShouldQueue
     {
         $order = Orders::findOrFail($this->ordersId);
 
+        if (!$order->isServedByOneC()) {
+            Log::info('SubmitOrderToIntegrationLayerJob: заказ не передаётся в 1С — район не обслуживается этой базой', [
+                'orders_id' => $order->id,
+            ]);
+
+            return;
+        }
+
         try {
             $service->submitOrder($order);
         } catch (InsufficientStockException $e) {

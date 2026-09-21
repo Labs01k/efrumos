@@ -74,6 +74,14 @@ class Orders extends Model
         return $this->hasOne('App\Models\OrdersUsers', 'orders_id', 'id')->withDefault();
     }
 
+    /** Обслуживается ли заказ базой 1С: Приднестровье — нет (config services.onec.unserved_state_ids). */
+    public function isServedByOneC(): bool
+    {
+        $district_id = (int) ($this->ordersUsers->district_id ?? 0);
+
+        return !in_array($district_id, array_map('intval', config('services.onec.unserved_state_ids', [])), true);
+    }
+
     public function ordersFrontUser()
     {
         return $this->hasOne('App\Models\FrontUser', 'id', 'front_user_id');

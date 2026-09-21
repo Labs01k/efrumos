@@ -24,6 +24,18 @@ class ForwardPaymentStatusToIntegrationLayer
             return;
         }
 
+        // Наличные принимаются вне сайта (ответ 1С): платёж в 1С передаётся
+        // только для оплаты картой. Ручная смена статуса заказа с наличными
+        // в CMS не должна создавать в 1С «Приходный кассовый ордер».
+        if ($event->order->pay_method !== 'card') {
+            return;
+        }
+
+        // Заказ не в 1С (Приднестровье) — платить там нечему, документа нет.
+        if (!$event->order->isServedByOneC()) {
+            return;
+        }
+
         $accepted = $this->notifier->notifyPaymentStatusChanged($event->order, $event->to);
 
         if (!$accepted) {

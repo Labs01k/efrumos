@@ -13,15 +13,18 @@ use Illuminate\Support\Facades\Log;
  * (id 1-70ish), which is what this maps to. Verified live against
  * http://agent.solvex.md/test_db/ws/ws_amo.1cws GetCities() on 2026-09-09.
  *
- * Five raions have no clean, unambiguous match and fall back to
+ * Four raions have no clean, unambiguous match and fall back to
  * DEFAULT_CITY_CODE with a logged warning rather than a silent guess:
  *   - Gagauzia — an autonomous region grouping several raions (Comrat,
- *     Ceadîr-Lunga, Vulcănești), not a single 1С city row.
- *   - Lapusna — a pre-2003 Soviet-era raion name, no longer an
- *     administrative unit; 1С's list has nothing under this name.
+ *     Ceadîr-Lunga, Vulcănești), not a single 1С city row; 1С says all its
+ *     localities are in GetCities (ids 3, 6, 12, 37, 38) and the region
+ *     marker can be set on the site side.
  *   - Tighina, Stînga Nistrului, Rîbnița — Transnistria; not present in
  *     1С's city list at all (only Tiraspol has a — z-prefixed, low
- *     confidence — entry, mapped below).
+ *     confidence — entry, mapped below). Orders from these raions are not
+ *     sent to 1С anyway (config services.onec.unserved_state_ids).
+ * Lapusna was wrongly listed here as absent: 1С confirmed it exists as
+ * 784 "Hincesti, Lapusna" (2026-09-21).
  * DEFAULT_CITY_CODE (8 = "Chisinau") was chosen as the plain, low-numbered
  * ("Chisinau" with the id-1..70-ish raion-level rows) entry — NOT the
  * higher ids 1000/1527 ("zChișinău"/"Chișinău"), which sit in a later batch
@@ -70,6 +73,7 @@ class OneCCityMapper
         4267 => 39,  // Taraclia
         4268 => 40,  // Telenești
         4273 => 1,   // Ialoveni (raion, distinct from the Chișinău suburb of the same name)
+        2186 => 784, // Lapusna — "Hincesti, Lapusna" (ответ 1С 2026-09-21: есть в справочнике под кодом 784)
         4270 => 58,  // Tiraspol — only "zTiraspol" exists; low confidence, kept as closest real match
 
         // Chișinău municipality + suburbs — exact "Chisinau, <locality>" matches
