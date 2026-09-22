@@ -313,24 +313,33 @@ class ShadePalette
     }
 
     /**
-     * Фото галереи товара: фото оттенка из CMS первым (оно и есть главное фото
-     * оттенка), за ним фото товара. Пути — относительно upfiles/, миниатюра
-     * лежит рядом в s/ в webp. Единый источник для галереи на странице и для
-     * data-images в селекте оттенков, иначе после замены фото в CMS свотч
-     * показывал новое фото, а галерея — старое.
+     * Фото галереи товара. Фото оттенка из CMS — это главное фото оттенка, и
+     * оно ЗАМЕНЯЕТ первое фото товара из 1С, а не добавляется к нему: иначе у
+     * красок, у которых фото ровно одно (757 из 1030), после загрузки фото в
+     * CMS в галерее появлялась вторая картинка — то же самое другим планом.
+     * Остальные фото товара (оборот коробки, текстура) остаются после него.
+     *
+     * Пути — относительно upfiles/, миниатюра лежит рядом в s/ в webp.
+     * Единый источник для галереи на странице и для data-images в селекте
+     * оттенков, иначе после замены фото в CMS свотч показывал новое фото,
+     * а галерея — старое.
      */
     public static function galleryImages(GoodsItemId $goods_item): Collection
     {
         $images = collect();
+        $has_shade_photo = $goods_item->shade_img && file_exists(public_path('upfiles/goods-shades/' . $goods_item->shade_img));
 
-        if ($goods_item->shade_img && file_exists(public_path('upfiles/goods-shades/' . $goods_item->shade_img))) {
+        if ($has_shade_photo) {
             $images->push(['path' => 'goods-shades/' . $goods_item->shade_img, 'alt' => $goods_item->itemByLang->name ?? '']);
         }
 
-        foreach ($goods_item->oImages as $one_image) {
-            if ($one_image->img && file_exists(public_path('upfiles/goods-items/' . $one_image->img))) {
-                $images->push(['path' => 'goods-items/' . $one_image->img, 'alt' => $one_image->itemByLang->name ?? '']);
-            }
+        $goods_photos = $goods_item->oImages
+            ->filter(fn ($one_image) => $one_image->img && file_exists(public_path('upfiles/goods-items/' . $one_image->img)))
+            ->values();
+
+        // главное фото из 1С уступило место фото оттенка
+        foreach ($has_shade_photo ? $goods_photos->slice(1) : $goods_photos as $one_image) {
+            $images->push(['path' => 'goods-items/' . $one_image->img, 'alt' => $one_image->itemByLang->name ?? '']);
         }
 
         return $images->map(function ($one_image) {
