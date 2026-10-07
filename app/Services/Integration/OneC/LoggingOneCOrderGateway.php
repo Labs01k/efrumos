@@ -3,6 +3,7 @@
 namespace App\Services\Integration\OneC;
 
 use App\Contracts\Integration\OneCOrderGateway;
+use App\Contracts\Integration\OneCOrderResult;
 use App\Models\Orders;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -26,7 +27,7 @@ class LoggingOneCOrderGateway implements OneCOrderGateway
         return array_fill_keys($skuCodes, PHP_INT_MAX);
     }
 
-    public function reserveOrder(Orders $order): string
+    public function reserveOrder(Orders $order): OneCOrderResult
     {
         $fakeId = '1C-STUB-' . $order->id . '-' . strtoupper(Str::random(6));
 
@@ -35,7 +36,7 @@ class LoggingOneCOrderGateway implements OneCOrderGateway
             'onec_document_id' => $fakeId,
         ]);
 
-        return $fakeId;
+        return new OneCOrderResult($fakeId);
     }
 
     public function releaseReservation(string $onecDocumentId): void

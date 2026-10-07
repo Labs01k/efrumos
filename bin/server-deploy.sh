@@ -151,6 +151,16 @@ BUILD_EXCLUDE=(--exclude='public/build')
 # something reconciled against it and deleted the dev container. Never sync
 # compose files or the Dockerfile — server-side container lifecycle is by
 # hand, same as .env.
+#
+# T-001 / 2026-09-23: php-conf.d as a whole is still excluded on purpose —
+# don't overwrite whatever else lives there (extensions, timezone; that file
+# turned out to be Puppet-managed and reverted a manual edit within two days,
+# found while chasing this same upload-limit issue). Our own override ships
+# as a SEPARATE file Puppet doesn't know about, base64'd through so it can
+# ride inside the single ssh session below instead of a second connection
+# (this host rate-limits a second key auth right after a successful one).
+PHP_UPLOAD_INI_B64="$(base64 -w0 php-conf.d/site-php-settings.ini 2>/dev/null || base64 php-conf.d/site-php-settings.ini | tr -d '\n')"
+
 echo "==> Deploying $BRANCH to $ENVIRONMENT in one SSH session (sync + composer + migrations + patches + caches + fpm reload)"
 tar czf - \
   --exclude='.git' --exclude='.env' --exclude='mariadb.info' --exclude='php-conf.d' \
@@ -183,11 +193,26 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-echo "-- composer install (host PHP/composer — richer extension set than the fpm container, see deploy-investigation.md)"
-composer install $COMPOSER_FLAGS
+# 2026-09-28/29: тот же switch на системный php 8.5 (см. комментарий ниже
+# про \`\$ARTISAN\`) ломает и composer — не только "нет модуля", а жёстче:
+# nette/schema, htmlpurifier и др. в composer.lock требуют php <8.3, на 8.5
+# \`composer install\` падает на platform-check ещё до наших расширений.
+# \`php8.2 \$(command -v composer)\` — тот же composer, явно под старым PHP,
+# независимо от того, куда сегодня указывает /etc/alternatives/php.
+echo "-- composer install (явно под php8.2, не системным php — см. комментарий выше)"
+php8.2 \$(command -v composer) install $COMPOSER_FLAGS
+
+# Всё, что трогает БД, идёт через контейнер ($CONTAINER, свой PHP 8.2 +
+# pdo_mysql), не через хостовый \`php\`. 2026-09-28: хостовый \`php\`
+# (/etc/alternatives/php) кто-то переключил на 8.5 без pdo_mysql —
+# \`php artisan migrate\` на хосте в тот же день упал бы с "could not find
+# driver". Контейнер этой подменой не затронут — свой PHP, не системный.
+# -w — рабочая директория внутри контейнера (там смонтирован код), по
+# умолчанию /var/www/html, где artisan нет.
+ARTISAN="docker exec -w /usr/src/myapp $CONTAINER php artisan"
 
 echo "-- Running migrations"
-php artisan migrate --force
+\$ARTISAN migrate --force
 
 # database/sql/*.sql — идемпотентные патчи схемы и данных, которые не входят
 # в artisan migrate (структура сайта живёт в дампе). Локально их накатывает
@@ -197,7 +222,7 @@ php artisan migrate --force
 # store_guid, orders.pickup_shop_id, координаты магазинов и раздел CMS
 # «Палитра оттенков» — карточка товара и самовывоз упадут.
 echo "-- Applying database/sql patches"
-php artisan db:apply-sql-patches
+\$ARTISAN db:apply-sql-patches
 
 # Кеши, которые строятся командами по расписанию: на свежем сервере они пусты
 # до первого запуска scheduler'а, и до тех пор блок «С этим товаром покупают»
@@ -205,8 +230,8 @@ php artisan db:apply-sql-patches
 # Прогреваем сразу, чтобы деплой не оставлял сайт в частично рабочем виде.
 # Регулярность обеспечивает cron (см. напоминание в конце скрипта).
 echo "-- Warming recommendation/variant caches"
-php artisan recommendations:recalc-bought-together
-php artisan shades:rebuild-variants
+\$ARTISAN recommendations:recalc-bought-together
+\$ARTISAN shades:rebuild-variants
 
 echo "-- Fixing storage/bootstrap permissions"
 # Best-effort: runtime files created by php-fpm's www-data (logs, compiled
@@ -214,6 +239,14 @@ echo "-- Fixing storage/bootstrap permissions"
 # be — they're already group-writable. Never let this abort the deploy
 # before the restart below (set -e would otherwise kill it here).
 chown -R \$(whoami):www-data storage bootstrap/cache 2>/dev/null || true
+
+# T-001: upload-limit override (php-conf.d/site-php-settings.ini in the
+# repo), rewritten on every deploy so it survives whatever reverted the
+# manual edit on dev between 2026-09-21 and 2026-09-23 (see comment above the
+# tar command). mkdir -p in case this account never had php-conf.d/ at all.
+echo "-- Writing PHP upload-limit override (php-conf.d/site-php-settings.ini, T-001)"
+mkdir -p php-conf.d
+echo '$PHP_UPLOAD_INI_B64' | base64 -d > php-conf.d/site-php-settings.ini
 
 # NEVER \`docker restart $CONTAINER\` here. The container is run by a
 # Puppet-managed systemd unit (docker-$CONTAINER.service) whose ExecStart is
@@ -232,7 +265,7 @@ echo "-- Reloading php-fpm in $CONTAINER (graceful, no container restart — see
 docker kill --signal=USR2 $CONTAINER 2>/dev/null || echo "   (couldn't signal php-fpm; opcache will revalidate on its own)"
 
 echo "-- Post-deploy checks"
-php artisan migrate:status 2>&1 | tail -n 5 || true
+\$ARTISAN migrate:status 2>&1 | tail -n 5 || true
 curl -sS -o /dev/null -w '   HTTP %{http_code} https://$DOMAIN/\n' "https://$DOMAIN/" || true
 REMOTE_SCRIPT
 )"

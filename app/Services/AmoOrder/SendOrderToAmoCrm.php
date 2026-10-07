@@ -54,6 +54,10 @@ class SendOrderToAmoCrm
             $order_type = 'Comanda noua (Simplă)';
             $tags_type = 'site, orders, efrumos';
         }
+        // заказ из приложения лояльности (API /api/app/v1) — менеджерам видно, откуда он
+        if (($order_new->source ?? 'site') === 'app') {
+            $tags_type .= ', app efrumos';
+        }
         // было присваивание (=) — самовывоз всегда уходил в CRM как доставка
         if ($order_new->delivery_method == 'delivery') {
             $delivery_type = 'Livrare la domiciliu';
@@ -143,10 +147,35 @@ class SendOrderToAmoCrm
         ));
 
         $response = curl_exec($ch);
-        //$info = curl_getinfo($ch);
-        //dd($info);
-        // file_put_contents('test.txt', $response);
+        $curl_errno = curl_errno($ch);
+        $curl_error = curl_error($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
+
+        // Раньше ответ CRM нигде не проверялся и не логировался — если
+        // Platon/Progression отклонял заказ, сайт об этом не узнавал.
+        // Сам CRM не подтверждает приём телом ответа в документированном
+        // виде, поэтому судим по транспорту (curl) и HTTP-коду; тело — в
+        // лог как есть, разбирать его формат отдельно не пытаемся.
+        if ($curl_errno !== 0) {
+            Log::error('[Platon/Progression CRM] sendOrderToAmoCrm — запрос не выполнен (curl)', [
+                'orders_id' => $order_new->id ?? null,
+                'curl_errno' => $curl_errno,
+                'curl_error' => $curl_error,
+            ]);
+        } elseif ($http_code < 200 || $http_code >= 300) {
+            Log::error('[Platon/Progression CRM] sendOrderToAmoCrm — CRM ответил ошибкой', [
+                'orders_id' => $order_new->id ?? null,
+                'http_code' => $http_code,
+                'body' => $response !== false ? substr($response, (int) $header_size) : null,
+            ]);
+        } else {
+            Log::info('[Platon/Progression CRM] sendOrderToAmoCrm — заказ отправлен', [
+                'orders_id' => $order_new->id ?? null,
+                'http_code' => $http_code,
+            ]);
+        }
     }
 
 }

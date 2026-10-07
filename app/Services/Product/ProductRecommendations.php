@@ -25,9 +25,13 @@ class ProductRecommendations
     private const CO_PURCHASE_MONTHS = 12;
 
     /**
-     * «С этим товаром покупают». Источники строго по приоритету из ТЗ:
-     * закреплённые вручную в CMS → чаще всего покупают вместе за 12 месяцев →
-     * та же линейка → тот же бренд → бестселлеры категории.
+     * «С этим товаром покупают». Источники по приоритету (правки от 07.10.2026,
+     * п.3 — жалоба на набор Cotril Timeless, куда попадали товары других линеек
+     * того же бренда через статистику совместных покупок): закреплённые вручную
+     * в CMS → та же линейка → чаще всего покупают вместе за 12 месяцев →
+     * тот же бренд → бестселлеры категории. Линейка теперь выше статистики,
+     * чтобы предложенный набор выглядел цельным уходом одной линейки, а не
+     * случайным сочетанием популярных товаров бренда.
      */
     public static function boughtTogether(GoodsItemId $goods_item): Collection
     {
@@ -47,8 +51,8 @@ class ProductRecommendations
             ]
             : [
                 fn () => self::manualList($goods_item->produse_compatibile),
-                fn () => self::coPurchased($goods_item),
                 fn () => self::sameLine($goods_item),
+                fn () => self::coPurchased($goods_item),
                 fn () => self::sameBrand($goods_item),
                 fn () => self::categoryBestsellers($goods_item),
             ];

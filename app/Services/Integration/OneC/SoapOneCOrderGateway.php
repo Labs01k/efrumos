@@ -3,6 +3,7 @@
 namespace App\Services\Integration\OneC;
 
 use App\Contracts\Integration\OneCOrderGateway;
+use App\Contracts\Integration\OneCOrderResult;
 use App\Exceptions\Integration\IntegrationGatewayException;
 use App\Models\FrontUser;
 use App\Models\GoodsItemId;
@@ -65,7 +66,7 @@ class SoapOneCOrderGateway implements OneCOrderGateway
         return $result;
     }
 
-    public function reserveOrder(Orders $order): string
+    public function reserveOrder(Orders $order): OneCOrderResult
     {
         if (config('services.integration.onec_mock_mode')) {
             $fakeId = '1C-MOCK-' . $order->id . '-' . strtoupper(Str::random(6));
@@ -75,7 +76,7 @@ class SoapOneCOrderGateway implements OneCOrderGateway
                 'onec_document_id' => $fakeId,
             ]);
 
-            return $fakeId;
+            return new OneCOrderResult($fakeId);
         }
 
         try {
@@ -105,6 +106,12 @@ class SoapOneCOrderGateway implements OneCOrderGateway
                     'isCurierat' => $order->delivery_method === 'delivery',
                     'PromoCode' => $this->promoCode($order),
                     'isWebSite' => true,
+                    // Необязательное поле (ответ 1С, 2026-10-01): сайт сюда
+                    // попадает только для оплаты картой в момент оформления
+                    // (гейт pay_method==='card' в SubmitOrderToIntegrationLayerJob),
+                    // отсрочки оплаты у нас нет и не планируется — значение
+                    // всегда одно и то же, менять не на что.
+                    'PaymentType' => 'ПриСозданииЗаказа',
                 ],
             ]);
 
@@ -122,7 +129,16 @@ class SoapOneCOrderGateway implements OneCOrderGateway
                 'onec_object_code' => $result['ObjectCode'] ?? null,
             ]);
 
-            return (string) $result['ObjectId'];
+            [$orderSum, $deliverySum, $total] = self::parseAdditionalInfo($result['AdditionalInfo'] ?? null, $order->id);
+
+            // ObjectCode — номер заказа в 1С; вебхук статуса шлёт его как xml_id.
+            return new OneCOrderResult(
+                (string) $result['ObjectId'],
+                isset($result['ObjectCode']) ? (int) $result['ObjectCode'] : null,
+                $orderSum,
+                $deliverySum,
+                $total,
+            );
         } catch (IntegrationGatewayException $e) {
             throw $e;
         } catch (\Throwable $e) {
@@ -289,5 +305,55 @@ class SoapOneCOrderGateway implements OneCOrderGateway
     private static function toArray(mixed $value): array
     {
         return json_decode(json_encode($value), true) ?: [];
+    }
+
+    /**
+     * AdditionalInfo — JSON-строка внутри ответа CreateOrder (не вложенный
+     * объект), например '{"orderSum":825, "deliverySum":0, "total": 825}'.
+     * Живьём подтверждено 2026-10-01. Поля нет вовсе на старых ответах/моке
+     * — тогда все три null, и сумму к оплате считает сайт
+     * (OrdersData::amountDue()). Падать из-за кривого AdditionalInfo нельзя:
+     * заказ в 1С уже создан, терять его из-за необязательного поля — хуже,
+     * чем остаться без суммы от 1С на этот раз.
+     *
+     * @return array{0: ?float, 1: ?float, 2: ?float} orderSum, deliverySum, total
+     */
+    private static function parseAdditionalInfo(?string $raw, int $ordersId): array
+    {
+        if (!$raw) {
+            return [null, null, null];
+        }
+
+        $info = json_decode($raw, true);
+
+        if (!is_array($info)) {
+            // 1С генерирует JSON/XML с литералами в Pascal-case (сами видели
+            // isWebSite:True в SOAP-запросе, deliverySum:Null в их же
+            // примере) — невалидно для json_decode, который требует
+            // строчные true/false/null. Та же защита, что и в ImportFrom1C
+            // для их битого JSON каталога: один аварийный проход вместо
+            // падения на необязательном поле.
+            $normalized = preg_replace_callback('/\b(True|False|Null)\b/', fn ($m) => strtolower($m[1]), $raw);
+            $info = json_decode($normalized, true);
+        }
+
+        if (!is_array($info) || !array_key_exists('total', $info)) {
+            Log::warning('1С CreateOrder: AdditionalInfo не разобрался', [
+                'orders_id' => $ordersId,
+                'raw' => $raw,
+            ]);
+
+            return [null, null, null];
+        }
+
+        return [
+            isset($info['orderSum']) ? (float) $info['orderSum'] : null,
+            // deliverySum: null в самом JSON — валидное значение ("доставку
+            // обслуживает сторонняя служба, стоимость неизвестна"), не ошибка
+            array_key_exists('deliverySum', $info) && $info['deliverySum'] !== null
+                ? (float) $info['deliverySum']
+                : null,
+            (float) $info['total'],
+        ];
     }
 }

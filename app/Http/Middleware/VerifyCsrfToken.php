@@ -17,5 +17,9 @@ class VerifyCsrfToken extends Middleware
         // страницы (форма без нашего CSRF-токена). backref() только читает
         // статус заказа из БД и редиректит дальше — ничего не меняет.
         'payments/bank/backref/*',
+        // Вебхук 1С — внешний server-to-server POST без сессии/CSRF-токена
+        // сайта, свою проверку делает OneCOrderStatusWebhookController по
+        // токену (query ?token= или заголовок X-OneC-Webhook-Token).
+        'webhooks/onec/order-status',
     ];
 }

@@ -23,9 +23,9 @@ interface OneCOrderGateway
 
     /**
      * Reserve stock and create the order document in 1С.
-     * @return string 1C document id/GUID
+     * @return OneCOrderResult 1C document id/GUID and order number
      */
-    public function reserveOrder(Orders $order): string;
+    public function reserveOrder(Orders $order): OneCOrderResult;
 
     public function releaseReservation(string $onecDocumentId): void;
 

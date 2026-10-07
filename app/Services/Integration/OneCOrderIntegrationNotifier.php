@@ -48,7 +48,14 @@ class OneCOrderIntegrationNotifier implements OrderIntegrationNotifier
 
         try {
             $paymentId = (string) ($order->payments()->latest()->first()->id ?? '');
-            $this->oneC->markPaid($mapping->onec_document_id, (float) $order->ordersData->total_price, $paymentId);
+            // То же, что реально списал банк (VictoriaBankController::
+            // initiate() списывает ровно amountDue()) — 1С должна увидеть ту
+            // же сумму, иначе её реестр платежей разойдётся с банковским.
+            // 2026-10-01: amountDue() сама предпочитает сумму 1С
+            // (AdditionalInfo.total), падая на расчёт сайта только если её
+            // нет (сбой 1С на оформлении).
+            $amount = $order->ordersData->amountDue();
+            $this->oneC->markPaid($mapping->onec_document_id, $amount, $paymentId);
         } catch (\Throwable $e) {
             Log::error('OneCOrderIntegrationNotifier: 1С status push failed', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
             return false;

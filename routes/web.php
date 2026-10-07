@@ -8,6 +8,7 @@ use App\Http\Controllers\Exchange\ImportFrom1C;
 use App\Http\Controllers\Front\GFGoodsXmlController;
 use App\Http\Controllers\Front\ParseController;
 use App\Http\Controllers\Payment\VictoriaBankController;
+use App\Http\Controllers\Integration\OneCOrderStatusWebhookController;
 use App\Services\Localization\LocalizationService;
 
 /*
@@ -59,6 +60,13 @@ Route::controller(VictoriaBankController::class)->prefix('payments/bank')->name(
     Route::match(['get', 'post'], '/backref/{order}', 'backref')->name('backref');
     Route::post('/callback', 'callback')->name('callback');
 });
+
+// [BE] Синхронное обновление статуса после оплаты, вариант «в» —
+// efrumos-docs/call-with-sk.md A3. Вне локали, как остальные webhook/обменные
+// роуты выше — не локализованная страница. Токен — в query (?token=) или в
+// заголовке X-OneC-Webhook-Token, см. OneCOrderStatusWebhookController.
+Route::post('/webhooks/onec/order-status', OneCOrderStatusWebhookController::class)
+    ->name('webhooks.onec.order-status');
 
 Route::prefix(LocalizationService::locale())->middleware(['SetLocale', 'GetTranslate', 'GetSettings', 'denyAccess'])->group(function () {
 

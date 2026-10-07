@@ -13,12 +13,13 @@ class Orders extends Model
     protected $table = 'orders';
 
     protected $fillable = [
-        'basket_id', 'type', 'admin_comment', 'active', 'delete', 'paid', 'fast_order', 'delivery_method', 'pickup_shop_id', 'pay_method', 'discount', 'was_sent', 'front_user_id', 'payment_status', 'payment_status_changed_at'
+        'basket_id', 'type', 'admin_comment', 'active', 'delete', 'paid', 'fast_order', 'delivery_method', 'pickup_shop_id', 'pay_method', 'discount', 'was_sent', 'front_user_id', 'payment_status', 'payment_status_changed_at', 'onec_order_status', 'onec_order_status_synced_at', 'source', 'app_client_id', 'app_request_id'
     ];
 
     protected $casts = [
         'payment_status' => PaymentStatus::class,
         'payment_status_changed_at' => 'datetime',
+        'onec_order_status_synced_at' => 'datetime',
     ];
 
     /** Магазин самовывоза: разовый выбор на заказ, в профиле не хранится. */

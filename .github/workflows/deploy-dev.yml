@@ -1,0 +1,54 @@
+name: Deploy stage to dev
+
+# Автоматически при пуше в stage. Прод сюда не входит — для него отдельный
+# workflow с ручным запуском (workflow_dispatch), см. план в
+# efrumos-docs/deploy-plan-services-cicd.md.
+on:
+  push:
+    branches: [stage]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust the server's host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H efrumos.md >> ~/.ssh/known_hosts
+
+      - name: Deploy code (server-deploy.sh dev stage --ci)
+        run: |
+          # server-deploy.sh reads $HOME/.ssh/external as its key — the
+          # ssh-agent from webfactory already holds our deploy key in the
+          # running agent, so point the script's expected path at a
+          # trivial wrapper that just uses the agent instead of a file.
+          mkdir -p ~/.ssh
+          echo 'IdentityAgent "$SSH_AUTH_SOCK"' > ~/.ssh/external.conf
+          ssh-add -l
+          bash bin/server-deploy.sh dev stage --ci
+
+      - name: Upload built assets
+        run: |
+          rsync -az public/build/ dev_efrumos_md@efrumos.md:~/public/build/
+
+      - name: Healthcheck
+        run: |
+          curl -f https://dev.efrumos.md/ru/ || (echo "Healthcheck failed" && exit 1)

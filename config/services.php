@@ -192,6 +192,27 @@ return [
         // Rîbnița 4259, Tiraspol 4270. Не путать с delivery_states.is_transnistria:
         // флаг стоит и у Rezina/Dubăsari, обычных районов, которые 1С обслуживает.
         'unserved_state_ids' => [2189, 2191, 4259, 4270],
+
+        // Токен для приёма вебхука статуса заказа от 1С
+        // (App\Http\Controllers\Integration\OneCOrderStatusWebhookController).
+        // Контракт тела — тот, что 1С шлёт в amoCRM (xml_id, status, token…,
+        // efrumos-docs/1c-order-status-webhook-spec.md); токен генерируем мы
+        // и выдаём 1С — она подставляет его в поле token тела. Принимаем
+        // также ?token= и заголовок X-OneC-Webhook-Token.
+        // На каждом окружении — свой токен, деплой .env не синкает.
+        'status_webhook_token' => env('ONEC_STATUS_WEBHOOK_TOKEN'),
+    ],
+
+    // API для приложения лояльности (eFrumos-backend) — efrumos-docs/app-api-contract.md.
+    // Сервис-к-сервису: приложение ходит на /api/app/v1/* с Bearer-токеном;
+    // пользователя приложения определяет само приложение (X-App-Client-Id).
+    // Пустой token — API выключено (503), а не «открыто всем».
+    'app_api' => [
+        'token' => env('APP_API_TOKEN'),
+        // Обратный канал: куда сообщать приложению о смене статуса заказа
+        // (POST, Bearer status_webhook_token). Пусто — уведомления не шлём.
+        'status_webhook_url' => env('APP_API_STATUS_WEBHOOK_URL'),
+        'status_webhook_token' => env('APP_API_STATUS_WEBHOOK_TOKEN'),
     ],
 
 ];

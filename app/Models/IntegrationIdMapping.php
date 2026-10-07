@@ -19,7 +19,7 @@ class IntegrationIdMapping extends Model
     protected $table = 'integration_id_mappings';
 
     protected $fillable = [
-        'orders_id', 'onec_document_id', 'order_payments_id',
+        'orders_id', 'onec_document_id', 'onec_order_number', 'order_payments_id',
         'onec_status', 'onec_attempts', 'last_error',
     ];
 

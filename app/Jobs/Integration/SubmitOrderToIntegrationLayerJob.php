@@ -49,6 +49,23 @@ class SubmitOrderToIntegrationLayerJob implements ShouldQueue
             return;
         }
 
+        // 1С (ответ 24.09.2026 про «наложенный платёж», см.
+        // efrumos-docs/1c-open-items.md): в 1С должны попадать только уже
+        // оплаченные на сайте заказы — сайт обязан подтвердить оплату
+        // (markPaid/CreatePayment), иначе 1С сама аннулирует заказ или
+        // передаёт его в amoCRM. Заказ с оплатой при получении и так уходит
+        // в amoCRM отдельно и всегда (App\Services\AmoOrder\SendOrderToAmoCrm,
+        // вызывается при оформлении независимо от способа оплаты) — создавать
+        // для него ещё и документ в 1С не нужно и, по словам 1С, неправильно.
+        if ($order->pay_method !== 'card') {
+            Log::info('SubmitOrderToIntegrationLayerJob: заказ не передаётся в 1С — оплата при получении, только amoCRM', [
+                'orders_id' => $order->id,
+                'pay_method' => $order->pay_method,
+            ]);
+
+            return;
+        }
+
         try {
             $service->submitOrder($order);
         } catch (InsufficientStockException $e) {

@@ -47,7 +47,10 @@ class VictoriaBankController extends Controller
             return redirect($this->localizedHomeUrl($lang));
         }
 
-        $amount = (float) $order->ordersData->total_price + (float) $order->ordersData->delivery_cost;
+        // 1С (AdditionalInfo в CreateOrder, живьём подтверждено 2026-10-01)
+        // или, пока её нет (сбой 1С на оформлении, заказ не в 1С), расчёт
+        // сайта — см. OrdersData::amountDue().
+        $amount = $order->ordersData->amountDue();
         $email = $order->ordersUsers->email ?? $order->ordersFrontUser->email ?? '';
 
         // Reuse the pending attempt if the customer is retrying (e.g. they

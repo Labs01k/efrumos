@@ -71,5 +71,7 @@ class Kernel extends HttpKernel
         'FrontGlobal'=>\App\Http\Middleware\FrontGlobal::class,
         'checkAuthUser' => \App\Http\Middleware\CheckAuthUser::class,
         'denyAccess' => \App\Http\Middleware\DenyAccessByCountry::class,
+        'appApiAuth' => \App\Http\Middleware\AppApi\AuthenticateAppService::class,
+        'appApiLocale' => \App\Http\Middleware\AppApi\SetAppApiLocale::class,
     ];
 }

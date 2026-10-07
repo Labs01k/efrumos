@@ -71,13 +71,26 @@ class OrderIntegrationService
                 }
             }
 
-            $onecId = $this->oneC->reserveOrder($order);
+            $onecOrder = $this->oneC->reserveOrder($order);
 
             $mapping->update([
-                'onec_document_id' => $onecId,
+                'onec_document_id' => $onecOrder->documentId,
+                'onec_order_number' => $onecOrder->number,
                 'onec_status' => 'synced',
                 'last_error' => null,
             ]);
+
+            // total от 1С (AdditionalInfo) — это сумма, которую спишет банк
+            // (VictoriaBankController::initiate()) и которая уйдёт обратно в
+            // CreatePayment (OneCOrderIntegrationNotifier). Отсутствует —
+            // OrdersData::amountDue() сам упадёт на расчёт сайта.
+            if ($onecOrder->total !== null) {
+                $order->ordersData->update([
+                    'onec_order_sum' => $onecOrder->orderSum,
+                    'onec_delivery_sum' => $onecOrder->deliverySum,
+                    'onec_total_sum' => $onecOrder->total,
+                ]);
+            }
         } catch (InsufficientStockException $e) {
             // Not a transient failure — retrying won't create stock. Record
             // and let it propagate; the caller decides how to tell the customer.
