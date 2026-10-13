@@ -6,6 +6,8 @@ use App\Http\Controllers\Exchange\ImportFrom1C;
 use App\Models\GoodsItemId;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Обмен каталогом с 1С из консоли — то же, что маршруты /fullExchange/download
@@ -38,6 +40,31 @@ class SyncStockFrom1C extends Command
 
     public function handle(ImportFrom1C $import): int
     {
+        // Найдено 13.10.2026 при восстановлении dev после переноса прод-дампа:
+        // на реальном каталоге (22 склада вместо 4 тестовых, под 150к строк
+        // остатков) команда тихо падала по памяти под дефолтным CLI
+        // memory_limit — без единой строки в лог, просто обрыв процесса.
+        // Через cron (schedule:run >> /dev/null 2>&1, см. efrumos_jobs) это
+        // было бы вообще незаметно — ровно так 10 дней молчал обмен на
+        // проде (хоть и по другой причине). Фиксированный предел вместо -1,
+        // чтобы не положить весь сервер при реальном зависании.
+        ini_set('memory_limit', '1024M');
+
+        try {
+            return $this->performSync($import);
+        } catch (Throwable $e) {
+            Log::error('SyncStockFrom1C: обмен упал с исключением', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $this->error('Упало с исключением: ' . $e->getMessage());
+
+            return self::FAILURE;
+        }
+    }
+
+    private function performSync(ImportFrom1C $import): int
+    {
         $changed = (bool) $this->option('changed');
         $rests_only = (bool) $this->option('rests-only');
         $file = $this->option('file') ?: storage_path('app/1c/full_exchange.json');
@@ -49,6 +76,7 @@ class SyncStockFrom1C extends Command
             $bytes = $import->_getProductsArray(true, 'download', $file);
             if (!$bytes) {
                 $this->error('1С не вернула данные или файл не записан: ' . $file);
+                Log::error('SyncStockFrom1C: 1С не вернула данные или файл не записан', ['file' => $file]);
                 return self::FAILURE;
             }
             $this->info(sprintf('Файл сохранён: %s (%.1f МБ, %d с)', $file, $bytes / 1048576, microtime(true) - $started));
@@ -56,6 +84,7 @@ class SyncStockFrom1C extends Command
 
         if (!$changed && !is_file($file)) {
             $this->error("Файла обмена нет: {$file} (запустите без --skip-download)");
+            Log::error('SyncStockFrom1C: файла обмена нет', ['file' => $file]);
             return self::FAILURE;
         }
 
@@ -64,12 +93,14 @@ class SyncStockFrom1C extends Command
             // и остатки по складам; неизвестные товары создаёт неактивными.
             $import->getExchange(!$changed, $changed ? null : 'update', $file);
             $this->info('Обмен применён.');
+            Log::info('SyncStockFrom1C: обмен применён', ['changed_only' => $changed]);
             return self::SUCCESS;
         }
 
         $items = $import->_getProductsArray(!$changed, $changed ? null : 'update', $file);
         if (empty($items)) {
             $this->error('В обмене не найдено ни одного товара (пустой ответ или файл не разобрался).');
+            Log::error('SyncStockFrom1C: пустой ответ при --rests-only');
             return self::FAILURE;
         }
 
@@ -91,6 +122,7 @@ class SyncStockFrom1C extends Command
         $this->newLine();
 
         $this->info("Остатки обновлены у {$updated} товаров; пропущено (нет в базе по Code1C): {$skipped}.");
+        Log::info('SyncStockFrom1C: остатки обновлены', ['updated' => $updated, 'skipped' => $skipped]);
 
         return self::SUCCESS;
     }
