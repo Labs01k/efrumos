@@ -431,6 +431,7 @@ return [
     'product_all_shops' => 'Toate magazinele',
     'product_in_stock' => 'În stoc',
     'product_out_of_stock' => 'Nu este în stoc',
+    'product_online_stock' => 'Disponibil pentru comandă online',
     'product_shops_expand' => 'arată tot',
     'product_shops_collapse' => 'ascunde indisponibile',
     'product_volume' => 'Volum, ml',

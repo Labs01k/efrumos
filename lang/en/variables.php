@@ -388,6 +388,7 @@ return [
     'product_all_shops' => 'All shops',
     'product_in_stock' => 'In stock',
     'product_out_of_stock' => 'Out of stock',
+    'product_online_stock' => 'Available for online order',
     'product_shops_expand' => 'show all',
     'product_shops_collapse' => 'hide unavailable',
     'product_volume' => 'Volume, ml',

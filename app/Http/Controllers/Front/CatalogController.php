@@ -308,6 +308,9 @@ class CatalogController extends Controller
         $volumes = ProductVariants::volumes($goods_item);
         // п.5: пока 1С не отдаёт остатки по складам, коллекция пустая и блок скрыт
         $shops_stock = ProductStock::byShops($goods_item);
+        // «В наличии для онлайн-заказа» — правка от 14.10.2026, остаток главного
+        // склада комплектации отдельной строкой (см. докблок ProductStock::onlineAvailable()).
+        $online_available = ProductStock::onlineAvailable($goods_item);
 
         // Превью незавершённых блоков: ?preview=pending подставляет демо-данные
         // в те блоки, под которые ещё нет источника (остатки по магазинам, вкладка

@@ -117,7 +117,7 @@
 
         <div class="section pt-0 product-end">
             <div class="container">
-                <div class="product-end-inner pb-product @if(empty($shops_stock) || !count($shops_stock)) pb-product--no-stock @endif">
+                <div class="product-end-inner pb-product @if((empty($shops_stock) || !count($shops_stock)) && empty($online_available)) pb-product--no-stock @endif">
                     <div class="product-end-sliders">
                         {{--
                             Галерея по макету: на десктопе столбик превью 80×80 со стрелками
@@ -348,8 +348,8 @@
                     </div>
 
                     <div class="pb-product-stock">
-                        {{-- п.5 ТЗ — наличие по магазинам. Скрыт, пока 1С не отдаёт остатки по складам --}}
-                        @if(!empty($shops_stock) && count($shops_stock))
+                        {{-- п.5 ТЗ — наличие по магазинам + «в наличии для онлайн-заказа» (14.10.2026) --}}
+                        @if((!empty($shops_stock) && count($shops_stock)) || !empty($online_available))
                         <div class="section pt-0">
                         <div class="container">
                         @include('front.templates.product.shop-stock')

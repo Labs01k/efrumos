@@ -21,17 +21,30 @@ class ProductRecommendations
     /** Больше блок не показывает — и больше закрепить в CMS нельзя. */
     public const MAX_ITEMS = 8;
 
+    /**
+     * «С этим товаром покупают» — максимум 4 (правка от 14.10.2026, отдельно
+     * от MAX_ITEMS=8, который остался для «Похожих товаров»). Клиент прямо
+     * просит не разбавлять набор, если подходящих меньше 4 — лучше показать
+     * 1-2 позиции, чем доливать случайными бестселлерами.
+     */
+    public const BOUGHT_TOGETHER_MAX_ITEMS = 4;
+
     /** За какой период считаем совместные покупки (п.3 ТЗ). */
     private const CO_PURCHASE_MONTHS = 12;
 
     /**
-     * «С этим товаром покупают». Источники по приоритету (правки от 07.10.2026,
-     * п.3 — жалоба на набор Cotril Timeless, куда попадали товары других линеек
-     * того же бренда через статистику совместных покупок): закреплённые вручную
-     * в CMS → та же линейка → чаще всего покупают вместе за 12 месяцев →
-     * тот же бренд → бестселлеры категории. Линейка теперь выше статистики,
-     * чтобы предложенный набор выглядел цельным уходом одной линейки, а не
-     * случайным сочетанием популярных товаров бренда.
+     * «С этим товаром покупают». Источники по приоритету (правки от 14.10.2026 —
+     * клиент прямо просит не разбавлять набор случайными товарами и показывать
+     * максимум 4): закреплённые вручную в CMS → та же линейка. Статистика
+     * совместных покупок, тот же бренд и бестселлеры категории убраны из
+     * каскада — раньше именно через них в набор попадали товары других линеек
+     * (жалоба на Cotril Timeless от 07.10.2026 была ровно про это, а новая
+     * жалоба просит исправить это строже: лучше показать 1-2 позиции или
+     * скрыть блок, чем доливать чем попало).
+     *
+     * Для красок — отдельная история: см. раздел 3 тикета от 14.10.2026
+     * (подбор совместимых окислителей/активаторов по линейке) — это отдельная
+     * фича, ещё не построена, поэтому ветка для красок пока не тронута.
      */
     public static function boughtTogether(GoodsItemId $goods_item): Collection
     {
@@ -43,26 +56,47 @@ class ProductRecommendations
         // приоритет источников из ТЗ при этом сохраняется, меняется только пул.
         $is_dye = ShadePalette::isDye($goods_item);
 
-        $sources = $is_dye
-            ? [
+        if ($is_dye) {
+            // TODO (тикет 14.10.2026, раздел 3): заменить на подбор совместимых
+            // окислителей/активаторов по линейке, с выбором %/объёма — пока не
+            // реализовано, оставлена прежняя логика с заполнителями-бестселлерами.
+            $sources = [
                 fn () => self::manualList($goods_item->produse_compatibile),
                 fn () => self::coPurchased($goods_item, true),
                 fn () => self::bestsellersExceptDyes(),
-            ]
-            : [
+            ];
+            $max_items = self::MAX_ITEMS;
+        } else {
+            $sources = [
                 fn () => self::manualList($goods_item->produse_compatibile),
                 fn () => self::sameLine($goods_item),
-                fn () => self::coPurchased($goods_item),
-                fn () => self::sameBrand($goods_item),
-                fn () => self::categoryBestsellers($goods_item),
             ];
+            $max_items = self::BOUGHT_TOGETHER_MAX_ITEMS;
+
+            // Другие объёмы этого же товара — не «сопутствующий товар», а вариант
+            // этого же товара (блок «объём», ProductVariants). Исключаем по имени
+            // без объёма, чтобы «Бальзам Cotril Volume, 500 мл» не попал в набор
+            // к «Бальзам Cotril Volume, 250 мл».
+            $base_name = ProductVariants::nameWithoutVolume($goods_item->itemByLang->name ?? '');
+            if ($base_name !== '') {
+                $other_volumes = GoodsItemId::where('brand_id', $goods_item->brand_id)
+                    ->where('id', '<>', $goods_item->id)
+                    ->has('itemByLang')
+                    ->with('itemByLang')
+                    ->get()
+                    ->filter(fn ($one) => ProductVariants::nameWithoutVolume($one->itemByLang->name ?? '') === $base_name)
+                    ->pluck('id')
+                    ->all();
+                $exclude = array_merge($exclude, $other_volumes);
+            }
+        }
 
         foreach ($sources as $source) {
-            if ($picked->count() >= self::MAX_ITEMS) {
+            if ($picked->count() >= $max_items) {
                 break;
             }
             foreach ($source() as $one_candidate) {
-                if ($picked->count() >= self::MAX_ITEMS || in_array($one_candidate->id, $exclude)) {
+                if ($picked->count() >= $max_items || in_array($one_candidate->id, $exclude)) {
                     continue;
                 }
                 $exclude[] = $one_candidate->id;

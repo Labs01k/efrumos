@@ -427,6 +427,7 @@ return [
     'product_all_shops' => 'Все магазины',
     'product_in_stock' => 'В наличии',
     'product_out_of_stock' => 'Нет в наличии',
+    'product_online_stock' => 'В наличии для онлайн-заказа',
     'product_shops_expand' => 'раскрыть',
     'product_shops_collapse' => 'скрыть без наличия',
     'product_volume' => 'Объем, мл',
