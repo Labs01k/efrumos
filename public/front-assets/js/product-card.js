@@ -567,6 +567,7 @@
         initShopsToggle();
         initNearestShop();
         initSetAdd();
+        initOxidizerPicker();
         initSimilarSliders();
         initReviewsMore();
 
@@ -855,12 +856,35 @@
         });
     }
 
+    /**
+     * Пикер «процент + объём окислителя» (п.3 тикета 14.10.2026). Кнопка
+     * «добавить вместе» — обычная .add-set-to-basket (initSetAdd её уже
+     * обрабатывает), здесь только держим её data-goods-ids в соответствии
+     * с выбранным в select окислителем.
+     */
+    function initOxidizerPicker() {
+        var root = document.querySelector('[data-oxidizer-picker]');
+        if (!root || root.dataset.pbReady) return;
+        root.dataset.pbReady = '1';
+
+        var select = root.querySelector('[data-oxidizer-select]');
+        var button = root.querySelector('.add-set-to-basket');
+        if (!select || !button) return;
+
+        var dyeId = button.dataset.oxidizerDyeId;
+
+        select.addEventListener('change', function () {
+            button.dataset.goodsIds = dyeId + ',' + select.value;
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initGallery();
         initShadeSelect();
         initTopBar();
         initSimilarSliders();
         initSetAdd();
+        initOxidizerPicker();
         initCitySelect();
         initShopsToggle();
         initNearestShop();

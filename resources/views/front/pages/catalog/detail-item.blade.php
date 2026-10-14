@@ -542,6 +542,11 @@
                         @endif
                     </div>
 
+                    {{-- п.3 тикета 14.10.2026 — подбор окислителя, до общего блока рекомендаций --}}
+                    <div class="pb-product-oxidizer">
+                        @include('front.templates.product.oxidizer-picker')
+                    </div>
+
                     {{-- п.3 ТЗ — «С этим товаром покупают»: правая колонка, под описанием --}}
                     <div class="pb-product-set">
                         @include('front.templates.product.set-block')

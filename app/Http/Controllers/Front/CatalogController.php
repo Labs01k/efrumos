@@ -322,6 +322,9 @@ class CatalogController extends Controller
         // «В наличии для онлайн-заказа» — правка от 14.10.2026, остаток главного
         // склада комплектации отдельной строкой (см. докблок ProductStock::onlineAvailable()).
         $online_available = ProductStock::onlineAvailable($goods_item);
+        // Подбор окислителя/активатора (п.3 тикета 14.10.2026) — пусто у красок
+        // без привязки в CMS (goods_brand_id.oxidizer_brand_id) и у всех не-красок.
+        $oxidizers = \App\Services\Product\OxidizerMatcher::compatibleProducts($goods_item);
 
         // Превью незавершённых блоков: ?preview=pending подставляет демо-данные
         // в те блоки, под которые ещё нет источника (остатки по магазинам, вкладка
