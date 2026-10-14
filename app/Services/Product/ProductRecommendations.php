@@ -57,15 +57,28 @@ class ProductRecommendations
         $is_dye = ShadePalette::isDye($goods_item);
 
         if ($is_dye) {
-            // TODO (тикет 14.10.2026, раздел 3): заменить на подбор совместимых
-            // окислителей/активаторов по линейке, с выбором %/объёма — пока не
-            // реализовано, оставлена прежняя логика с заполнителями-бестселлерами.
-            $sources = [
-                fn () => self::manualList($goods_item->produse_compatibile),
-                fn () => self::coPurchased($goods_item, true),
-                fn () => self::bestsellersExceptDyes(),
-            ];
-            $max_items = self::MAX_ITEMS;
+            if (OxidizerMatcher::isRequired($goods_item)) {
+                // Раздел 3 тикета 14.10.2026: краска со своим окислителем
+                // показывает ТОЛЬКО совместимые окислители/активаторы —
+                // никаких бестселлеров-заполнителей рядом с ними, чтобы
+                // набор оставался однозначным (клиент прямо просит не
+                // смешивать с рекомендацией процента за покупателя).
+                $sources = [
+                    fn () => self::manualList($goods_item->produse_compatibile),
+                    fn () => OxidizerMatcher::compatibleProducts($goods_item),
+                ];
+                $max_items = self::MAX_ITEMS;
+            } else {
+                // Краска/пигмент без окислителя (п.3: «для красок, которые
+                // не требуют окислителя, такой подбор показывать не нужно») —
+                // прежняя логика с заполнителями-бестселлерами.
+                $sources = [
+                    fn () => self::manualList($goods_item->produse_compatibile),
+                    fn () => self::coPurchased($goods_item, true),
+                    fn () => self::bestsellersExceptDyes(),
+                ];
+                $max_items = self::MAX_ITEMS;
+            }
         } else {
             $sources = [
                 fn () => self::manualList($goods_item->produse_compatibile),

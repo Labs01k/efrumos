@@ -159,6 +159,15 @@
                                                 </div>
 
                                                 <div class="col-12">
+                                                    <label for="oxidizer_brand_id"
+                                                           class="form-label">{{__('variables.oxidizer_brand_id_name')}}</label>
+                                                    <select class="form-select" name="oxidizer_brand_id" id="oxidizer_brand_id">
+                                                        <option value="">{{__('variables.oxidizer_brand_id_none')}}</option>
+                                                        {!! SelectBrandsTree($lang_id, 0, $brand_id->oxidizer_brand_id) !!}
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-12">
                                                     <label for="img_palette"
                                                            class="form-label">{{__('variables.img_palette')}}</label>
                                                     <input class="form-control" type="file" name="img_palette"

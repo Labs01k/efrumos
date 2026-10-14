@@ -216,6 +216,7 @@ class BrandController extends Controller
 
         $brand_id = BrandId::updateOrCreate(['id' => $id], [
             'p_id' => $request->input('p_id'),
+            'oxidizer_brand_id' => $request->input('oxidizer_brand_id') ?: null,
             'position' => $position,
             'level' => $level + 1,
             'alias' => request()->input('alias'),

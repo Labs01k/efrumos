@@ -114,6 +114,8 @@ return [
     'another_name' => 'Numele lipseste',
     'show_on_the_site' => 'Afiseaza pe site',
     'p_id_name' => 'Unde',
+    'oxidizer_brand_id_name' => 'Brand cu oxidanți/activatori compatibili',
+    'oxidizer_brand_id_none' => 'Nu este necesar (vopsea fără oxidant)',
     'controller' => 'Controler',
     'input' => 'Input',
     'textarea' => 'Textarea',

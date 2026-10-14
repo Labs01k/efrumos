@@ -115,6 +115,8 @@ return [
     'another_name' => 'Name is missing',
     'show_on_the_site' => 'Show on the site',
     'p_id_name' => 'Where',
+    'oxidizer_brand_id_name' => 'Brand with compatible oxidizers/activators',
+    'oxidizer_brand_id_none' => 'Not needed (dye without oxidizer)',
     'controller' => 'Controller',
     'input' => 'Input',
     'textarea' => 'Textarea',

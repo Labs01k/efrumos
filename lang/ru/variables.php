@@ -115,6 +115,8 @@ return [
     'another_name' => 'Имя отсутствует',
     'show_on_the_site' => 'Показывать на сайте',
     'p_id_name' => 'Куда',
+    'oxidizer_brand_id_name' => 'Бренд с совместимыми окислителями/активаторами',
+    'oxidizer_brand_id_none' => 'Не требуется (краска без окислителя)',
     'controller' => 'Контроллер',
     'input' => 'Input',
     'textarea' => 'Textarea',

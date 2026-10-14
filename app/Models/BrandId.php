@@ -12,8 +12,14 @@ class BrandId extends Model
     protected $table = 'goods_brand_id';
 
     protected $fillable = [
-        'img', 'alias', 'active', 'deleted', 'link', 'position', 'p_id', 'level', 'img_palette', 'img_certificate', 'img_seo'
+        'img', 'alias', 'active', 'deleted', 'link', 'position', 'p_id', 'level', 'img_palette', 'img_certificate', 'img_seo', 'oxidizer_brand_id'
     ];
+
+    /** Бренд, где лежат совместимые окислители/активаторы для этой линейки (п.3 тикета 14.10.2026). */
+    public function oxidizerBrand()
+    {
+        return $this->belongsTo('App\Models\BrandId', 'oxidizer_brand_id', 'id');
+    }
 
     public function parent()
     {
