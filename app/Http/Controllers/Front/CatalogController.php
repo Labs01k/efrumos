@@ -127,6 +127,17 @@ class CatalogController extends Controller
             ->with('itemByLang', 'oImages', 'goodsItemReviews', 'goodsItemReviews.frontUserId', 'checkIfWishItemExist', 'goodsPromoTags')
             ->firstOrFail();
 
+        // Правка от 14.10.2026 (п.1 тикета): если товара нет ни на главном
+        // складе, ни в одном магазине — страница товара скрывается с сайта
+        // (404), а не просто показывает «нет в наличии». Листинги каталога
+        // пока такой товар всё ещё могут показать плиткой — это отдельный,
+        // более широкий кусок работы (затрагивает общий запрос листинга,
+        // который используют каталог/поиск/бренды/избранное), не делали в
+        // этом же заходе намеренно.
+        if (!\App\Services\Product\ProductStock::isAvailableAnywhere($goods_item)) {
+            abort(404);
+        }
+
         $goods_subject = $goods_item->goods_subject_id;
         $goods_price_collect = getGoodsPrice($goods_item);
         $promo_color = CheckIfItemIsHasPromoColor($goods_item->id);
