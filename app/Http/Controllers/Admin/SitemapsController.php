@@ -9,6 +9,7 @@ use App\Models\GoodsPageId;
 use App\Models\GoodsSubjectId;
 use App\Models\InfoLineId;
 use App\Models\MenuId;
+use App\Services\Product\ProductStock;
 use Illuminate\Support\Facades\File;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -41,10 +42,16 @@ class SitemapsController extends Controller
             ->with('children')
             ->first();
 
+        // Правка от 14.10.2026 — та же проверка, что и на самой странице
+        // товара (CatalogController::itemPage()): товар без остатка нигде
+        // (ни на складе, ни в одном магазине) отдаёт 404, и sitemap не
+        // должен присылать Google ссылку на страницу, которая 404-ит.
         $goods_items_list = GoodsItemId::where('active', 1)
             ->where('deleted', 0)
             ->orderBy('position')
-            ->get();
+            ->get()
+            ->filter(fn ($one_goods) => ProductStock::isAvailableAnywhere($one_goods))
+            ->values();
 
         $goods_subjects_l1 = GoodsSubjectId::where('active', 1)
             ->where('deleted', 0)
