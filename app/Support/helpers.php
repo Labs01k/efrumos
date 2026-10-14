@@ -2472,13 +2472,6 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
 
         $goods_item_id = $GoodsItemId::where('active', 1)
             ->where('deleted', 0)
-            // Правка от 14.10.2026, п.1 тикета: товар, которого нет ни на
-            // главном складе (in_stoc), ни в одном магазине, в выдачу не
-            // попадает вообще — не просто «нет в наличии» бейджем.
-            ->whereRaw(
-                '(goods_item_id.in_stoc = 1 OR goods_item_id.id IN (SELECT goods_item_id FROM goods_shop_rests WHERE store_guid != ? AND qty > 0))',
-                [\App\Services\Product\ProductStock::MAIN_WAREHOUSE_GUID]
-            )
             ->when($goods_subject_id && !$subjects_array, function ($query) use ($goods_subject_id) {
                 $query->where('goods_subject_id', $goods_subject_id);
             })
@@ -2552,11 +2545,6 @@ function GetItemsPodborList($lang_id, $sorting, $paginate, $goods_subject_id = n
         //dd(2);
         $goods_item_id = $GoodsItemId::where('active', 1)
             ->where('deleted', 0)
-            // Правка от 14.10.2026, п.1 тикета: см. комментарий в первой ветке выше.
-            ->whereRaw(
-                '(goods_item_id.in_stoc = 1 OR goods_item_id.id IN (SELECT goods_item_id FROM goods_shop_rests WHERE store_guid != ? AND qty > 0))',
-                [\App\Services\Product\ProductStock::MAIN_WAREHOUSE_GUID]
-            )
             ->when($all_subquery, function ($query) use ($all_subquery) {
                 $query->whereRaw($all_subquery);
             })
