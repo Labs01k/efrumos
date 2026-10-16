@@ -504,12 +504,22 @@
 .pb-oxidizer-percent .pb-shade-trigger,
 .pb-oxidizer-percent .pb-dropdown { width: 16rem; }
 
+/* тот же вид, что у pb-shade-trigger (переключатель оттенков) — просто
+   обычный select, а не кастомный дропдаун: вариантов объёма мало (1-2),
+   собственный выпадающий список здесь ни к чему */
 .pb-oxidizer-volume {
     width: 16rem;
     max-width: 100%;
     min-height: 4.4rem;
+    padding: 1.2rem;
     border: .2rem solid var(--pb-text);
     border-radius: .4rem;
+    background: #fff;
+    font-family: gilroy-bold, sans-serif;
+    font-size: 1.4rem;
+    line-height: 1.6rem;
+    color: var(--pb-text-dark);
+    cursor: pointer;
 }
 
 /* ------------------------------------------------------------------ цена */
