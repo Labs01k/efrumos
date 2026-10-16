@@ -36,6 +36,12 @@ class OxidizerMatcher
         return self::oxidizerBrandId($goods_item) !== null;
     }
 
+    /** Сам товар — окислитель/активатор (не краска, которой он нужен). */
+    public static function isOxidizer(GoodsItemId $goods_item): bool
+    {
+        return (int) $goods_item->goods_type_id === self::OXIDIZER_GOODS_TYPE_ID;
+    }
+
     /** Активные окислители/активаторы для линейки этой краски. */
     public static function compatibleProducts(GoodsItemId $goods_item): Collection
     {
@@ -66,6 +72,61 @@ class OxidizerMatcher
             // строкой, чтобы не зависеть от сравнения PHP-массивов с null
             ->sortBy(fn ($one) => sprintf('%08.2f-%010.2f', $one->oxidizer_percent ?? 0, $one->oxidizer_volume_value ?? 0))
             ->values();
+    }
+
+    /**
+     * Site_3.docx, картинка 1 (правка 16.10.2026) — переключатель вариантов
+     * на СОБСТВЕННОЙ странице окислителя (не на странице краски, для которой
+     * служит compatibleProducts() выше): все активные окислители той же
+     * линейки (тот же brand_id, тот же тип товара), включая сам товар.
+     * Пусто — если товар вообще не окислитель или в линейке меньше 2 штук.
+     */
+    public static function siblingVariants(GoodsItemId $goods_item): Collection
+    {
+        if (!self::isOxidizer($goods_item)) {
+            return collect();
+        }
+
+        $siblings = GoodsItemId::where('brand_id', $goods_item->brand_id)
+            ->where('goods_type_id', self::OXIDIZER_GOODS_TYPE_ID)
+            ->where('active', 1)
+            ->where('deleted', 0)
+            ->has('itemByLang')
+            ->with('itemByLang', 'oImage')
+            ->get()
+            ->map(function ($one) use ($goods_item) {
+                $name = $one->itemByLang->name ?? '';
+                $one->oxidizer_percent = self::percentFromName($name);
+                $one->oxidizer_volume_label = self::volumeLabel($name);
+                $one->oxidizer_volume_value = self::volumeValue($name);
+                $one->is_current = $one->id === $goods_item->id;
+
+                return $one;
+            })
+            // как и у оттенков красок — один и тот же процент/объём иногда
+            // заведён двумя SKU (старый/новый артикул из 1С); оставляем один:
+            // текущий товар, если дубль — он, иначе тот, которого больше на складе
+            ->groupBy(fn ($one) => ($one->oxidizer_percent ?? 'x') . '|' . ($one->oxidizer_volume_value ?? 'x'))
+            ->map(fn ($group) => $group->count() === 1
+                ? $group->first()
+                : ($group->firstWhere('is_current', true) ?? $group->sortByDesc('products_count')->first()))
+            ->values()
+            ->sortBy(fn ($one) => sprintf('%08.2f-%010.2f', $one->oxidizer_percent ?? 0, $one->oxidizer_volume_value ?? 0))
+            ->values();
+
+        return $siblings->count() >= 2 ? $siblings : collect();
+    }
+
+    /**
+     * Промышленная маркировка перекиси по проценту («VOL.») — фиксированная
+     * формула (объём = процент × 10/3), а не поле из CMS: 3%→10, 6%→20,
+     * 9%→30, 12%→40 — так её всегда подписывают производители (Site_3.docx,
+     * картинка 1). Для нестандартных процентов (1.5/1.9/10% и т.п. — реальный
+     * ассортимент каталога) даёт приближённое, но верное по формуле число.
+     */
+    public static function volFromPercent(float $percent): int
+    {
+        return (int) round($percent * 10 / 3);
     }
 
     /** id бренда-источника окислителей: свой или, если не задан, родительского. */

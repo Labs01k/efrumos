@@ -308,6 +308,13 @@ class CatalogController extends Controller
         $set_goods = ProductRecommendations::boughtTogether($goods_item);
         $similar_goods = ProductRecommendations::similar($goods_item);
         $shades = ShadePalette::for($goods_item);
+        // не краска (goods_type_id не в dye_goods_type_ids) — пробуем палитру
+        // YouStar (п.3 Site_3.docx): тот же NUANȚĂ-переключатель, но для
+        // линейки палеток/помад, где у товаров нет общего type_id вовсе —
+        // группировка там идёт по фильтру «Коллекция YouStar», не по типу.
+        if ($shades->isEmpty()) {
+            $shades = \App\Services\Product\YouStarPalette::for($goods_item);
+        }
         // фото оттенка из CMS идёт в галерею первым, за ним фото товара
         $gallery_images = ShadePalette::galleryImages($goods_item);
         // Разметка варианта товара (isVariantOf → ProductGroup) осмысленна только

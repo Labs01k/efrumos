@@ -1,79 +1,62 @@
 {{--
-    п.3 тикета 14.10.2026 + правка 16.10.2026 — клиент назвал исходный
-    пикер «не читабельным» и попросил сделать как переключатель оттенков
-    (с картинкой) и дать выбрать процент и объём отдельно.
+    Site_3.docx, картинка 1 (правка 16.10.2026) — переключатель вариантов на
+    СОБСТВЕННОЙ странице окислителя (не путать с подбором окислителя ДЛЯ
+    краски — та версия теперь строкой внутри set-block.blade.php). Та же
+    идея, что переключатель оттенков у краски, но окислитель — не оттенок,
+    а две независимые оси (процент и объём), поэтому и контролы разные:
 
-    Ожидает $oxidizers — коллекцию товаров-окислителей (GoodsItemId, с
-    oxidizer_percent/oxidizer_volume_label из OxidizerMatcher::compatibleProducts()),
-    и $goods_item — текущую краску. Пусто = блок скрыт.
+    - Объём — кнопки-пилюли (переиспользует .pb-volume-item, тот же
+      компонент, что у обычного выбора объёма volume-select.blade.php),
+      только варианты для ТЕКУЩЕГО процента.
+    - Процент — select, переход на товар с тем же объёмом у нового процента
+      (если есть) или на первый/дешёвый вариант этого процента — сама пара
+      процент+объём определяет конкретный товар, поэтому это навигация, а
+      не смена значения на месте.
 
-    Два отдельных контрола: процент — свотч-дропдаун с фото, визуально и
-    по интерактиву как pb-shade у переключателя оттенков (только без
-    перехода на другую страницу — тут меняется не товар, а data-goods-ids
-    у кнопки "добавить вместе"); объём — обычный select, список сам
-    сужается до вариантов выбранного процента. Если у линейки всего один
-    процент — сам свотч-пикер не нужен, остаётся только объём.
-
-    Процент не выбирается автоматически (явное требование клиента) —
-    первая позиция открыта только потому, что селектору нужно на чём-то
-    стоять изначально, назначение остаётся на покупателе.
+    $goods_item — текущий товар (сам окислитель). Пусто, если это не
+    окислитель или в его линейке меньше 2 вариантов.
 --}}
-@if($oxidizers->isNotEmpty())
+@php
+    $oxidizer_siblings = \App\Services\Product\OxidizerMatcher::siblingVariants($goods_item);
+@endphp
+@if($oxidizer_siblings->isNotEmpty())
     @php
-        $percent_groups = $oxidizers->groupBy(fn ($one) => $one->oxidizer_percent ?? 'other');
-        $default_percent = $percent_groups->keys()->first();
-        $default_product = $percent_groups->first()->first();
+        $current_variant = $oxidizer_siblings->firstWhere('is_current', true);
+        $current_percent = $current_variant->oxidizer_percent ?? null;
+        $current_volume_value = $current_variant->oxidizer_volume_value ?? null;
+        $percent_groups = $oxidizer_siblings->groupBy(fn ($one) => $one->oxidizer_percent ?? 'other');
+        $volumes_for_current_percent = $percent_groups->get($current_percent, collect());
     @endphp
-    <div class="section pt-0">
-        <div class="container">
-            <div class="pb-field pb-field--gap-8 pb-oxidizer" data-oxidizer-picker data-oxidizer-dye-id="{{ $goods_item->id }}">
-                <span class="pb-field-label">{{ trans('variables.product_oxidizer_label') }}</span>
 
-                <div class="pb-oxidizer-row">
-                    @if($percent_groups->count() > 1)
-                        <div class="pb-shade pb-oxidizer-percent" data-oxidizer-percent>
-                            <div class="pb-shade-trigger" role="combobox" tabindex="0" aria-expanded="false">
-                                <span class="pb-swatch pb-swatch--photo" style="background-image:url('{{ \App\Services\Product\ShadePalette::cardImageUrl($default_product, 's', 'no-image-xs.png') }}')"></span>
-                                <span class="pb-shade-value">{{ $default_percent }}%</span>
-                                <svg class="pb-chevron" viewBox="0 0 16 16" aria-hidden="true">
-                                    <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
-                            <ul class="pb-dropdown" role="listbox">
-                                @foreach($percent_groups as $percent => $group)
-                                    @php $sample = $group->first(); @endphp
-                                    <li>
-                                        <a href="javascript:;" class="pb-dropdown-item{{ (string) $percent === (string) $default_percent ? ' is-selected' : '' }}" role="option"
-                                           data-percent="{{ $percent }}"
-                                           data-image="{{ \App\Services\Product\ShadePalette::cardImageUrl($sample, 's', 'no-image-xs.png') }}">
-                                            <span class="pb-swatch pb-swatch--photo" style="background-image:url('{{ \App\Services\Product\ShadePalette::cardImageUrl($sample, 's', 'no-image-xs.png') }}')"></span>
-                                            <span>{{ $percent }}%</span>
-                                        </a>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <select class="form-select pb-oxidizer-volume" data-oxidizer-volume-select>
-                        @foreach($oxidizers as $one_oxidizer)
-                            <option value="{{ $one_oxidizer->id }}"
-                                    data-percent="{{ $one_oxidizer->oxidizer_percent }}"
-                                    {{ $one_oxidizer->id === $default_product->id ? 'selected' : '' }}
-                                    {{ (string) $one_oxidizer->oxidizer_percent !== (string) $default_percent ? 'hidden' : '' }}>
-                                {{ $one_oxidizer->oxidizer_volume_label ?? $one_oxidizer->itemByLang->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <a href="javascript:;" class="rec-set-add add-set-to-basket"
-                   data-goods-ids="{{ $goods_item->id }},{{ $default_product->id }}"
-                   data-oxidizer-dye-id="{{ $goods_item->id }}"
-                   data-show-notiflix="1">
-                    {{ trans('variables.product_oxidizer_add') }}
-                </a>
+    @if($volumes_for_current_percent->count() > 1)
+        <div class="pb-field pb-volume-field">
+            <span class="pb-field-label">{{ trans('variables.product_oxidizer_volume_label') }}</span>
+            <div class="pb-volume">
+                @foreach($volumes_for_current_percent as $one_variant)
+                    <a class="pb-volume-item @if($one_variant->is_current) is-active @endif"
+                       href="{{ route('catalog-product', ['product', $one_variant->alias]) }}">
+                        {{ $one_variant->oxidizer_volume_label ?? ($one_variant->gramaj . ' ' . trans('variables.ml_short')) }}
+                    </a>
+                @endforeach
             </div>
         </div>
-    </div>
+    @endif
+
+    @if($percent_groups->count() > 1)
+        <div class="pb-field pb-field--gap-8">
+            <span class="pb-field-label">{{ trans('variables.product_oxidizer_percent_select') }}</span>
+            <select class="form-select pb-oxidizer-volume" data-oxidizer-navigate-select>
+                @foreach($percent_groups as $percent => $group)
+                    @php
+                        $target = $group->first(fn ($one) => $one->oxidizer_volume_value === $current_volume_value) ?? $group->first();
+                        $vol = is_numeric($percent) ? \App\Services\Product\OxidizerMatcher::volFromPercent((float) $percent) : null;
+                    @endphp
+                    <option value="{{ route('catalog-product', ['product', $target->alias]) }}"
+                            {{ (string) $percent === (string) $current_percent ? 'selected' : '' }}>
+                        {{ $percent }}%@if($vol) ({{ $vol }} VOL.)@endif
+                    </option>
+                @endforeach
+            </select>
+        </div>
+    @endif
 @endif

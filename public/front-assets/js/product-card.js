@@ -568,6 +568,7 @@
         initNearestShop();
         initSetAdd();
         initOxidizerPicker();
+        initOxidizerSetRow();
         initSimilarSliders();
         initReviewsMore();
 
@@ -857,96 +858,75 @@
     }
 
     /**
-     * Пикер «процент + объём окислителя» (п.3 тикета 14.10.2026, правка
-     * 16.10.2026 — свотч с фото вместо нечитабельного select, как просил
-     * клиент). Процент — дропдаун со свотчами (та же идея, что и у
-     * pb-shade, но без перехода на другую страницу: здесь меняется не
-     * товар, а список доступных объёмов и data-goods-ids у кнопки
-     * «добавить вместе», которую уже обрабатывает initSetAdd).
+     * Select процента на СОБСТВЕННОЙ странице окислителя (Site_3.docx,
+     * картинка 1, правка 16.10.2026) — значение каждой option уже готовая
+     * ссылка на нужный товар (OxidizerMatcher::siblingVariants() в
+     * oxidizer-picker.blade.php сам подобрал товар с тем же объёмом у
+     * нового процента), просто переходим по ней.
      */
     function initOxidizerPicker() {
-        var root = document.querySelector('[data-oxidizer-picker]');
-        if (!root || root.dataset.pbReady) return;
-        root.dataset.pbReady = '1';
+        var select = document.querySelector('[data-oxidizer-navigate-select]');
+        if (!select || select.dataset.pbReady) return;
+        select.dataset.pbReady = '1';
 
-        var volumeSelect = root.querySelector('[data-oxidizer-volume-select]');
-        var button = root.querySelector('.add-set-to-basket');
-        if (!volumeSelect || !button) return;
-
-        var dyeId = button.dataset.oxidizerDyeId;
-
-        function updateButton() {
-            button.dataset.goodsIds = dyeId + ',' + volumeSelect.value;
-        }
-
-        volumeSelect.addEventListener('change', updateButton);
-
-        var percentRoot = root.querySelector('[data-oxidizer-percent]');
-        if (!percentRoot) return; // у линейки один процент — выбирать нечего, только объём
-
-        var trigger = percentRoot.querySelector('.pb-shade-trigger');
-        var swatch = trigger.querySelector('.pb-swatch');
-        var value = trigger.querySelector('.pb-shade-value');
-        var items = percentRoot.querySelectorAll('.pb-dropdown-item');
-        var options = volumeSelect.querySelectorAll('option');
-
-        function open() {
-            percentRoot.classList.add('is-open');
-            trigger.setAttribute('aria-expanded', 'true');
-        }
-
-        function close() {
-            percentRoot.classList.remove('is-open');
-            trigger.setAttribute('aria-expanded', 'false');
-        }
-
-        function selectPercent(item) {
-            Array.prototype.forEach.call(items, function (one) {
-                one.classList.toggle('is-selected', one === item);
-            });
-
-            swatch.style.backgroundImage = "url('" + item.dataset.image + "')";
-            value.textContent = item.dataset.percent + '%';
-
-            // объём зависит от процента: оставляем в select только варианты
-            // выбранного процента, остальные прячем, и переключаем на первый из них
-            var firstMatch = null;
-            Array.prototype.forEach.call(options, function (option) {
-                var matches = option.dataset.percent === item.dataset.percent;
-                option.hidden = !matches;
-                if (matches && !firstMatch) firstMatch = option;
-            });
-
-            if (firstMatch) {
-                volumeSelect.value = firstMatch.value;
-                updateButton();
-            }
-        }
-
-        trigger.addEventListener('click', function () {
-            percentRoot.classList.contains('is-open') ? close() : open();
+        select.addEventListener('change', function () {
+            if (select.value) window.location.href = select.value;
         });
+    }
 
-        trigger.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                percentRoot.classList.contains('is-open') ? close() : open();
-            }
-        });
+    /**
+     * Строка окислителя внутри обычного «С этим товаром покупают»
+     * (Site_3.docx, картинка 2, правка 16.10.2026) — select процента в
+     * самой строке меняет, какой товар она представляет: фото/название/
+     * цену в строке, id у её собственной кнопки добавления и id внутри
+     * общего набора у кнопки «добавить всё».
+     */
+    function initOxidizerSetRow() {
+        var rows = document.querySelectorAll('[data-oxidizer-row]');
 
-        percentRoot.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') close();
-        });
+        Array.prototype.forEach.call(rows, function (row) {
+            if (row.dataset.pbReady) return;
+            row.dataset.pbReady = '1';
 
-        document.addEventListener('click', function (event) {
-            if (!percentRoot.contains(event.target)) close();
-        });
+            var select = row.querySelector('[data-oxidizer-row-select]');
+            var addIcon = row.querySelector('[data-oxidizer-row-add]');
+            if (!select || !addIcon) return;
 
-        Array.prototype.forEach.call(items, function (item) {
-            item.addEventListener('click', function (event) {
-                event.preventDefault();
-                close();
-                selectPercent(item);
+            var photoImg = row.querySelector('[data-oxidizer-row-photo] img');
+            var nameLink = row.querySelector('[data-oxidizer-row-name] a');
+            var priceBox = row.querySelector('[data-oxidizer-row-price]');
+            var setButton = document.querySelector('[data-oxidizer-row-set]');
+            var currency = select.dataset.currency || '';
+            var totalBase = parseFloat(select.dataset.totalBase) || 0;
+            var currentId = addIcon.dataset.goodsItemId;
+
+            select.addEventListener('change', function () {
+                var option = select.options[select.selectedIndex];
+                var newId = option.value;
+
+                if (photoImg) photoImg.src = option.dataset.image;
+                if (nameLink) {
+                    nameLink.href = option.dataset.link;
+                    nameLink.textContent = option.dataset.name;
+                }
+                if (priceBox) {
+                    var priceLine = priceBox.querySelector('span');
+                    if (priceLine) priceLine.textContent = option.dataset.price + ' ' + currency;
+                }
+
+                addIcon.dataset.goodsItemId = newId;
+
+                if (setButton) {
+                    var ids = setButton.dataset.goodsIds.split(',');
+                    var idx = ids.indexOf(currentId);
+                    if (idx !== -1) ids[idx] = newId;
+                    setButton.dataset.goodsIds = ids.join(',');
+
+                    var sumLine = setButton.querySelector('.rec-set-add-sum > span');
+                    if (sumLine) sumLine.textContent = Math.round(totalBase + parseFloat(option.dataset.price)) + ' ' + currency;
+                }
+
+                currentId = newId;
             });
         });
     }
@@ -958,6 +938,7 @@
         initSimilarSliders();
         initSetAdd();
         initOxidizerPicker();
+        initOxidizerSetRow();
         initCitySelect();
         initShopsToggle();
         initNearestShop();

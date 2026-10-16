@@ -221,6 +221,9 @@
                         {{-- Селекторы вариантов товара по макету: объём и (для красок) оттенок --}}
                         @include('front.templates.product.volume-select')
                         @include('front.templates.product.shade-select')
+                        {{-- Site_3.docx, картинка 1 — переключатель %/объёма на СОБСТВЕННОЙ
+                             странице окислителя (самоограничивается, молчит на всех остальных) --}}
+                        @include('front.templates.product.oxidizer-picker')
 
                         <div class="product-end-price">
                             <span class="pb-field-label">{{ trans('variables.product_price') }}</span>
@@ -540,11 +543,6 @@
                                 <p>{{ ShowLabelById(183) }}</p>
                             </div>
                         @endif
-                    </div>
-
-                    {{-- п.3 тикета 14.10.2026 — подбор окислителя, до общего блока рекомендаций --}}
-                    <div class="pb-product-oxidizer">
-                        @include('front.templates.product.oxidizer-picker')
                     </div>
 
                     {{-- п.3 ТЗ — «С этим товаром покупают»: правая колонка, под описанием --}}
