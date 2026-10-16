@@ -234,10 +234,17 @@ echo "-- Warming recommendation/variant caches"
 \$ARTISAN shades:rebuild-variants
 
 echo "-- Fixing storage/bootstrap permissions"
-# Best-effort: runtime files created by php-fpm's www-data (logs, compiled
-# views, sessions) can't be chown'd by the deploying user and don't need to
-# be — they're already group-writable. Never let this abort the deploy
-# before the restart below (set -e would otherwise kill it here).
+# 2026-10-16 incident: artisan above runs INSIDE the container (\$ARTISAN =
+# docker exec ...), where the default user is root — migrations/cache-warm
+# commands can create storage/framework/{views,cache,sessions} files owned
+# by root. The host-side deploying user is NOT root and can't chown those
+# (silently failed before, hidden by \`|| true\`), so php-fpm (www-data)
+# then can't write newly compiled blade templates there -> 500 on the next
+# page whose view cache needs rebuilding. Fix it from INSIDE the container,
+# as root, not from the host.
+docker exec -u root -w /usr/src/myapp $CONTAINER chown -R www-data:www-data storage/framework bootstrap/cache 2>/dev/null || true
+# Still best-effort for whatever the host-side deploying user already owns
+# (logs etc.) — never let this abort the deploy before the restart below.
 chown -R \$(whoami):www-data storage bootstrap/cache 2>/dev/null || true
 
 # T-001: upload-limit override (php-conf.d/site-php-settings.ini in the
