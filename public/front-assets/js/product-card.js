@@ -857,24 +857,97 @@
     }
 
     /**
-     * Пикер «процент + объём окислителя» (п.3 тикета 14.10.2026). Кнопка
-     * «добавить вместе» — обычная .add-set-to-basket (initSetAdd её уже
-     * обрабатывает), здесь только держим её data-goods-ids в соответствии
-     * с выбранным в select окислителем.
+     * Пикер «процент + объём окислителя» (п.3 тикета 14.10.2026, правка
+     * 16.10.2026 — свотч с фото вместо нечитабельного select, как просил
+     * клиент). Процент — дропдаун со свотчами (та же идея, что и у
+     * pb-shade, но без перехода на другую страницу: здесь меняется не
+     * товар, а список доступных объёмов и data-goods-ids у кнопки
+     * «добавить вместе», которую уже обрабатывает initSetAdd).
      */
     function initOxidizerPicker() {
         var root = document.querySelector('[data-oxidizer-picker]');
         if (!root || root.dataset.pbReady) return;
         root.dataset.pbReady = '1';
 
-        var select = root.querySelector('[data-oxidizer-select]');
+        var volumeSelect = root.querySelector('[data-oxidizer-volume-select]');
         var button = root.querySelector('.add-set-to-basket');
-        if (!select || !button) return;
+        if (!volumeSelect || !button) return;
 
         var dyeId = button.dataset.oxidizerDyeId;
 
-        select.addEventListener('change', function () {
-            button.dataset.goodsIds = dyeId + ',' + select.value;
+        function updateButton() {
+            button.dataset.goodsIds = dyeId + ',' + volumeSelect.value;
+        }
+
+        volumeSelect.addEventListener('change', updateButton);
+
+        var percentRoot = root.querySelector('[data-oxidizer-percent]');
+        if (!percentRoot) return; // у линейки один процент — выбирать нечего, только объём
+
+        var trigger = percentRoot.querySelector('.pb-shade-trigger');
+        var swatch = trigger.querySelector('.pb-swatch');
+        var value = trigger.querySelector('.pb-shade-value');
+        var items = percentRoot.querySelectorAll('.pb-dropdown-item');
+        var options = volumeSelect.querySelectorAll('option');
+
+        function open() {
+            percentRoot.classList.add('is-open');
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+
+        function close() {
+            percentRoot.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function selectPercent(item) {
+            Array.prototype.forEach.call(items, function (one) {
+                one.classList.toggle('is-selected', one === item);
+            });
+
+            swatch.style.backgroundImage = "url('" + item.dataset.image + "')";
+            value.textContent = item.dataset.percent + '%';
+
+            // объём зависит от процента: оставляем в select только варианты
+            // выбранного процента, остальные прячем, и переключаем на первый из них
+            var firstMatch = null;
+            Array.prototype.forEach.call(options, function (option) {
+                var matches = option.dataset.percent === item.dataset.percent;
+                option.hidden = !matches;
+                if (matches && !firstMatch) firstMatch = option;
+            });
+
+            if (firstMatch) {
+                volumeSelect.value = firstMatch.value;
+                updateButton();
+            }
+        }
+
+        trigger.addEventListener('click', function () {
+            percentRoot.classList.contains('is-open') ? close() : open();
+        });
+
+        trigger.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                percentRoot.classList.contains('is-open') ? close() : open();
+            }
+        });
+
+        percentRoot.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') close();
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!percentRoot.contains(event.target)) close();
+        });
+
+        Array.prototype.forEach.call(items, function (item) {
+            item.addEventListener('click', function (event) {
+                event.preventDefault();
+                close();
+                selectPercent(item);
+            });
         });
     }
 

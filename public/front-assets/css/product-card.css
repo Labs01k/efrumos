@@ -491,6 +491,27 @@
     color: var(--pb-text);
 }
 
+/* -------------------------------------------------- подбор окислителя */
+
+.pb-oxidizer-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: .8rem;
+    margin-bottom: 1.6rem;
+}
+
+.pb-oxidizer-percent .pb-shade-trigger,
+.pb-oxidizer-percent .pb-dropdown { width: 16rem; }
+
+.pb-oxidizer-volume {
+    width: 16rem;
+    max-width: 100%;
+    min-height: 4.4rem;
+    border: .2rem solid var(--pb-text);
+    border-radius: .4rem;
+}
+
 /* ------------------------------------------------------------------ цена */
 
 .pb-product .product-end-price {

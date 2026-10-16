@@ -55,11 +55,16 @@ class OxidizerMatcher
             ->with('itemByLang', 'oImage')
             ->get()
             ->map(function ($one) {
-                $one->oxidizer_percent = self::percentFromName($one->itemByLang->name ?? '');
+                $name = $one->itemByLang->name ?? '';
+                $one->oxidizer_percent = self::percentFromName($name);
+                $one->oxidizer_volume_label = self::volumeLabel($name);
+                $one->oxidizer_volume_value = self::volumeValue($name);
 
                 return $one;
             })
-            ->sortBy('oxidizer_percent')
+            // сортировка в два уровня (процент, затем объём внутри процента) —
+            // строкой, чтобы не зависеть от сравнения PHP-массивов с null
+            ->sortBy(fn ($one) => sprintf('%08.2f-%010.2f', $one->oxidizer_percent ?? 0, $one->oxidizer_volume_value ?? 0))
             ->values();
     }
 
@@ -100,6 +105,30 @@ class OxidizerMatcher
     public static function percentFromName(string $name): ?float
     {
         if (preg_match('~(\d+(?:[.,]\d+)?)\s*%~u', $name, $match)) {
+            return (float) str_replace(',', '.', $match[1]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Подпись объёма из названия («Оксигент 3% DE LUXE, 1000 мл» → «1000 мл»).
+     * Поле gramaj у части строк не прислано 1С (0, хотя в названии объём
+     * есть) — название надёжнее как единственный источник для показа.
+     */
+    public static function volumeLabel(string $name): ?string
+    {
+        if (preg_match('~,\s*(\d+(?:[.,]\d+)?\s*(?:мл|ml|л|l|г|гр|g|gr))\s*$~ui', $name, $match)) {
+            return trim($match[1]);
+        }
+
+        return null;
+    }
+
+    /** Числовое значение объёма — для сортировки вариантов внутри одного процента. */
+    public static function volumeValue(string $name): ?float
+    {
+        if (preg_match('~,\s*(\d+(?:[.,]\d+)?)\s*(?:мл|ml|л|l|г|гр|g|gr)\s*$~ui', $name, $match)) {
             return (float) str_replace(',', '.', $match[1]);
         }
 
