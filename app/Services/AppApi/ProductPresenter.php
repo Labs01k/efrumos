@@ -3,8 +3,11 @@
 namespace App\Services\AppApi;
 
 use App\Models\GoodsItemId;
+use App\Services\Product\ProductRecommendations;
 use App\Services\Product\ProductStock;
 use App\Services\Product\ShadePalette;
+use App\Services\Product\YouStarPalette;
+use Illuminate\Support\Collection;
 
 /**
  * Товар в ответах API приложения. Цены, фото, оттенки и остатки берутся из
@@ -39,6 +42,13 @@ final class ProductPresenter
         $goods->loadMissing('itemByLang', 'oImage', 'oImages', 'getBrand.itemByLang', 'subjectByLang');
 
         $shades = ShadePalette::for($goods);
+
+        // не краска (нет goods_type_id в dye_goods_type_ids) — пробуем палитру
+        // YouStar (та же логика, что и на сайте, Front\CatalogController::itemPage()):
+        // группировка там не по типу товара, а по фильтру «Коллекция YouStar»
+        if ($shades->isEmpty()) {
+            $shades = YouStarPalette::for($goods);
+        }
 
         return self::summary($goods) + [
             'articul' => $goods->articol,
@@ -83,7 +93,26 @@ final class ProductPresenter
                 ])
                 ->values()
                 ->all(),
+            // E3-BES-03 — та же логика сайта (ручной список в CMS, совместимые
+            // окислители для краски с привязкой, иначе совместные покупки/
+            // бестселлеры), не отдельный пересчёт под приложение.
+            'recommendations' => [
+                'bought_together' => self::summaryList(ProductRecommendations::boughtTogether($goods)),
+                'similar' => self::summaryList(ProductRecommendations::similar($goods)),
+            ],
         ];
+    }
+
+    private static function summaryList(Collection $goodsList): array
+    {
+        return $goodsList
+            ->map(function ($one) {
+                $one->loadMissing('itemByLang', 'oImage', 'getBrand.itemByLang');
+
+                return self::summary($one);
+            })
+            ->values()
+            ->all();
     }
 
     /** @return array{current: int, old: ?int, discount_percent: int, currency: string}|null */

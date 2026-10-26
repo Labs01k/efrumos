@@ -42,9 +42,15 @@ class YouStarPalette
             ->where('lang_id', LANG_ID)
             ->value('name') ?? '';
 
+        // ВАЖНО: goods_parametr_value_id не гарантированно уникален только в
+        // рамках параметра 51 — обязательно фильтровать ещё и pivot.goods_parametr_id,
+        // иначе если то же числовое значение id существует у другого параметра
+        // (а id растут из общей последовательности на всю таблицу), в палитру
+        // попадут совершенно чужие товары. Поймано живьём на локальном стенде.
         $sibling_ids = DB::table('goods_parametr_item_rsc as rsc')
             ->join('goods_parametr_item_id as pivot', 'pivot.id', '=', 'rsc.goods_parametr_item_id')
             ->where('rsc.goods_parametr_value_id', $value_id)
+            ->where('pivot.goods_parametr_id', self::PARAMETR_ID)
             ->pluck('pivot.goods_item_id');
 
         $shades = GoodsItemId::whereIn('id', $sibling_ids)
