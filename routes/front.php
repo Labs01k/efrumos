@@ -7,6 +7,7 @@ use App\Http\Controllers\Front\CabinetController;
 use App\Http\Controllers\Front\UserAuthController;
 use App\Http\Controllers\Front\WishController;
 use App\Http\Controllers\Front\PhoneConfirmationController;
+use App\Http\Controllers\Front\AddressController;
 use App\Http\Controllers\Front\OrderController;
 use App\Http\Controllers\Front\NewsController;
 use App\Http\Controllers\Front\ShopsController;
@@ -78,6 +79,15 @@ Route::middleware('FrontGlobal')->group(function () {
         Route::controller(PhoneConfirmationController::class)->middleware('checkAuthUser')->group(function () {
             Route::post('/ajaxSendPhoneOtp', 'ajaxSendPhoneOtp');
             Route::post('/ajaxConfirmPhoneOtp', 'ajaxConfirmPhoneOtp');
+        });
+
+        /* E6-BES-02 — адреса пользователя */
+        Route::controller(AddressController::class)->middleware('checkAuthUser')->group(function () {
+            Route::post('/ajaxListAddresses', 'ajaxListAddresses');
+            Route::post('/ajaxCreateAddress', 'ajaxCreateAddress');
+            Route::post('/ajaxUpdateAddress', 'ajaxUpdateAddress');
+            Route::post('/ajaxDeleteAddress', 'ajaxDeleteAddress');
+            Route::post('/ajaxSetDefaultAddress', 'ajaxSetDefaultAddress');
         });
 
         /* Order */
