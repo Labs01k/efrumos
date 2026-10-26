@@ -76,9 +76,12 @@ Route::middleware('FrontGlobal')->group(function () {
         });
 
         /* E1-BES-02 — подтверждение телефона и привязка карты лояльности */
+        /* E1-BES-03 — показ поп-апа подтверждения не чаще раза в 7 дней */
         Route::controller(PhoneConfirmationController::class)->middleware('checkAuthUser')->group(function () {
             Route::post('/ajaxSendPhoneOtp', 'ajaxSendPhoneOtp');
             Route::post('/ajaxConfirmPhoneOtp', 'ajaxConfirmPhoneOtp');
+            Route::get('/ajaxShouldShowPhoneConfirmPopup', 'ajaxShouldShowPhoneConfirmPopup');
+            Route::post('/ajaxDismissPhoneConfirmPopup', 'ajaxDismissPhoneConfirmPopup');
         });
 
         /* E6-BES-02 — адреса пользователя */

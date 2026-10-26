@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Validator;
  * через eFrumos-backend (EfrumosBackendClient) — общий сервис с
  * приложением, сайт сам SMS не шлёт (E1-BE-07).
  *
+ * E1-BES-03 — правило показа поп-апа подтверждения (раз в 7 дней после
+ * «Позже», ТЗ §4 М1 / xlsx): ajaxShouldShowPhoneConfirmPopup/
+ * ajaxDismissPhoneConfirmPopup ниже. Баннер в ЛК отдельного эндпоинта не
+ * требует — «постоянно до подтверждения» выводится по уже отдаваемому
+ * профилю через phone_confirmed_at.
+ *
  * E1-BES-05 (режим входа для СВЯЗКИ из приложения через WebView) и
  * E1-BES-01 (вход/регистрация НОВОГО пользователя по телефону, без
  * предшествующего email-аккаунта) — отдельные, более крупные задачи,
@@ -23,6 +29,8 @@ use Illuminate\Support\Facades\Validator;
 class PhoneConfirmationController extends Controller
 {
     private const PHONE_MD_E164_REGEX = '/^\+373\d{8}$/';
+
+    private const POPUP_COOLDOWN_DAYS = 7;
 
     public function __construct(private readonly EfrumosBackendClient $backendClient)
     {
@@ -130,6 +138,43 @@ class PhoneConfirmationController extends Controller
             'status' => true,
             'message' => 'Телефон подтверждён, карта лояльности привязана.',
         ]);
+    }
+
+    /**
+     * E1-BES-03 — вызывается FE после входа. true — пора снова показать
+     * поп-ап: телефон не подтверждён, и либо его никогда не отклоняли, либо
+     * последний «Позже» был 7+ дней назад.
+     */
+    public function ajaxShouldShowPhoneConfirmPopup(Request $request)
+    {
+        $user = app('global_user');
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => ShowLabelById(62)]);
+        }
+
+        if ($user->phone_confirmed_at !== null) {
+            return response()->json(['status' => true, 'show_popup' => false]);
+        }
+
+        $dismissedAt = $user->phone_confirm_popup_dismissed_at;
+        $show = $dismissedAt === null || $dismissedAt->lte(now()->subDays(self::POPUP_COOLDOWN_DAYS));
+
+        return response()->json(['status' => true, 'show_popup' => $show]);
+    }
+
+    /** E1-BES-03 — вызывается FE, когда пользователь нажал «Позже». */
+    public function ajaxDismissPhoneConfirmPopup(Request $request)
+    {
+        $user = app('global_user');
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => ShowLabelById(62)]);
+        }
+
+        $user->update(['phone_confirm_popup_dismissed_at' => now()]);
+
+        return response()->json(['status' => true]);
     }
 
     /** FrontUser.gender формат сайта может отличаться от male/female 1С — свести здесь, не размазывать по вызывающему коду. */
