@@ -213,6 +213,14 @@ return [
         // (POST, Bearer status_webhook_token). Пусто — уведомления не шлём.
         'status_webhook_url' => env('APP_API_STATUS_WEBHOOK_URL'),
         'status_webhook_token' => env('APP_API_STATUS_WEBHOOK_TOKEN'),
+        // E1 — сайт как service-to-service клиент к eFrumos-backend: общий
+        // OTP-сервис для входа по телефону (E1-BE-07) + резолв карты 1С
+        // (E1-BES-02). Отдельный токен от status_webhook_token — тот для
+        // событий (webhook), этот — для синхронных вызовов в реальном
+        // времени, на бэкенде это SITE_SERVICE_TOKEN.
+        'backend_base_url' => env('EFRUMOS_BACKEND_BASE_URL'),
+        'backend_service_token' => env('EFRUMOS_BACKEND_SERVICE_TOKEN'),
+        'backend_timeout' => (int) env('EFRUMOS_BACKEND_TIMEOUT', 10),
     ],
 
 ];

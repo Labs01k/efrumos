@@ -6,6 +6,7 @@ use App\Http\Controllers\Front\CartController;
 use App\Http\Controllers\Front\CabinetController;
 use App\Http\Controllers\Front\UserAuthController;
 use App\Http\Controllers\Front\WishController;
+use App\Http\Controllers\Front\PhoneConfirmationController;
 use App\Http\Controllers\Front\OrderController;
 use App\Http\Controllers\Front\NewsController;
 use App\Http\Controllers\Front\ShopsController;
@@ -71,6 +72,12 @@ Route::middleware('FrontGlobal')->group(function () {
             Route::post('/ajaxAddToWish', 'ajaxAddToWish');
             Route::post('/ajaxDestroyWish', 'ajaxDestroyWish');
             Route::post('/ajaxAddAllWishToBasket', 'ajaxAddAllWishToBasket');
+        });
+
+        /* E1-BES-02 — подтверждение телефона и привязка карты лояльности */
+        Route::controller(PhoneConfirmationController::class)->middleware('checkAuthUser')->group(function () {
+            Route::post('/ajaxSendPhoneOtp', 'ajaxSendPhoneOtp');
+            Route::post('/ajaxConfirmPhoneOtp', 'ajaxConfirmPhoneOtp');
         });
 
         /* Order */

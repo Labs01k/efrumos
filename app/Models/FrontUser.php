@@ -12,7 +12,9 @@ class FrontUser extends Model
     protected $table = 'front_user';
 
     protected $fillable = [
-        'name', 'last_name', 'email', 'password', 'active', 'address', 'remember_token', 'gift_card', 'recovery_hash', 'phone', 'google_id', 'facebook_id', 'img', 'birth', 'gender', 'district_id', 'city', 'address', 'confirmation_hash', 'confirmation_at', 'confirmation'
+        'name', 'last_name', 'email', 'password', 'active', 'address', 'remember_token', 'gift_card', 'recovery_hash', 'phone', 'google_id', 'facebook_id', 'img', 'birth', 'gender', 'district_id', 'city', 'address', 'confirmation_hash', 'confirmation_at', 'confirmation',
+        // E1-BES-02 — связь с картой лояльности 1С и подтверждение телефона, см. миграцию 2026_10_26.
+        'app_loyalty_client_id', 'phone_confirmed_at',
     ];
 
     protected $hidden = [
