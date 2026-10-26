@@ -12,6 +12,7 @@ enum PaymentStatus: string
     case Paid = 'paid';
     case Failed = 'failed';
     case Cancelled = 'cancelled';
+    case Refunded = 'refunded';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum PaymentStatus: string
             self::Paid => __('variables.payment_status_paid'),
             self::Failed => __('variables.payment_status_failed'),
             self::Cancelled => __('variables.payment_status_cancelled'),
+            self::Refunded => __('variables.payment_status_refunded'),
         };
     }
 
@@ -40,7 +42,11 @@ enum PaymentStatus: string
         return match ($this) {
             self::Pending => in_array($next, [self::Paid, self::Failed, self::Cancelled], true),
             self::Failed => in_array($next, [self::Pending, self::Paid, self::Cancelled], true),
-            self::Paid, self::Cancelled => false,
+            // Задача с refund (16.10.2026/26.10.2026) — единственный легальный
+            // путь из Paid. Деньги уже списаны банком, назад в Pending/Failed
+            // смысла нет.
+            self::Paid => in_array($next, [self::Refunded], true),
+            self::Cancelled, self::Refunded => false,
         };
     }
 }

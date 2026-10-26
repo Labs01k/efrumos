@@ -63,10 +63,23 @@
                             <input id="payment-status-comment" type="text" class="form-control form-control-sm"
                                    placeholder="{{ __('variables.payment_status_comment_placeholder') }}" style="width:220px;">
                             <button type="button" id="payment-status-save" class="btn btn-sm btn-primary">{{ __('variables.payment_status_save') }}</button>
-                            @if ($orders->payment_status === \App\Enums\PaymentStatus::Paid && $orders->pay_method === 'card')
-                            @endif
                         </div>
                     </div>
+
+                    {{-- Задача с рефандом (тикет SK, 16.10.2026; метод 1С CreateRefunds,
+                         ответ 26.10.2026) — доступ ограничен тем же правом, что и на
+                         остальные действия модуля "orders" (общая CMS-система прав). --}}
+                    @if ($orders->payment_status === \App\Enums\PaymentStatus::Paid && $orders->pay_method === 'card')
+                        <div class="border rounded p-3 mb-3 d-lg-flex align-items-center gap-2">
+                            <strong>{{ __('variables.payment_refund_button') }}:</strong>
+                            <input id="refund-amount" type="number" step="0.01" min="0.01"
+                                   class="form-control form-control-sm" style="width:140px;"
+                                   placeholder="{{ __('variables.payment_refund_amount_placeholder') }}">
+                            <input id="refund-reason" type="text" class="form-control form-control-sm"
+                                   style="width:260px;" placeholder="{{ __('variables.payment_refund_reason_placeholder') }}">
+                            <button type="button" id="refund-save" class="btn btn-sm btn-danger">{{ __('variables.payment_refund_button') }}</button>
+                        </div>
+                    @endif
 
                     @if ($payment_status_logs->isNotEmpty())
                         <div class="border rounded p-3 mb-3">
@@ -151,11 +164,49 @@
                                 });
                         });
 
-                        {{-- Кнопка возврата оплаты убрана по решению заказчика (07.09.2026):
-                             возврат через сайт не входит в согласованный объём, порядок
-                             его использования не утверждён, а доступ был у всех, кто
-                             работает с заказами. Возвраты — через банк-клиент. --}}
+                        @if ($orders->payment_status === \App\Enums\PaymentStatus::Paid && $orders->pay_method === 'card')
+                        document.getElementById('refund-save').addEventListener('click', function () {
+                            var amount = document.getElementById('refund-amount').value;
+                            var reason = document.getElementById('refund-reason').value.trim();
 
+                            if (!amount || Number(amount) <= 0) {
+                                alert('{{ __('variables.payment_refund_amount_placeholder') }}');
+                                return;
+                            }
+                            if (!reason) {
+                                alert('{{ __('variables.payment_refund_reason_placeholder') }}');
+                                return;
+                            }
+                            if (!confirm('{{ __('variables.payment_refund_confirm') }}')) {
+                                return;
+                            }
+
+                            var body = new URLSearchParams({ id: {{ $orders->id }}, amount: amount, reason: reason });
+                            fetch('{{ urlForFunctionLanguage($lang, 'orders/refundPayment') }}', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                body: body,
+                            })
+                                .then(r => {
+                                    if (r.status === 419) throw new Error('Сессия/CSRF-токен устарели — обновите страницу (F5) и попробуйте снова.');
+                                    if (!r.ok) throw new Error('Сервер вернул ошибку ' + r.status);
+                                    return r.json();
+                                })
+                                .then(response => {
+                                    var msg = (response.messages && response.messages[0]) || '';
+                                    if (response.status === true) {
+                                        if (window.Notiflix) { Notiflix.Notify.info(msg); } else { alert(msg); }
+                                        setTimeout(() => location.reload(), 800);
+                                    } else {
+                                        if (window.Notiflix) { Notiflix.Notify.failure(msg); } else { alert(msg); }
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('refundPayment failed:', err);
+                                    if (window.Notiflix) { Notiflix.Notify.failure(err.message); } else { alert(err.message); }
+                                });
+                        });
+                        @endif
                     </script>
 
                     <hr/>

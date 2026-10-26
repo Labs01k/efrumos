@@ -34,4 +34,11 @@ interface OneCOrderGateway
      * status, sum, payment id, and the transition into sborka/processing.
      */
     public function markPaid(string $onecDocumentId, float $amount, string $paymentId): void;
+
+    /**
+     * Refund ticket (16.10.2026/26.10.2026) — CreateRefunds, same shape as
+     * CreatePayment per 1С's own answer (OrderId/PaymentAmount/PaymentDate/
+     * PaymentID in, ObjectResponce out).
+     */
+    public function markRefunded(string $onecDocumentId, float $amount, string $paymentId): void;
 }

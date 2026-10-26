@@ -52,4 +52,13 @@ class LoggingOneCOrderGateway implements OneCOrderGateway
             'payment_id' => $paymentId,
         ]);
     }
+
+    public function markRefunded(string $onecDocumentId, float $amount, string $paymentId): void
+    {
+        Log::info('[1C stub] markRefunded', [
+            'onec_document_id' => $onecDocumentId,
+            'amount' => $amount,
+            'payment_id' => $paymentId,
+        ]);
+    }
 }

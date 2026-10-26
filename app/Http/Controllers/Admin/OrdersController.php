@@ -12,6 +12,7 @@ use App\Services\FacebookAds\FacebookPixelConversion;
 use App\Services\GA4\GoogleEcommerce;
 use App\Services\Integration\OrderIntegrationService;
 use App\Services\Payment\OrderPaymentStatusService;
+use App\Services\Payment\OrderRefundService;
 use App\Services\Payment\Victoriabank\VictoriaBankClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -152,18 +153,52 @@ class OrdersController extends Controller
     }
 
     /**
-     * TRTYPE=24 — refund a paid VictoriaBank order. Only reachable for
-     * orders already in Paid status; the bank itself rejects a second
-     * reversal on the same transaction (RC=95), so this doesn't need its
-     * own idempotency guard beyond that.
+     * TRTYPE=24 (банк) + CreateRefunds (1С, ответ получен 26.10.2026) —
+     * полный или частичный возврат оплаченного заказа. Воссоздано взамен
+     * refundPayment(), удалённого 07.09.2026 (тогда не было ни согласованного
+     * объёма работ, ни ответа 1С про передачу возврата) — теперь есть оба:
+     * тикет SK от 16.10.2026 и метод 1С от 26.10.2026.
      */
-    /*
-     * refundPayment() удалён по решению заказчика (07.09.2026): возврат оплаты
-     * через сайт не входит в согласованный объём работ. Механика возврата в
-     * VictoriaBankClient::reverse() осталась — если возвраты понадобятся,
-     * их нужно делать отдельной задачей с правами доступа, подтверждением
-     * и журналом операций.
-     */
+    public function refundPayment(Request $request, OrderRefundService $refundService)
+    {
+        $id = $request->input('id');
+        $amount = (float) $request->input('amount');
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => ['Укажите причину возврата.'],
+            ]);
+        }
+
+        $order = Orders::find($id);
+        if (is_null($order)) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => [controllerTrans('variables.something_wrong', LANG)]
+            ]);
+        }
+
+        try {
+            $refund = $refundService->refund($order, $amount, $reason, Auth::id());
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'status' => false,
+                'type' => 'error',
+                'messages' => [$e->getMessage()],
+            ]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'type' => 'info',
+            'text' => PaymentStatus::Refunded->label(),
+            'messages' => ['Возврат ' . ($refund->amount_bani / 100) . ' MDL выполнен, статус изменён на «' . PaymentStatus::Refunded->label() . '».'],
+        ]);
+    }
 
     public function editItem($id)
     {

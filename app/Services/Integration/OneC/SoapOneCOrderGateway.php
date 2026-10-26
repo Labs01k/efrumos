@@ -205,6 +205,58 @@ class SoapOneCOrderGateway implements OneCOrderGateway
     }
 
     /**
+     * CreateRefunds — ответ 1С на тикет с рефандом (16.10.2026/26.10.2026):
+     * «набор параметров и тип возвращаемого значения такие же, как у
+     * CreatePayment», поэтому метод — копия markPaid() с другим именем
+     * SOAP-операции. $paymentId здесь — идентификатор ЗАПИСИ ВОЗВРАТА
+     * (order_refunds.id), не исходного платежа — так 1С и банк-реестр
+     * возврата различимы от самой оплаты по одному и тому же заказу.
+     */
+    public function markRefunded(string $onecDocumentId, float $amount, string $paymentId): void
+    {
+        if (config('services.integration.onec_mock_mode')) {
+            Log::info('[1С MOCK] markRefunded — ONEC_MOCK_MODE is on', [
+                'onec_document_id' => $onecDocumentId,
+                'amount' => $amount,
+                'payment_id' => $paymentId,
+            ]);
+
+            return;
+        }
+
+        try {
+            $client = $this->client();
+
+            $response = $client->CreateRefunds([
+                'OrderId' => $onecDocumentId,
+                'PaymentAmount' => $amount,
+                'PaymentDate' => gmdate('Y-m-d\TH:i:s'),
+                'PaymentID' => $paymentId,
+            ]);
+
+            $result = self::toArray($response->return);
+
+            if (!empty($result['isError'])) {
+                throw new IntegrationGatewayException(
+                    "1С CreateRefunds вернул ошибку для документа {$onecDocumentId}: " . ($result['ErrorDescription'] ?? 'без описания')
+                );
+            }
+
+            Log::info('1С CreateRefunds: возврат записан', [
+                'onec_document_id' => $onecDocumentId,
+                'onec_refund_object_id' => $result['ObjectId'] ?? null,
+            ]);
+        } catch (IntegrationGatewayException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new IntegrationGatewayException(
+                "1С markRefunded упал для документа {$onecDocumentId}: {$e->getMessage()}",
+                previous: $e
+            );
+        }
+    }
+
+    /**
      * Зарегистрированный покупатель — код точки продаж кэшируется на
      * FrontUser (повторные заказы переиспользуют её). Гость — новая точка
      * продаж на каждый заказ: у гостя нет постоянного идентификатора, на
