@@ -223,4 +223,13 @@ return [
         'backend_timeout' => (int) env('EFRUMOS_BACKEND_TIMEOUT', 10),
     ],
 
+    // EFA-43 / E1-BES-05 — страница входа сайта в режиме связки из
+    // приложения. app_return_url — фиксированный deep-link приложения, НЕ
+    // берётся из query (чтобы страница не превращалась в open redirect) —
+    // только ?state= от приложения проходит насквозь как непрозрачная строка.
+    'account_link' => [
+        'app_return_url' => env('ACCOUNT_LINK_APP_RETURN_URL', 'efrumosapp://account-link'),
+        'token_ttl_minutes' => (int) env('ACCOUNT_LINK_TOKEN_TTL_MINUTES', 10),
+    ],
+
 ];

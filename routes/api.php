@@ -35,4 +35,7 @@ Route::prefix('app/v1')
         Route::post('/orders', [\App\Http\Controllers\AppApi\OrderController::class, 'store']);
         Route::get('/orders', [\App\Http\Controllers\AppApi\OrderController::class, 'index']);
         Route::get('/orders/{order}', [\App\Http\Controllers\AppApi\OrderController::class, 'show'])->whereNumber('order');
+
+        // EFA-35 / E1-BE-04 — погашение одноразового токена связки (EFA-43).
+        Route::post('/account-link/redeem', [\App\Http\Controllers\AppApi\AccountLinkController::class, 'redeem']);
     });

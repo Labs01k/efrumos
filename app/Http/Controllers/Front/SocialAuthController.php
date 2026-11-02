@@ -46,6 +46,11 @@ class SocialAuthController extends Controller
 
         }
 
+        // EFA-43 / E1-BES-05 — вошёл со страницы режима связки.
+        if ($response && Session::get('account_link.active')) {
+            return redirect(AccountLinkController::buildAppRedirectUrl($response));
+        }
+
         return redirect(route('/'));
         /*}*/
     }
@@ -124,6 +129,11 @@ class SocialAuthController extends Controller
 
             if ($response)
                 Session::put('session-front-user', $response->id);
+        }
+
+        // EFA-43 / E1-BES-05 — вошёл со страницы режима связки.
+        if ($response && Session::get('account_link.active')) {
+            return redirect(AccountLinkController::buildAppRedirectUrl($response));
         }
 
         return redirect(route('/'));

@@ -8,6 +8,8 @@ use App\Http\Controllers\Front\UserAuthController;
 use App\Http\Controllers\Front\WishController;
 use App\Http\Controllers\Front\PhoneConfirmationController;
 use App\Http\Controllers\Front\AddressController;
+use App\Http\Controllers\Front\AccountLinkController;
+use App\Http\Controllers\Front\PhoneAuthController;
 use App\Http\Controllers\Front\OrderController;
 use App\Http\Controllers\Front\NewsController;
 use App\Http\Controllers\Front\ShopsController;
@@ -84,6 +86,12 @@ Route::middleware('FrontGlobal')->group(function () {
             Route::post('/ajaxDismissPhoneConfirmPopup', 'ajaxDismissPhoneConfirmPopup');
         });
 
+        /* EFA-43 / E1-BES-05 — вход в режиме связки, открывается приложением
+         * внутри WebView. Без checkAuthUser — пользователь ещё не вошёл. */
+        Route::controller(AccountLinkController::class)->group(function () {
+            Route::get('/account-link/login', 'loginPage')->name('account-link-login');
+        });
+
         /* E6-BES-02 — адреса пользователя */
         Route::controller(AddressController::class)->middleware('checkAuthUser')->group(function () {
             Route::post('/ajaxListAddresses', 'ajaxListAddresses');
@@ -127,6 +135,13 @@ Route::middleware('FrontGlobal')->group(function () {
             //Logout
             Route::get('/logout', 'userLogout')->name('logout');
 
+        });
+
+        /* EFA-39 / E1-BES-01 — вход и регистрация по телефону (новый способ,
+         * не замена email/Google/Facebook выше). */
+        Route::controller(PhoneAuthController::class)->group(function () {
+            Route::post('/ajaxSendLoginOtp', 'ajaxSendLoginOtp');
+            Route::post('/ajaxConfirmLoginOtp', 'ajaxConfirmLoginOtp');
         });
 
         /* User cabinet */

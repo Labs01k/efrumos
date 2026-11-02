@@ -203,6 +203,18 @@ class UserAuthController extends Controller
         if ($request->input('remember') == 'on') {
             Cookie::queue('front-user-remember', $user->id, config('custom.front.cookie_user_remember_time'));
         }
+
+        // EFA-43 / E1-BES-05 — вошёл со страницы режима связки (открыта
+        // приложением в WebView) — вместо обычного redirect уводим на
+        // deep-link приложения с одноразовым токеном.
+        if (Session::get('account_link.active')) {
+            return response()->json([
+                'status' => true,
+                'message' => ShowLabelById(103),
+                'redirect' => AccountLinkController::buildAppRedirectUrl($user),
+            ]);
+        }
+
         return response()->json([
             'status' => true,
             'message' => ShowLabelById(103),
