@@ -25,7 +25,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 | язык — X-App-Lang (ro|ru|en).
 */
 Route::prefix('app/v1')
-    ->middleware(['appApiAuth', 'appApiLocale', 'throttle:120,1'])
+    // GetTranslate/GetSettings — после appApiLocale (нужен LANG_ID), иначе
+    // ShowLabelById()/showSettingBodyByAlias() внутри AppApi-кода читают
+    // пустой config('translator'/'settings') — EFA-97 упал именно на этом
+    // (Mail::from(null, ...) — TypeError), а не из-за окружения.
+    ->middleware(['appApiAuth', 'appApiLocale', 'GetTranslate', 'GetSettings', 'throttle:120,1'])
     ->group(function () {
         Route::get('/catalog/categories', [\App\Http\Controllers\AppApi\CatalogController::class, 'categories']);
         Route::get('/catalog/products', [\App\Http\Controllers\AppApi\CatalogController::class, 'products']);
