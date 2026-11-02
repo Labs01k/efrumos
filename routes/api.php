@@ -38,4 +38,9 @@ Route::prefix('app/v1')
 
         // EFA-35 / E1-BE-04 — погашение одноразового токена связки (EFA-43).
         Route::post('/account-link/redeem', [\App\Http\Controllers\AppApi\AccountLinkController::class, 'redeem']);
+
+        // EFA-77 / E4-BES-01 — избранное приложения, тот же список, что на сайте.
+        Route::get('/favorites', [\App\Http\Controllers\AppApi\FavoriteController::class, 'index']);
+        Route::post('/favorites', [\App\Http\Controllers\AppApi\FavoriteController::class, 'store']);
+        Route::delete('/favorites/{productId}', [\App\Http\Controllers\AppApi\FavoriteController::class, 'destroy'])->whereNumber('productId');
     });
