@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AppApi;
 
 use App\Http\Controllers\Controller;
+use App\Models\BannerId;
 use App\Models\GoodsItemId;
 use App\Models\GoodsSubjectId;
 use App\Services\AppApi\ProductPresenter;
@@ -67,10 +68,14 @@ class CatalogController extends Controller
         if ($search = $request->query('q')) {
             $like = '%' . addcslashes($search, '%_\\') . '%';
 
+            // EFA-56 / E2-BES-02 — «по названию, бренду, артикулу»: бренд
+            // раньше не участвовал в поиске, хотя товар с совпадением
+            // только по названию бренда (не по самому названию) не находился.
             $query->where(function ($q) use ($like) {
                 $q->whereHas('itemByLang', fn ($name) => $name->where('name', 'like', $like))
                     ->orWhere('articol', 'like', $like)
-                    ->orWhere('barcode', 'like', $like);
+                    ->orWhere('barcode', 'like', $like)
+                    ->orWhereHas('getBrand.itemByLang', fn ($brand) => $brand->where('name', 'like', $like));
             });
         }
 
@@ -101,6 +106,117 @@ class CatalogController extends Controller
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
                 'last_page' => $page->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * EFA-57 / E2-BES-03 — подборки главной (Акции/Хиты/Новинки), тот же
+     * набор и порядок, что на сайте (Front\DefaultController::index()):
+     * price_promo>0, popular_element=1, new_element=1, тот же сорт из
+     * config('custom.sorting.*') и тот же лимит. Заголовок секции — из
+     * того же банера, что на сайте (short_descr), не придуманный текст.
+     * Пустую секцию не отдаём — пустой карусели в приложении смысла нет.
+     */
+    public function homeSections(): JsonResponse
+    {
+        $limit = (int) config('custom.front.products_in_slider');
+
+        $sections = [
+            $this->buildHomeSection('mpb-promo-goods', 'promo', fn () => $this->baseQuery()
+                ->where('price_promo', '>', 0)
+                ->with('itemByLang', 'oImage', 'getBrand.itemByLang')
+                ->orderBy('in_stoc', 'desc')
+                ->orderBy(config('custom.sorting.sort_promo_goods_slider')[0], config('custom.sorting.sort_promo_goods_slider')[1])
+                ->limit($limit)
+                ->get()),
+            $this->buildHomeSection('mpb-bestseller-goods', 'bestseller', fn () => $this->baseQuery()
+                ->where('popular_element', 1)
+                ->with('itemByLang', 'oImage', 'getBrand.itemByLang')
+                ->orderBy('in_stoc', 'desc')
+                ->orderBy(config('custom.sorting.sort_bestseller_goods_slider')[0], config('custom.sorting.sort_bestseller_goods_slider')[1])
+                ->limit($limit)
+                ->get()),
+            $this->buildHomeSection('mpb-new-goods', 'new', fn () => $this->baseQuery()
+                ->where('new_element', 1)
+                ->with('itemByLang', 'oImage', 'getBrand.itemByLang')
+                ->orderBy('in_stoc', 'desc')
+                ->orderBy(config('custom.sorting.sort_new_goods_slider')[0], config('custom.sorting.sort_new_goods_slider')[1])
+                ->limit($limit)
+                ->get()),
+        ];
+
+        return response()->json(['success' => true, 'data' => array_values(array_filter($sections))]);
+    }
+
+    private function buildHomeSection(string $bannerAlias, string $key, \Closure $productsResolver): ?array
+    {
+        $products = $productsResolver();
+
+        if ($products->isEmpty()) {
+            return null;
+        }
+
+        $banner = BannerId::where('active', 1)
+            ->where('deleted', 0)
+            ->where('alias', $bannerAlias)
+            ->has('itemByLang')
+            ->with('itemByLang')
+            ->first();
+
+        return [
+            'key' => $key,
+            'title' => $banner->itemByLang->short_descr ?? $banner->itemByLang->name ?? '',
+            'products' => $products->map(fn ($g) => ProductPresenter::summary($g))->values(),
+        ];
+    }
+
+    /**
+     * EFA-56 / E2-BES-02 — подсказки по мере ввода: несколько категорий +
+     * несколько товаров, не полный постраничный список (это уже умеет
+     * products() выше). Та же логика поиска, что у сайта
+     * (Front\CatalogController::ajaxGoodsSearch), но JSON, не рендер view.
+     */
+    public function suggest(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), [
+            'q' => 'required|string|min:2|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $like = '%' . addcslashes($request->query('q'), '%_\\') . '%';
+
+        $categories = GoodsSubjectId::where('active', 1)
+            ->where('deleted', 0)
+            ->whereHas('itemByLang', fn ($name) => $name->where('name', 'like', $like))
+            ->with('itemByLang')
+            ->orderBy('position')
+            ->limit(5)
+            ->get();
+
+        $products = $this->baseQuery()
+            ->where(function ($q) use ($like) {
+                $q->whereHas('itemByLang', fn ($name) => $name->where('name', 'like', $like))
+                    ->orWhere('articol', 'like', $like)
+                    ->orWhere('barcode', 'like', $like)
+                    ->orWhereHas('getBrand.itemByLang', fn ($brand) => $brand->where('name', 'like', $like));
+            })
+            ->with('itemByLang', 'oImage', 'getBrand.itemByLang')
+            ->orderByDesc('popular_element')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categories' => $categories->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->itemByLang->name ?? '',
+                ])->values(),
+                'products' => $products->map(fn ($g) => ProductPresenter::summary($g))->values(),
             ],
         ]);
     }

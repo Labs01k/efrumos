@@ -32,7 +32,12 @@ Route::prefix('app/v1')
     ->middleware(['appApiAuth', 'appApiLocale', 'GetTranslate', 'GetSettings', 'throttle:120,1'])
     ->group(function () {
         Route::get('/catalog/categories', [\App\Http\Controllers\AppApi\CatalogController::class, 'categories']);
+        // EFA-57 / E2-BES-03 — подборки главной (Акции/Хиты/Новинки).
+        Route::get('/catalog/home-sections', [\App\Http\Controllers\AppApi\CatalogController::class, 'homeSections']);
         Route::get('/catalog/products', [\App\Http\Controllers\AppApi\CatalogController::class, 'products']);
+        // EFA-56 / E2-BES-02 — подсказки по мере ввода, отдельно от полного
+        // постраничного поиска (/catalog/products?q=).
+        Route::get('/catalog/suggest', [\App\Http\Controllers\AppApi\CatalogController::class, 'suggest']);
         Route::get('/catalog/products/{product}', [\App\Http\Controllers\AppApi\CatalogController::class, 'product']);
 
         Route::post('/orders/quote', [\App\Http\Controllers\AppApi\OrderController::class, 'quote']);
