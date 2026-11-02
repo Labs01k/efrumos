@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AppApi;
 
 use App\Http\Controllers\Controller;
+use App\Models\FrontUser;
 use App\Models\Orders;
 use App\Services\AppApi\AppOrderService;
 use App\Services\AppApi\OrderPresenter;
@@ -132,7 +133,7 @@ class OrderController extends Controller
             return response()->json(['success' => false, 'message' => 'X-App-Client-Id header is required.'], 400);
         }
 
-        $page = Orders::where('app_client_id', $clientId)
+        $page = $this->ownedByClient(Orders::query(), $clientId)
             ->where('deleted', 0)
             ->with('ordersData')
             ->orderByDesc('id')
@@ -159,8 +160,7 @@ class OrderController extends Controller
         }
 
         // чужой заказ и несуществующий — одинаковый 404
-        $found = Orders::where('id', $order)
-            ->where('app_client_id', $clientId)
+        $found = $this->ownedByClient(Orders::where('id', $order), $clientId)
             ->where('deleted', 0)
             ->first();
 
@@ -169,6 +169,26 @@ class OrderController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => OrderPresenter::detail($found)]);
+    }
+
+    /**
+     * EFA-126 / E8-BES-02 — заказ принадлежит клиенту, если создан из
+     * приложения под его client_id (app_client_id) ИЛИ сделан на сайте тем
+     * же человеком, если он связал телефон с картой лояльности (E1-BES-02/
+     * EFA-39: front_user.app_loyalty_client_id). Без этого приложение видело
+     * только свои собственные заказы, не всю историю клиента.
+     */
+    private function ownedByClient(\Illuminate\Database\Eloquent\Builder $query, string $clientId): \Illuminate\Database\Eloquent\Builder
+    {
+        $frontUserId = FrontUser::where('app_loyalty_client_id', $clientId)->value('id');
+
+        return $query->where(function ($q) use ($clientId, $frontUserId) {
+            $q->where('app_client_id', $clientId);
+
+            if ($frontUserId !== null) {
+                $q->orWhere('front_user_id', $frontUserId);
+            }
+        });
     }
 
     private function clientId(Request $request): ?string
