@@ -10,10 +10,10 @@ use App\Models\Orders;
 use App\Models\OrdersData;
 use App\Models\OrdersUsers;
 use App\Services\AmoOrder\SendOrderToAmoCrm;
+use App\Services\Order\OrderConfirmationMailer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Создание заказа из приложения. Записывает те же строки, что сайт при
@@ -29,8 +29,10 @@ use Illuminate\Support\Facades\Mail;
  */
 class AppOrderService
 {
-    public function __construct(private readonly SendOrderToAmoCrm $amoCrm)
-    {
+    public function __construct(
+        private readonly SendOrderToAmoCrm $amoCrm,
+        private readonly OrderConfirmationMailer $confirmationMailer,
+    ) {
     }
 
     /**
@@ -144,52 +146,16 @@ class AppOrderService
             Log::error('AppApi: заказ не поставлен в очередь интеграции с 1С', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
         }
 
-        try {
-            $this->sendConfirmationEmail($order, $ordersData, $ordersUsers, $district);
-        } catch (\Throwable $e) {
-            Log::error('AppApi: не удалось отправить письмо покупателю', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
+        // Картой — письмо откладывается до реального платежа (иначе в чеке
+        // неоткуда взять RRN/код авторизации/карту для VictoriaBank-чека,
+        // см. SendOrderConfirmationEmailAfterPayment); cash отправляем сразу,
+        // банковских полей там и не будет никогда.
+        if ($order->pay_method !== 'card') {
+            try {
+                $this->confirmationMailer->send($order);
+            } catch (\Throwable $e) {
+                Log::error('AppApi: не удалось отправить письмо покупателю', ['orders_id' => $order->id, 'error' => $e->getMessage()]);
+            }
         }
-    }
-
-    /**
-     * EFA-97 / E6-BES-04 — тот же шаблон, что у сайта
-     * (Front\OrderController::ajaxNewOrder), без промо/подарка — их в
-     * заказах из приложения не бывает (см. докблок класса).
-     */
-    private function sendConfirmationEmail(Orders $order, OrdersData $ordersData, OrdersUsers $ordersUsers, ?DeliveryState $district): void
-    {
-        if (empty($ordersUsers->email) || !filter_var($ordersUsers->email, FILTER_VALIDATE_EMAIL)) {
-            return;
-        }
-
-        if ($ordersData->email_sent) {
-            return;
-        }
-
-        $emailMessage = getItemByAlias('email-success-message', 'MenuId');
-        $subject = $emailMessage && $emailMessage->itemByLang
-            ? str_replace('{order_id}', (string) $order->id, $emailMessage->itemByLang->h1_title)
-            : ShowLabelById(46);
-
-        $basket = Basket::where('basket_id', $order->basket_id)->with('goodsItemId.itemByLang')->get();
-
-        Mail::send('front.email.emailNewOrder', [
-            'orders_users' => $ordersUsers,
-            'orders' => $order,
-            'orders_data' => $ordersData,
-            'basket' => $basket,
-            'cadou' => null,
-            'discount_goods_price' => 0,
-            'if_admin' => 0,
-            'user_info' => $ordersUsers,
-            'user_district' => $district,
-            'email_message' => $emailMessage,
-        ], function ($message) use ($ordersUsers, $subject) {
-            $message->from(showSettingBodyByAlias('send-email-from'), ShowLabelById(46));
-            $message->to($ordersUsers->email);
-            $message->subject($subject);
-        });
-
-        $ordersData->update(['email_sent' => 1]);
     }
 }

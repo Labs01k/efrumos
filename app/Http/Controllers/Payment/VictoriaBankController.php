@@ -66,13 +66,17 @@ class VictoriaBankController extends Controller
 
         if ($payment) {
             // RRN/INT_REF прошлой, отклонённой попытки не должны уйти в капчур новой
-            $payment->update(['amount_bani' => (int) round($amount * 100), 'rrn' => null, 'int_ref' => null]);
+            $payment->update(['amount_bani' => (int) round($amount * 100), 'rrn' => null, 'int_ref' => null, 'lang' => $lang]);
         } else {
             OrderPayment::create([
                 'orders_id' => $order->id,
                 'provider' => 'victoriabank',
                 'amount_bani' => (int) round($amount * 100),
                 'currency' => 'MDL',
+                // orders сам язык оформления не хранит — письмо после оплаты
+                // шлётся отложенно, из вебхука банка (без Accept-Language от
+                // покупателя), так что берём его неоткуда, кроме как отсюда.
+                'lang' => $lang,
             ]);
         }
 
@@ -141,6 +145,8 @@ class VictoriaBankController extends Controller
     {
         $lang = $this->resolveLang($request);
 
+        $this->captureCardFromBackref($request, $order);
+
         // [FE+BE] Экран возврата с оплаты — route choice is cosmetic, both
         // point at the same checkoutSuccess() handler, which re-reads
         // payment_status itself and would show the right thing either way.
@@ -154,6 +160,36 @@ class VictoriaBankController extends Controller
         $url = $this->localizedHomeUrl($lang, $path) . '?' . http_build_query(['order' => $order->id]);
 
         return redirect($url);
+    }
+
+    /**
+     * VictoriaBank compliance / electronic receipt — CARD (masked card
+     * number) is never sent on the server-to-server callback we already
+     * store (confirmed empirically on 8 real captures: always empty), only
+     * on this unsigned browser redirect. BACKREF is explicitly untrusted
+     * for payment status (see class docblock), so this never touches
+     * payment_status — it only fills a cosmetic receipt field, and only
+     * when the RRN here matches the RRN the verified server callback
+     * already recorded for this payment. That guard means a forged hit on
+     * this URL (no signature) can at best fail to set the card digits, not
+     * plant a fake one: it would have to guess a real, already-settled RRN.
+     */
+    private function captureCardFromBackref(Request $request, Orders $order): void
+    {
+        $card = trim((string) $request->query('CARD', ''));
+        $rrn = trim((string) $request->query('RRN', ''));
+
+        if ($card === '' || $rrn === '') {
+            return;
+        }
+
+        $payment = $order->payments()
+            ->where('provider', 'victoriabank')
+            ->where('rrn', $rrn)
+            ->whereNull('card_masked')
+            ->first();
+
+        $payment?->update(['card_masked' => $card]);
     }
 
     /**
@@ -206,6 +242,17 @@ class VictoriaBankController extends Controller
         }
 
         $payment->update(['signature_verified' => true, 'raw_callback_payload' => $request->all()]);
+
+        // VictoriaBank compliance / electronic receipt — APPROVAL (auth
+        // code) comes back on this same server callback (confirmed live:
+        // populated on both TRTYPE=21 capture and TRTYPE=24 reversal). CARD
+        // does not — it's only ever present on the BACKREF browser redirect,
+        // see backref() below.
+        $approval = trim((string) $request->input('APPROVAL', ''));
+        if ($approval !== '' && $payment->approval_code === null) {
+            $payment->update(['approval_code' => $approval]);
+        }
+
         $resultHandler->handle($order, $payment, $request->only(['ACTION', 'RC', 'RRN', 'INT_REF', 'AMOUNT']), 'bank_callback');
 
         return response()->json(['status' => 'ok']);

@@ -203,6 +203,29 @@
             </td>
         </tr>
     @endif
+    @if(isset($payment) && $payment)
+        <tr>
+            <td style="padding: 15px 0;">
+                <table style="width: 100%; border-spacing: 0; border-collapse: collapse;">
+                    <tbody>
+                    <tr style="text-align: left; background-color: #efefef;">
+                        <th colspan="2" style="border: 1px solid #dbdbdb; padding: 15px;">Date despre plată / Payment details</th>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #dbdbdb; padding: 15px; width: 50%;">
+                            <p style="margin: 0;"><span style="font-weight: bold;">Tip tranzacție:</span> Plată cu card Visa / Mastercard</p>
+                            <p style="margin: 0;"><span style="font-weight: bold;">Cod autorizare:</span> {{ $payment->approval_code ?? '—' }}</p>
+                        </td>
+                        <td style="border: 1px solid #dbdbdb; padding: 15px; width: 50%;">
+                            <p style="margin: 0;"><span style="font-weight: bold;">RRN:</span> {{ $payment->rrn ?? '—' }}</p>
+                            <p style="margin: 0;"><span style="font-weight: bold;">Card:</span> {{ $payment->card_masked ?? '—' }}</p>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    @endif
      @if($email_message && $email_message->itemByLang && $email_message->itemByLang->body_two)
          <tr>
              <td>
@@ -210,6 +233,27 @@
              </td>
          </tr>
      @endif
+    <tr>
+        <td style="padding: 15px 0; font-size: 12px; color: #6c6c6c; border-top: 1px solid #dbdbdb;">
+            <p style="margin: 10px 0 0;">
+                {{ config('services.victoriabank.merchant_name') }},
+                Republica Moldova,
+                <a href="{{ config('services.victoriabank.merchant_url') }}" style="color: #6c6c6c;">{{ config('services.victoriabank.merchant_url') }}</a>
+            </p>
+            @php($returnPolicyUrl = showSettingBodyByAlias('return-policy-url') ?: url('/'))
+            <p style="margin: 4px 0 0;">
+                Politica de retur / Return policy:
+                <a href="{{ $returnPolicyUrl }}" style="color: #6c6c6c;">{{ $returnPolicyUrl }}</a>
+            </p>
+            @if(showSettingBodyByAlias('main-email') || showSettingBodyByAlias('main-phone'))
+                <p style="margin: 4px 0 0;">
+                    Suport / Support:
+                    @if(showSettingBodyByAlias('main-phone')) {{ showSettingBodyByAlias('main-phone') }} @endif
+                    @if(showSettingBodyByAlias('main-email')) / {{ showSettingBodyByAlias('main-email') }} @endif
+                </p>
+            @endif
+        </td>
+    </tr>
     </tbody>
 </table>
 </body>

@@ -15,16 +15,16 @@ use App\Jobs\Integration\SubmitOrderToIntegrationLayerJob;
 use App\Services\AmoOrder\SendOrderToAmoCrm;
 use App\Services\FacebookAds\FacebookPixelConversion;
 use App\Services\GA4\GoogleEcommerce;
+use App\Services\Order\OrderConfirmationMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
-    public function ajaxNewOrder(Request $request, SendOrderToAmoCrm $sendOrderToAmoCrm)
+    public function ajaxNewOrder(Request $request, SendOrderToAmoCrm $sendOrderToAmoCrm, OrderConfirmationMailer $confirmationMailer)
     {
         $order_type = (string)$request->input('order_type');
 
@@ -391,37 +391,12 @@ class OrderController extends Controller
                 $user_info = $user ?: $orders_users;
                 $user_district = $user ? getItemByIdSimple($user->district_id, 'DeliveryState') : ($orders_users ? getItemByIdSimple($orders_users->district_id, 'DeliveryState') : '');
 
-                if ($new_orders_data->email_sent == 0) {
-
-                    $user_email = $request->input('email');
-                    $email_message = getItemByAlias('email-success-message', 'MenuId');
-                    $emails_array = explode(',', showSettingBodyByAlias('email-phone'));
-                    $subject = str_replace('{order_id}', $order_new->id, $email_message->itemByLang->h1_title) ?? ShowLabelById(46);
-
-                    $if_admin = 0;
-                    if (filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-                        Mail::send('front.email.emailNewOrder', ['orders_users' => $orders_users, 'orders' => $order_new, 'orders_data' => $orders_data, 'basket' => $basket, 'cadou' => $cadou, 'discount_goods_price' => $discount_goods_price, 'if_admin' => $if_admin, 'user_info' => $user_info, 'user_district' => $user_district, 'email_message' => $email_message], function ($message) use ($user_email, $subject) {
-                            $message->from(showSettingBodyByAlias('send-email-from'), ShowLabelById(46));
-                            $message->to($user_email);
-                            $message->subject($subject);
-                        });
-                    }
-
-                    $if_admin = 1;
-                    if (!empty($emails_array) && count($emails_array)) {
-                        foreach ($emails_array as $one_email) {
-                            $one_email = trim($one_email);
-                            if (filter_var($one_email, FILTER_VALIDATE_EMAIL)) {
-                                Mail::send('front.email.emailNewOrder', ['orders_users' => $orders_users, 'orders' => $order_new, 'orders_data' => $orders_data, 'basket' => $basket, 'cadou' => $cadou, 'discount_goods_price' => $discount_goods_price, 'if_admin' => $if_admin, 'user_info' => $user_info, 'user_district' => $user_district, 'email_message' => $email_message], function ($message) use ($one_email, $subject) {
-                                    $message->from(showSettingBodyByAlias('send-email-from'), ShowLabelById(46));
-                                    $message->to($one_email);
-                                    $message->subject($subject);
-                                });
-                            }
-                        }
-                    }
-
-                    OrdersData::where('id', $new_orders_data->id)->update(['email_sent' => 1]);
+                // Картой — письмо откладывается до реального платежа (банку
+                // есть что положить в чек — RRN/код авторизации/карту — только
+                // после капчура, см. SendOrderConfirmationEmailAfterPayment).
+                // Cash отправляем сразу, как и раньше.
+                if ($order_new->pay_method !== 'card') {
+                    $confirmationMailer->send($order_new);
                 }
 
                 //For AMO CRM

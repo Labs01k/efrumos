@@ -10,7 +10,8 @@ class OrderPayment extends Model
 
     protected $fillable = [
         'orders_id', 'provider', 'external_payment_id', 'rrn', 'int_ref', 'amount_bani', 'currency',
-        'provider_status', 'signature_verified', 'raw_callback_payload', 'confirmed_at', 'capture_requested_at',
+        'provider_status', 'approval_code', 'card_masked', 'lang', 'signature_verified', 'raw_callback_payload',
+        'confirmed_at', 'capture_requested_at',
     ];
 
     protected $casts = [
