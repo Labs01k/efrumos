@@ -53,6 +53,11 @@ class Kernel extends ConsoleKernel
         // сразу после каждого реального обмена — не стали трогать этот
         // контроллер без отдельной просьбы (живая точка входа для 1С).
         $schedule->command('shades:rebuild-variants')->hourly();
+
+        // E7-BE-02 — БП-8: неоплаченный картой заказ отменяется через 24ч.
+        // Раз в час достаточно — точность до минуты тут не нужна, это не
+        // платёжный путь, а фоновая уборка зависших Pending.
+        $schedule->command('orders:auto-cancel-unpaid')->hourly()->withoutOverlapping();
     }
 
     /**
