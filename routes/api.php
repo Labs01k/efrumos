@@ -52,4 +52,11 @@ Route::prefix('app/v1')
         Route::get('/favorites', [\App\Http\Controllers\AppApi\FavoriteController::class, 'index']);
         Route::post('/favorites', [\App\Http\Controllers\AppApi\FavoriteController::class, 'store']);
         Route::delete('/favorites/{productId}', [\App\Http\Controllers\AppApi\FavoriteController::class, 'destroy'])->whereNumber('productId');
+
+        // E6-BES-02 — адреса приложения, тот же список, что в личном кабинете сайта.
+        Route::get('/addresses', [\App\Http\Controllers\AppApi\AddressController::class, 'index']);
+        Route::post('/addresses', [\App\Http\Controllers\AppApi\AddressController::class, 'store']);
+        Route::put('/addresses/{addressId}', [\App\Http\Controllers\AppApi\AddressController::class, 'update'])->whereNumber('addressId');
+        Route::delete('/addresses/{addressId}', [\App\Http\Controllers\AppApi\AddressController::class, 'destroy'])->whereNumber('addressId');
+        Route::post('/addresses/{addressId}/default', [\App\Http\Controllers\AppApi\AddressController::class, 'setDefault'])->whereNumber('addressId');
     });
