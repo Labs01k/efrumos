@@ -133,9 +133,29 @@ class VictoriaBankPaymentResultHandler
 
     private function safeTransition(Orders $order, PaymentStatus $to, string $source, string $comment): void
     {
+        $from = $order->payment_status ?? PaymentStatus::Pending;
+
         try {
             $this->paymentStatusService->transition(order: $order, to: $to, source: $source, comment: $comment);
         } catch (InvalidPaymentStatusTransitionException $e) {
+            // E7-BE-03 — деньги банк уже подтвердил (TRTYPE=21 прошёл,
+            // это вызвано только отсюда с $to=Paid), но заказ не может
+            // стать Paid: он уже Cancelled/Refunded (например, сработала
+            // auto_cancel_24h ПОСЛЕ того, как банк принял оплату, но ДО
+            // того, как пришёл этот callback/опрос) — живые деньги на
+            // "отменённом" заказе, не тихая гонка статусов. critical, не
+            // error — нужна ручная сверка, а не просто строка в логе.
+            if ($to === PaymentStatus::Paid) {
+                Log::critical('VictoriaBank: деньги списаны банком, но заказ не может стать Paid — нужна РУЧНАЯ СВЕРКА', [
+                    'orders_id' => $order->id,
+                    'from_status' => $from->value,
+                    'source' => $source,
+                    'comment' => $comment,
+                ]);
+
+                return;
+            }
+
             Log::error($e->getMessage());
         }
     }
