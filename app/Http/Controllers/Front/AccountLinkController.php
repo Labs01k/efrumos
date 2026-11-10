@@ -22,35 +22,66 @@ class AccountLinkController extends Controller
     public function loginPage(Request $request)
     {
         $state = mb_substr((string) $request->query('state', ''), 0, 255);
+        // PKCE (RFC 8252) — хэш code_verifier, который приложение сгенерировало
+        // у себя. Сайт его только хранит рядом с токеном, сам verifier никогда
+        // не видит — см. AccountLinkService::redeem().
+        $codeChallenge = mb_substr((string) $request->query('code_challenge', ''), 0, 64);
 
         // Уже вошёл на сайт в этой же сессии (например, повторно открыл
-        // WebView) — не просим логиниться второй раз, сразу выдаём токен.
-        // Берём state из ТЕКУЩЕГО запроса, а не из сессии — свежий логин
-        // (ajaxLoginUser/Social-callback) уже стёр account_link.state после
-        // использования, так что к этому моменту там могло остаться пусто.
+        // системный браузер) — не просим логиниться второй раз, сразу выдаём
+        // токен. Берём state/code_challenge из ТЕКУЩЕГО запроса, а не из
+        // сессии — свежий логин (ajaxLoginUser/Social-callback) уже стёр
+        // account_link.state после использования, так что к этому моменту
+        // там могло остаться пусто.
         $frontUserId = Session::get('session-front-user');
 
         if ($frontUserId) {
             $frontUser = FrontUser::where('id', $frontUserId)->where('active', 1)->first();
 
             if ($frontUser) {
-                return redirect(static::buildAppRedirectUrl($frontUser, $state !== '' ? $state : null));
+                return redirect(static::buildAppRedirectUrl(
+                    $frontUser,
+                    $state !== '' ? $state : null,
+                    $codeChallenge !== '' ? $codeChallenge : null,
+                ));
             }
         }
 
         Session::put('account_link.active', true);
         Session::put('account_link.state', $state);
+        Session::put('account_link.code_challenge', $codeChallenge);
 
         return view('front.account-link.login');
     }
 
-    public static function buildAppRedirectUrl(FrontUser $frontUser, ?string $state = null): string
+    /**
+     * На любую ошибку выдачи токена — redirect на deep-link приложения с
+     * `error=`, а не 500: пользователь уже внутри системного окна браузера,
+     * ему больше некуда вернуться самому.
+     */
+    public static function buildAppRedirectUrl(FrontUser $frontUser, ?string $state = null, ?string $codeChallenge = null): string
     {
         $state = $state ?? Session::get('account_link.state');
-        $linkToken = app(AccountLinkService::class)->issue($frontUser, $state !== null && $state !== '' ? $state : null);
+        $codeChallenge = $codeChallenge ?? Session::get('account_link.code_challenge');
+        Session::forget(['account_link.active', 'account_link.state', 'account_link.code_challenge']);
 
-        Session::forget(['account_link.active', 'account_link.state']);
+        $service = app(AccountLinkService::class);
 
-        return app(AccountLinkService::class)->buildReturnUrl($linkToken);
+        try {
+            $linkToken = $service->issue(
+                $frontUser,
+                $state !== null && $state !== '' ? $state : null,
+                $codeChallenge !== null && $codeChallenge !== '' ? $codeChallenge : null,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('AccountLink: не удалось выдать токен связки', [
+                'front_user_id' => $frontUser->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $service->buildErrorReturnUrl('link_failed', $state);
+        }
+
+        return $service->buildReturnUrl($linkToken);
     }
 }

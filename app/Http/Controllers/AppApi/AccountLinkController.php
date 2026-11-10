@@ -3,17 +3,20 @@
 namespace App\Http\Controllers\AppApi;
 
 use App\Http\Controllers\Controller;
+use App\Services\AccountLink\AccountLinkRedeemException;
 use App\Services\AccountLink\AccountLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use RuntimeException;
 
 /**
  * EFA-35 / E1-BE-04 — бэкенд приложения погашает одноразовый токен,
  * выданный сайтом после логина на странице режима связки (EFA-43 /
  * AccountLinkController::buildAppRedirectUrl). Погашение одноразовое —
- * повторный вызов с тем же токеном получит 409.
+ * повторный вызов с тем же токеном получит 409. Этот эндпоинт сам НЕ
+ * проверяет, кто его вызвал (нет сессии приложения) — это умышленно
+ * оставлено бэкенду приложения (EFA-35, auth:sanctum там), а здесь
+ * единственная защита от перехвата токена — PKCE (code_verifier).
  */
 class AccountLinkController extends Controller
 {
@@ -21,6 +24,7 @@ class AccountLinkController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'token' => 'required|string|max:64',
+            'code_verifier' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -28,9 +32,12 @@ class AccountLinkController extends Controller
         }
 
         try {
-            $frontUser = $service->redeem((string) $request->input('token'));
-        } catch (RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
+            $frontUser = $service->redeem(
+                (string) $request->input('token'),
+                $request->input('code_verifier') !== null ? (string) $request->input('code_verifier') : null,
+            );
+        } catch (AccountLinkRedeemException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'reason' => $e->reason()], 409);
         }
 
         return response()->json([

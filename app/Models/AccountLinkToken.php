@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AccountLinkToken extends Model
 {
     protected $fillable = [
-        'token', 'front_user_id', 'app_state', 'expires_at', 'used_at',
+        'token', 'front_user_id', 'app_state', 'code_challenge', 'expires_at', 'used_at',
     ];
 
     protected $casts = [
