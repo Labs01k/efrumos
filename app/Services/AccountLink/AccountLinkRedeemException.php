@@ -15,6 +15,7 @@ class AccountLinkRedeemException extends RuntimeException
     public const USED = 'used';
     public const EXPIRED = 'expired';
     public const PKCE_MISMATCH = 'pkce_mismatch';
+    public const LOYALTY_CLIENT_TAKEN = 'loyalty_client_taken';
 
     public function __construct(string $message, private readonly string $reason)
     {

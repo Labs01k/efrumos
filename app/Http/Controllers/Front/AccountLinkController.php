@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FrontUser;
 use App\Services\AccountLink\AccountLinkService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 /**
@@ -74,7 +75,7 @@ class AccountLinkController extends Controller
                 $codeChallenge !== null && $codeChallenge !== '' ? $codeChallenge : null,
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('AccountLink: не удалось выдать токен связки', [
+            Log::error('AccountLink: не удалось выдать токен связки', [
                 'front_user_id' => $frontUser->id,
                 'error' => $e->getMessage(),
             ]);
