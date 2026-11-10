@@ -10,10 +10,14 @@ use App\Models\GoodsItemId;
  * правилам, что в Front\OrderController::ajaxNewOrder (сайт не трогаем —
  * логика продублирована сознательно, чтобы не менять живой чекаут).
  *
+ * Промокоды (EFA-82 / E5-BES-02) — через PromoCodeApplier, по тем же
+ * правилам, что Front\CartController::ajaxCheckPromoCode, но против
+ * переданных строк, не cookie-корзины.
+ *
  * НЕ реализовано в v1 (на сайте это считает корзина при добавлении товара):
- * промокоды и скидки по акциям (basket.promo_one_c_id / discount_*),
- * подарки (cadou). Строки считаются по цене товара с учётом его промо-цены;
- * скидка заказа всегда 0.
+ * автоматические скидки по акциям (basket.promo_one_c_id / discount_*,
+ * применяемые без кода, по типу товара), подарки (cadou). Строки считаются
+ * по цене товара с учётом его промо-цены.
  *
  * Стоимость доставки — тариф сайта (config custom.front.delivery_price_*).
  * По ответу 1С (25.09.2026) итоговую сумму с доставкой будет отдавать 1С в
@@ -27,7 +31,7 @@ final class OrderPricing
     /**
      * @param array<int, array{product_id: int, qty: int}> $items
      */
-    public static function quote(array $items, string $deliveryMethod, ?int $districtId = null): Quote
+    public static function quote(array $items, string $deliveryMethod, ?int $districtId = null, ?string $promoCode = null): Quote
     {
         // одинаковые товары в запросе складываем в одну строку
         $wanted = [];
@@ -78,9 +82,14 @@ final class OrderPricing
             ? DeliveryState::where('active', 1)->where('id', $districtId)->value('code')
             : null;
 
-        $delivery = self::deliveryCost($itemsTotal, $deliveryMethod, $districtCode);
+        $promo = ($promoCode !== null && $promoCode !== '' && $lines !== [])
+            ? PromoCodeApplier::apply($promoCode, $lines)
+            : null;
+        $discount = $promo?->discount ?? 0;
 
-        return new Quote($lines, $problems, $itemsTotal, 0, $delivery);
+        $delivery = self::deliveryCost($itemsTotal - $discount, $deliveryMethod, $districtCode);
+
+        return new Quote($lines, $problems, $itemsTotal, $discount, $delivery, $promo);
     }
 
     /**

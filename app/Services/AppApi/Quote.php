@@ -17,6 +17,7 @@ final class Quote
         public readonly int $itemsTotal,
         public readonly int $discount,
         public readonly int $delivery,
+        public readonly ?PromoCodeResult $promo = null,
     ) {
     }
 
@@ -49,6 +50,7 @@ final class Quote
             ], $this->lines),
             'problems' => $this->problems,
             'totals' => self::totals($this->itemsTotal, $this->discount, $this->delivery),
+            'promo' => $this->promo?->toArray(),
         ];
     }
 

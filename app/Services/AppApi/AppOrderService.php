@@ -23,9 +23,11 @@ use Illuminate\Support\Facades\Log;
  * orders.source = 'app' и привязка к клиенту приложения.
  *
  * НЕ делает (в отличие от сайта): не шлёт письма менеджерам (менеджерам
- * заказ приходит через Platon/Progression), не применяет промокоды/подарки
- * (см. OrderPricing). Письмо покупателю — EFA-97/E6-BES-04 — шлёт, тем же
- * шаблоном `front.email.emailNewOrder`, только при указанном email, один раз.
+ * заказ приходит через Platon/Progression), не применяет подарки (cadou —
+ * см. PromoCodeApplier). Промокоды со скидкой (EFA-82) — применяет, через
+ * $quote->promo, уже посчитанный в OrderPricing::quote(). Письмо покупателю
+ * — EFA-97/E6-BES-04 — шлёт, тем же шаблоном `front.email.emailNewOrder`,
+ * только при указанном email, один раз.
  */
 class AppOrderService
 {
@@ -69,7 +71,14 @@ class AppOrderService
     {
         $basketId = BasketId::create(['user_ip' => $ip]);
 
+        // EFA-82 — та же колонка, что сайт пишет в ajaxCheckPromoCode
+        // (basket.promo_one_c_id), только для строк, реально совпавших с
+        // промокодом (PromoCodeApplier::apply(), не для всей корзины).
+        $promoMatchedIds = $quote->promo?->matchedProductIds ?? [];
+
         foreach ($quote->lines as $line) {
+            $isPromoLine = in_array($line->goods->id, $promoMatchedIds, true);
+
             Basket::create([
                 'basket_id' => $basketId->id,
                 'goods_item_id' => $line->goods->id,
@@ -77,6 +86,13 @@ class AppOrderService
                 'goods_name' => $line->goods->itemByLang->name,
                 'goods_price' => $line->unitPrice,
                 'goods_one_c_code' => $line->goods->one_c_code,
+                // Только promo_one_c_id — его читает SoapOneCOrderGateway::promoCode()
+                // для PromoCode в 1С. discount_procent/discount_summa здесь не
+                // ставим: итоговая скидка заказа уже верно лежит в
+                // orders_data.total_discount (ниже) — построчные колонки нужны
+                // только для отрисовки "старая/новая цена" на отдельных
+                // страницах сайта (ЛК/админка), не для денег заказа.
+                'promo_one_c_id' => $isPromoLine ? $quote->promo->promoOneCId : null,
             ]);
         }
 

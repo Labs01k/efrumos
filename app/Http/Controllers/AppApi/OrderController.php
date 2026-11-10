@@ -26,6 +26,7 @@ class OrderController extends Controller
         $validator = Validator::make($request->all(), [
             'delivery_method' => ['required', Rule::in(['pickup', 'delivery'])],
             'district_id' => 'nullable|integer',
+            'promo_code' => 'nullable|string|max:50',
             ...$this->itemRules(),
         ]);
 
@@ -37,6 +38,7 @@ class OrderController extends Controller
             $request->input('items'),
             $request->input('delivery_method'),
             $request->filled('district_id') ? (int) $request->input('district_id') : null,
+            $request->filled('promo_code') ? (string) $request->input('promo_code') : null,
         );
 
         return response()->json(['success' => true, 'data' => $quote->toArray() + ['orderable' => $quote->isOrderable()]]);
@@ -71,6 +73,7 @@ class OrderController extends Controller
                 Rule::exists('shops_id', 'id')->where('pickup_point', 1),
             ],
             'comment' => 'nullable|string|max:1000',
+            'promo_code' => 'nullable|string|max:50',
             ...$this->itemRules(),
         ]);
 
@@ -88,6 +91,7 @@ class OrderController extends Controller
             $request->input('items'),
             $request->input('delivery_method'),
             $request->filled('delivery.district_id') ? (int) $request->input('delivery.district_id') : null,
+            $request->filled('promo_code') ? (string) $request->input('promo_code') : null,
         );
 
         // повтор уже созданного заказа отдаём как есть, даже если цены/остатки с тех пор изменились
