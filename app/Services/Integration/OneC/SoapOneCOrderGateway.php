@@ -117,16 +117,6 @@ class SoapOneCOrderGateway implements OneCOrderGateway
 
             $result = self::toArray($response->return);
 
-            // Сырой XML запроса/ответа — чтобы спорные случаи (например,
-            // deliverySum при самовывозе) можно было показать 1С как
-            // неопровержимое доказательство того, что мы реально отправили,
-            // а не реконструировать это по косвенным признакам задним числом.
-            Log::info('1С CreateOrder: сырой XML запроса/ответа', [
-                'orders_id' => $order->id,
-                'request_xml' => $client->__getLastRequest(),
-                'response_xml' => $client->__getLastResponse(),
-            ]);
-
             if (!empty($result['isError'])) {
                 throw new IntegrationGatewayException(
                     "1С CreateOrder вернул ошибку для заказа #{$order->id}: " . ($result['ErrorDescription'] ?? 'без описания')
@@ -276,6 +266,22 @@ class SoapOneCOrderGateway implements OneCOrderGateway
     {
         $frontUser = $order->front_user_id ? FrontUser::find($order->front_user_id) : null;
 
+        if ($frontUser && $frontUser->onec_client_point_code) {
+            return (int) $frontUser->onec_client_point_code;
+        }
+
+        $ordersUsers = $order->ordersUsers;
+        $fullName = trim(($ordersUsers->name ?? '') . ' ' . ($ordersUsers->last_name ?? '')) ?: 'efrumos.md customer';
+        $cityCode = $this->cityMapper->cityCodeFor($ordersUsers->district_id ? (int) $ordersUsers->district_id : null);
+
+        // Самовывоз — у ordersUsers обычно нет адреса (клиент забирает сам),
+        // 1С требует непустой Adress ("Не заполнен адрес торговой точки" —
+        // живьём проверено). Берём адрес выбранного магазина самовывоза.
+        $address = $ordersUsers->address ?: '';
+        if ($address === '' && $order->delivery_method !== 'delivery' && $order->pickupShop?->itemByLang) {
+            $address = trim(($order->pickupShop->itemByLang->name ?? '') . ', ' . ($order->pickupShop->itemByLang->address ?? ''), ', ');
+        }
+
         // Owner зависит от способа доставки — см. комментарий у
         // config('services.onec') про owner_code_*. Ветка nova_courier/
         // nova_terminal — не в задачах текущего этапа (не наша разработка,
@@ -283,45 +289,11 @@ class SoapOneCOrderGateway implements OneCOrderGateway
         // сейчас не пускает эти значения дальше формы, пока не включат флаг
         // custom.front.nova_poshta_enabled — эта ветка match() практически
         // не выполняется.
-        $ownerCode = (int) match ($order->delivery_method) {
+        $ownerCode = match ($order->delivery_method) {
             'delivery' => config('services.onec.owner_code_delivery'),
             'nova_courier', 'nova_terminal' => config('services.onec.owner_code_courier_service'),
             default => config('services.onec.owner_code_pickup'), // pickup и всё неизвестное
         };
-
-        // Кэш переиспользуем только для ТОГО ЖЕ Owner — покупатель,
-        // заказавший сначала с доставкой (Owner=27416), а потом самовывозом
-        // (Owner=27703), должен получить НОВУЮ точку продаж под новый
-        // Owner, не старую под другой. До 12.11.2026 это поле вообще не
-        // было в $fillable у FrontUser — update() ниже был тихим no-op, кэш
-        // никогда не сохранялся и не мог повлиять на реальный заказ; теперь,
-        // когда он реально работает, эта проверка обязательна.
-        if ($frontUser && $frontUser->onec_client_point_code && $frontUser->onec_client_point_owner === $ownerCode) {
-            return (int) $frontUser->onec_client_point_code;
-        }
-
-        // БАГ, живьём найден 12.11.2026 (заказ #3103, "Не заполнен номер
-        // телефона" от CreateClientPoint): OrderController::ajaxNewOrder()
-        // копирует name/last_name/phone/district_id/address в orders_users
-        // ТОЛЬКО для гостя (order_type='without') — для 'new'/'already'
-        // (зарегистрированный покупатель) эти поля в orders_users остаются
-        // пустыми, реальные данные лежат на front_user (уже привязан через
-        // orders.front_user_id). OrderConfirmationMailer это уже учитывает
-        // (`$order->ordersFrontUser ?: $ordersUsers`) — resolveClientPointCode()
-        // этот же фоллбэк не делал, бралось только ordersUsers, всегда
-        // пустое для зарегистрированных покупателей.
-        $ordersUsers = $order->ordersUsers;
-        $customer = $frontUser ?: $ordersUsers;
-        $fullName = trim(($customer->name ?? '') . ' ' . ($customer->last_name ?? '')) ?: 'efrumos.md customer';
-        $cityCode = $this->cityMapper->cityCodeFor($customer->district_id ? (int) $customer->district_id : null);
-
-        // Самовывоз — у customer обычно нет адреса (клиент забирает сам),
-        // 1С требует непустой Adress ("Не заполнен адрес торговой точки" —
-        // живьём проверено). Берём адрес выбранного магазина самовывоза.
-        $address = $customer->address ?: '';
-        if ($address === '' && $order->delivery_method !== 'delivery' && $order->pickupShop?->itemByLang) {
-            $address = trim(($order->pickupShop->itemByLang->name ?? '') . ', ' . ($order->pickupShop->itemByLang->address ?? ''), ', ');
-        }
 
         $response = $client->CreateClientPoint([
             'ClientPointInData' => [
@@ -333,7 +305,7 @@ class SoapOneCOrderGateway implements OneCOrderGateway
                 'FullDescription' => 'efrumos.md, заказ #' . $order->id,
                 'Contacts' => [
                     'items' => [[
-                        'PhoneNumber' => (string) ($customer->phone ?? ''),
+                        'PhoneNumber' => (string) ($ordersUsers->phone ?? ''),
                         'ContactPerson' => $fullName,
                     ]],
                 ],
@@ -342,13 +314,6 @@ class SoapOneCOrderGateway implements OneCOrderGateway
         ]);
 
         $result = self::toArray($response->return);
-
-        Log::info('1С CreateClientPoint: сырой XML запроса/ответа', [
-            'orders_id' => $order->id,
-            'owner' => $ownerCode,
-            'request_xml' => $client->__getLastRequest(),
-            'response_xml' => $client->__getLastResponse(),
-        ]);
 
         if (!empty($result['isError'])) {
             throw new IntegrationGatewayException(
@@ -359,7 +324,7 @@ class SoapOneCOrderGateway implements OneCOrderGateway
         $clientPointCode = (int) $result['ObjectCode'];
 
         if ($frontUser) {
-            $frontUser->update(['onec_client_point_code' => $clientPointCode, 'onec_client_point_owner' => $ownerCode]);
+            $frontUser->update(['onec_client_point_code' => $clientPointCode]);
         }
 
         return $clientPointCode;
