@@ -12,7 +12,7 @@
         <h3>
             <a href="{{ route('blog', $one_blog_item->alias) }}">{{ $one_blog_item->itemByLang->name ?? '' }}</a>
         </h3>
-        @if($one_blog_item->itemByLang->descr)
+        @if($one_blog_item->itemByLang?->descr)
             <div class="blog-desc">
                 <p>{{ $one_blog_item->itemByLang->descr ?? '' }}</p>
             </div>
