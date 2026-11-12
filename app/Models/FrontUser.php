@@ -17,6 +17,11 @@ class FrontUser extends Model
         'app_loyalty_client_id', 'phone_confirmed_at',
         // E1-BES-03 — когда пользователь последний раз нажал «Позже» на поп-апе подтверждения телефона.
         'phone_confirm_popup_dismissed_at',
+        // SoapOneCOrderGateway::resolveClientPointCode() — кэш точки продаж
+        // 1С для повторных заказов. Отсутствие в этом списке делало
+        // update() ниже тихим no-op — кэш никогда не сохранялся, каждый
+        // повторный заказ создавал в 1С дублирующую точку продаж.
+        'onec_client_point_code', 'onec_client_point_owner',
     ];
 
     // Laravel 10 здесь (не 11+) — именно свойство $casts, не метод casts().
