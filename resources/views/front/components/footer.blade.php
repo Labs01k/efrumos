@@ -2,7 +2,10 @@
     <div class="main-footer-top">
         <div class="container">
             <div class="main-footer-top-inner">
-                <div class="main-footer-info">{{ ShowLabelById(164) }}</div>
+                {{-- label 164 содержит HTML-ссылку (напр. на политику конфиденциальности) —
+                     {{ }} экранировал её в текст вместо ссылки; живой баг,
+                     найден 23.11.2026. --}}
+                <div class="main-footer-info">{!! ShowLabelById(164) !!}</div>
                 <div class="main-footer-form">
                     <form method="POST" action="{{ route('ajax-subscribers') }}" id="subscribers"
                           enctype="multipart/form-data">
@@ -122,6 +125,20 @@
                                     <a href="mailto:{{ showSettingBodyByAlias('main-email') }}">{{ showSettingBodyByAlias('main-email') }}</a>
                                 </li>
                             @endif
+                            {{-- Договор с банком (3.2.8) — юр.название/фискальный код/банк/капитал
+                                 в том же блоке контактов, не отдельной плашкой у копирайта. --}}
+                            @if(showSettingBodyByAlias('main-legal-name'))
+                                <li>{{ showSettingBodyByAlias('main-legal-name') }}</li>
+                            @endif
+                            @if(showSettingBodyByAlias('main-cod-fiscal'))
+                                <li>{{ ShowLabelById(142) }}: {{ showSettingBodyByAlias('main-cod-fiscal') }}</li>
+                            @endif
+                            @if(showSettingBodyByAlias('main-bank'))
+                                <li>{{ ShowLabelById(144) }}: {{ showSettingBodyByAlias('main-bank') }}</li>
+                            @endif
+                            @if(showSettingBodyByAlias('main-capital-social'))
+                                <li>{{ ShowLabelById(145) }}: {{ showSettingBodyByAlias('main-capital-social') }}</li>
+                            @endif
                         </ul>
                     </div>
                     <div class="main-footer-payment d-xl-none">
@@ -161,25 +178,6 @@
     </div>
     <div class="main-footer-bottom">
         <div class="container">
-            {{-- Договор с банком (3.2.8) — юр. название, IDNO, реквизиты
-                 головного офиса должны быть видны каждому потенциальному
-                 плательщику карты, не только на отдельной странице контактов. --}}
-            @if(showSettingBodyByAlias('main-legal-name') || showSettingBodyByAlias('main-cod-fiscal') || showSettingBodyByAlias('main-bank') || showSettingBodyByAlias('main-capital-social'))
-                <div class="main-footer-legal">
-                    @if(showSettingBodyByAlias('main-legal-name'))
-                        <span>{{ showSettingBodyByAlias('main-legal-name') }}</span>
-                    @endif
-                    @if(showSettingBodyByAlias('main-cod-fiscal'))
-                        <span>{{ ShowLabelById(142) }}: {{ showSettingBodyByAlias('main-cod-fiscal') }}</span>
-                    @endif
-                    @if(showSettingBodyByAlias('main-bank'))
-                        <span>{{ ShowLabelById(144) }}: {{ showSettingBodyByAlias('main-bank') }}</span>
-                    @endif
-                    @if(showSettingBodyByAlias('main-capital-social'))
-                        <span>{{ ShowLabelById(145) }}: {{ showSettingBodyByAlias('main-capital-social') }}</span>
-                    @endif
-                </div>
-            @endif
             <div class="main-footer-bottom-inner">
                 @if(showSettingBodyByAlias('footer-copyright'))
                     <div class="copyright">
