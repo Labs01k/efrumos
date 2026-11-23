@@ -213,7 +213,9 @@
                     </tr>
                     <tr>
                         <td style="border: 1px solid #dbdbdb; padding: 15px; width: 50%;">
-                            <p style="margin: 0;"><span style="font-weight: bold;">Tip tranzacție:</span> Plată cu card Visa / Mastercard</p>
+                            {{-- Договор с банком (2.7) — тип транзакции по
+                                 реальному провайдеру платежа, не хардкод-строка. --}}
+                            <p style="margin: 0;"><span style="font-weight: bold;">Tip tranzacție:</span> {{ $payment->provider === 'victoriabank' ? 'Plată cu card Visa / Mastercard' : $payment->provider }}</p>
                             <p style="margin: 0;"><span style="font-weight: bold;">Cod autorizare:</span> {{ $payment->approval_code ?? '—' }}</p>
                         </td>
                         <td style="border: 1px solid #dbdbdb; padding: 15px; width: 50%;">
@@ -240,7 +242,12 @@
                 Republica Moldova,
                 <a href="{{ config('services.victoriabank.merchant_url') }}" style="color: #6c6c6c;">{{ config('services.victoriabank.merchant_url') }}</a>
             </p>
-            @php($returnPolicyUrl = showSettingBodyByAlias('return-policy-url') ?: url('/'))
+            {{-- Договор с банком (2.7) — ссылка на реальную политику
+                 возврата (условия возврата описаны на странице
+                 terms-and-conditions, отдельной страницы под 'return' нет),
+                 а не на главную. CMS-настройка return-policy-url не заведена
+                 — используем существующую страницу напрямую как дефолт. --}}
+            @php($returnPolicyUrl = showSettingBodyByAlias('return-policy-url') ?: route('menu', 'terms-and-conditions'))
             <p style="margin: 4px 0 0;">
                 Politica de retur / Return policy:
                 <a href="{{ $returnPolicyUrl }}" style="color: #6c6c6c;">{{ $returnPolicyUrl }}</a>

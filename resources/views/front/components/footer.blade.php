@@ -161,6 +161,25 @@
     </div>
     <div class="main-footer-bottom">
         <div class="container">
+            {{-- Договор с банком (3.2.8) — юр. название, IDNO, реквизиты
+                 головного офиса должны быть видны каждому потенциальному
+                 плательщику карты, не только на отдельной странице контактов. --}}
+            @if(showSettingBodyByAlias('main-legal-name') || showSettingBodyByAlias('main-cod-fiscal') || showSettingBodyByAlias('main-bank') || showSettingBodyByAlias('main-capital-social'))
+                <div class="main-footer-legal">
+                    @if(showSettingBodyByAlias('main-legal-name'))
+                        <span>{{ showSettingBodyByAlias('main-legal-name') }}</span>
+                    @endif
+                    @if(showSettingBodyByAlias('main-cod-fiscal'))
+                        <span>{{ ShowLabelById(142) }}: {{ showSettingBodyByAlias('main-cod-fiscal') }}</span>
+                    @endif
+                    @if(showSettingBodyByAlias('main-bank'))
+                        <span>{{ ShowLabelById(144) }}: {{ showSettingBodyByAlias('main-bank') }}</span>
+                    @endif
+                    @if(showSettingBodyByAlias('main-capital-social'))
+                        <span>{{ ShowLabelById(145) }}: {{ showSettingBodyByAlias('main-capital-social') }}</span>
+                    @endif
+                </div>
+            @endif
             <div class="main-footer-bottom-inner">
                 @if(showSettingBodyByAlias('footer-copyright'))
                     <div class="copyright">
@@ -199,6 +218,8 @@
         getRecaptcha('/contacts', 'recaptcha-contacts');
         getRecaptcha('/', 'recaptcha-register');
         getRecaptcha('/', 'recaptcha-restore-password');
+        {{-- Договор с банком (3.2.25) — последний пробел на аутентификации. --}}
+        getRecaptcha('/', 'recaptcha-login');
         getRecaptcha('/cart', 'recaptcha-order-new');
         getRecaptcha('/cart', 'recaptcha-order-already');
         getRecaptcha('/cart', 'recaptcha-order-without');

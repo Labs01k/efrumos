@@ -28,6 +28,10 @@
 
                         @csrf
                         <input type="hidden" name="current_url" value="{{ url()->current() }}">
+                        {{-- Договор с банком (3.2.25) — reCAPTCHA обязательна
+                             на аутентификации, не только на регистрации и
+                             восстановлении пароля. --}}
+                        <input type="hidden" name="g-recaptcha-response" id="recaptcha-login">
 
                         <div class="form-item">
                             <label for="login-email">{{ ShowLabelById(34) }}</label>

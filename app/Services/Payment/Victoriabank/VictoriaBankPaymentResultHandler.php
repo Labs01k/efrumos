@@ -49,33 +49,50 @@ class VictoriaBankPaymentResultHandler
             return;
         }
 
-        $payment->update([
-            'rrn' => $rrn,
-            'int_ref' => $intRef,
-            'provider_status' => "ACTION={$action} RC={$rc}",
-        ]);
-
         if ($action !== '0' || $rc !== '00') {
+            $payment->update([
+                'rrn' => $rrn,
+                'int_ref' => $intRef,
+                'provider_status' => "ACTION={$action} RC={$rc}",
+            ]);
             $target = $rc === '-25' ? PaymentStatus::Cancelled : PaymentStatus::Failed;
             $this->safeTransition($order, $target, $source, "VictoriaBank ACTION={$action} RC={$rc}");
             return;
         }
 
-        // Тестовый сценарий банка №2 (0 -> 24): авторизация без капчура,
-        // потом отмена. Флаг снимается сразу после теста, в обычной работе
-        // всегда false — см. config/services.php.
-        if (config('services.victoriabank.skip_autocapture')) {
-            Log::warning('VictoriaBank: авто-капчур пропущен (VICTORIABANK_SKIP_AUTOCAPTURE) — заказ авторизован, не списан', [
-                'order' => $order->id,
-                'rrn' => $rrn,
-            ]);
+        // Договор с банком (п.2.7): капчур должен уйти в день доставки, не
+        // раньше — не сразу по авторизации. Здесь только фиксируем успешную
+        // авторизацию (authorized_at) и выходим; реальный TRTYPE=21 шлёт
+        // captureAuthorizedPayment() ниже, вызванный либо по статусу
+        // «Доставлен» от 1С (OneCOrderStatusWebhookController), либо
+        // защитной job на 6-дневный потолок (ForceCaptureExpiringPayments).
+        $payment->update([
+            'rrn' => $rrn,
+            'int_ref' => $intRef,
+            'provider_status' => "ACTION={$action} RC={$rc}",
+            'authorized_at' => $payment->authorized_at ?? now(),
+        ]);
+    }
+
+    /**
+     * Реальный капчур (TRTYPE=21) авторизованного, но ещё не списанного
+     * платежа. Вызывается из двух мест — по факту доставки и по защитной
+     * job на 6-дневный потолок банка — поэтому идемпотентность (claim через
+     * capture_requested_at) и переход статуса оплаты вынесены сюда одним
+     * общим путём, а не продублированы в каждом вызывающем месте.
+     */
+    public function captureAuthorizedPayment(Orders $order, OrderPayment $payment, string $source): void
+    {
+        if ($payment->confirmed_at !== null) {
             return;
         }
 
+        $amount = $payment->amount_bani / 100;
+
         // Идемпотентность capture: TRTYPE=21 должен уйти в банк ровно один раз
-        // на авторизацию. handle() может вызваться повторно — банк дублирует
-        // server-callback (ретраи), плюс возможна гонка callback vs
-        // PollVictoriaBankStatusJob. Атомарная заявка: кто первым проставил
+        // на авторизацию. Этот метод может вызваться повторно — например,
+        // статус «Доставлен» от 1С продублирован, плюс возможна гонка с
+        // защитной job. Атомарная заявка: кто первым проставил
         // capture_requested_at (WHERE ... IS NULL), тот и делает капчур.
         $claimed = OrderPayment::query()
             ->whereKey($payment->id)
@@ -83,8 +100,6 @@ class VictoriaBankPaymentResultHandler
             ->update(['capture_requested_at' => now()]);
 
         if ($claimed === 0) {
-            // Другой вызов handle() (callback или опрос) уже забрал заявку и
-            // отвечает за capture и перевод статуса — второй TRTYPE=21 не шлём.
             Log::info('VictoriaBank: повторный TRTYPE=21 пропущен — capture уже инициирован', [
                 'order' => $order->id,
                 'source' => $source,
@@ -94,10 +109,10 @@ class VictoriaBankPaymentResultHandler
         }
 
         try {
-            $completion = $this->client->complete((string) $order->id, $amount, (string) $rrn, (string) $intRef);
+            $completion = $this->client->complete((string) $order->id, $amount, (string) $payment->rrn, (string) $payment->int_ref);
         } catch (\Throwable $e) {
             // Сетевой сбой при обращении к банку — TRTYPE=21 в банк не ушёл,
-            // снимаем заявку, чтобы следующий callback/опрос смог повторить.
+            // снимаем заявку, чтобы следующий триггер (доставка/job) смог повторить.
             $payment->forceFill(['capture_requested_at' => null])->save();
             throw $e;
         }
@@ -108,11 +123,12 @@ class VictoriaBankPaymentResultHandler
         ]);
 
         if (($completion['RC'] ?? null) === '00') {
-            $this->safeTransition($order, PaymentStatus::Paid, $source, 'RRN=' . $rrn);
+            $this->safeTransition($order, PaymentStatus::Paid, $source, 'RRN=' . $payment->rrn);
         } else {
             Log::error('VictoriaBank TRTYPE=21 capture failed after successful authorization', [
                 'order' => $order->id,
                 'rc' => $completion['RC'] ?? null,
+                'source' => $source,
             ]);
             $this->safeTransition($order, PaymentStatus::Failed, $source, 'capture failed RC=' . ($completion['RC'] ?? '?'));
         }

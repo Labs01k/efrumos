@@ -58,6 +58,12 @@ class Kernel extends ConsoleKernel
         // Раз в час достаточно — точность до минуты тут не нужна, это не
         // платёжный путь, а фоновая уборка зависших Pending.
         $schedule->command('orders:auto-cancel-unpaid')->hourly()->withoutOverlapping();
+
+        // Договор с банком, п.2.7 — последний рубеж перед 6-дневным
+        // потолком банка на капчур авторизованного платежа. Часто, не
+        // раз в сутки: это не фоновая уборка, а предохранитель на
+        // реальных деньгах клиента.
+        $schedule->command('payments:force-capture-expiring')->hourly()->withoutOverlapping();
     }
 
     /**

@@ -53,6 +53,22 @@ class VictoriaBankController extends Controller
         $amount = $order->ordersData->amountDue();
         $email = $order->ordersUsers->email ?? $order->ordersFrontUser->email ?? '';
 
+        // Договор с банком (3.2.24) — защитный дубль-чек. Основная проверка
+        // уже отсекает это при создании заказа (OrderController), но сумма
+        // может измениться позже (ручная правка в админке, скидка и т.д.) —
+        // к банку с суммой <10 MDL не идём ни при каких обстоятельствах.
+        if ($amount < 10) {
+            Log::warning('VictoriaBank: сумма заказа меньше минимальной (3.2.24) — платёж не инициирован', [
+                'order' => $order->id,
+                'amount' => $amount,
+            ]);
+
+            return redirect($this->localizedHomeUrl($lang, 'checkout-fail') . '?' . http_build_query([
+                'order' => $order->id,
+                'payment_error' => 1,
+            ]));
+        }
+
         // Reuse the pending attempt if the customer is retrying (e.g. they
         // abandoned 3DS and came back) instead of piling up new rows.
         // Попытку, по которой уже заявлен капчур, не переиспользуем: её
@@ -129,6 +145,9 @@ class VictoriaBankController extends Controller
             'endpoint' => $form['endpoint'],
             'fields' => $form['fields'],
             'lang' => $lang,
+            // Договор с банком (2.3) — показать покупателю № заказа, состав,
+            // стоимость доставки и итог непосредственно перед оплатой.
+            'order' => $order->load('basket'),
         ]);
     }
 

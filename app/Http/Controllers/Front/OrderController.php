@@ -68,7 +68,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 } else {
                     $item = Validator::make($request->all(), [
@@ -91,7 +95,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 }
 
@@ -150,7 +158,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 } else {
 
@@ -174,7 +186,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 }
 
@@ -221,7 +237,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 } else {
                     $item = Validator::make($request->all(), [
@@ -244,7 +264,11 @@ class OrderController extends Controller
                             'required_if:delivery_method,pickup',
                             Rule::exists('shops_id', 'id')->where('pickup_point', 1),
                         ],
-                        'agree' => 'required'
+                        'agree' => 'required',
+                        // Договор с банком (2.4) — страна покупателя должна быть
+                        // среди собранных данных заказа. Магазин работает только
+                        // в Молдове — значение зафиксировано на фронте (hidden input).
+                        'country' => 'required|in:MD',
                     ]);
                 }
 
@@ -360,6 +384,21 @@ class OrderController extends Controller
                     $orders_data->delivery_cost = $orders_data->total_price >= config('custom.front.until_free_delivery') || $order_new->delivery_method == 'pickup' ? 0 : $costul_livrarei;
                     $orders_data->total_discount = $discount_goods_price;
                     $orders_data->save();
+
+                    // Договор с банком (3.2.24) — эквайер обязан обрабатывать
+                    // только транзакции от 10 MDL. Сумма известна только
+                    // здесь, после расчёта корзины — поэтому проверяем и
+                    // откатываем уже созданный заказ, а не до него. Наличных
+                    // это не касается — порог только для карты.
+                    if ($order_new->pay_method === 'card' && $orders_data->amountDue() < 10) {
+                        $orders_data->delete();
+                        $order_new->delete();
+
+                        return response()->json([
+                            'status' => false,
+                            'messages' => ['pay_method' => [trans('variables.min_card_amount_error')]],
+                        ]);
+                    }
 
                     $orders_users = new OrdersUsers();
                     $orders_users->orders_id = $order_new->id;

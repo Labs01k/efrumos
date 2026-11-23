@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Integration;
 use App\Http\Controllers\Controller;
 use App\Jobs\AppApi\NotifyAppBackendOrderStatusJob;
 use App\Models\IntegrationIdMapping;
+use App\Models\Orders;
+use App\Services\Payment\Victoriabank\VictoriaBankPaymentResultHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -34,7 +36,15 @@ use Illuminate\Support\Facades\Log;
  */
 class OneCOrderStatusWebhookController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    /**
+     * Статусы 1С, которые означают «товар физически передан клиенту» —
+     * договор с банком (п.2.7) требует списывать (TRTYPE=21) именно в этот
+     * момент, не раньше. «СделкаЗавершена» — на случай, если 1С иногда
+     * проскакивает «Доставлен» и сразу закрывает сделку.
+     */
+    private const DELIVERED_STATUSES = ['Доставлен', 'СделкаЗавершена'];
+
+    public function __invoke(Request $request, VictoriaBankPaymentResultHandler $captureHandler): JsonResponse
     {
         $payload = $request->all();
 
@@ -75,6 +85,10 @@ class OneCOrderStatusWebhookController extends Controller
             'onec_order_status_synced_at' => now(),
         ]);
 
+        if (in_array($status, self::DELIVERED_STATUSES, true)) {
+            $this->captureOnDelivery($order, $captureHandler);
+        }
+
         // заказ из приложения — сообщаем eFrumos-backend (push по статусу)
         NotifyAppBackendOrderStatusJob::dispatchFor($order, 'onec');
 
@@ -84,6 +98,40 @@ class OneCOrderStatusWebhookController extends Controller
         ]);
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Договор с банком, п.2.7 — капчур в день доставки. Берём авторизованный
+     * (authorized_at не пуст), но ещё не списанный (confirmed_at пуст)
+     * платёж VictoriaBank по заказу и инициируем реальное списание. Заказ
+     * может быть оплачен наличными или вообще не иметь платежа — тогда
+     * $payment не найдётся, и метод тихо ничего не делает.
+     */
+    private function captureOnDelivery(Orders $order, VictoriaBankPaymentResultHandler $captureHandler): void
+    {
+        $payment = $order->payments()
+            ->where('provider', 'victoriabank')
+            ->whereNotNull('authorized_at')
+            ->whereNull('confirmed_at')
+            ->first();
+
+        if (!$payment) {
+            return;
+        }
+
+        try {
+            $captureHandler->captureAuthorizedPayment($order, $payment, 'onec_delivery_status');
+        } catch (\Throwable $e) {
+            // Сетевой сбой при обращении к банку не должен превратить этот
+            // вебхук в 500 — 1С по докблоку класса всегда получает 200.
+            // Заявка на капчур уже снята внутри captureAuthorizedPayment();
+            // следующий триггер (повторный статус от 1С или защитная job
+            // на 6-дневный потолок) повторит попытку.
+            Log::error('OneCOrderStatusWebhookController: капчур по доставке не удался', [
+                'orders_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function tokenValid(Request $request): bool

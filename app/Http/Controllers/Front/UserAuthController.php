@@ -165,6 +165,15 @@ class UserAuthController extends Controller
                 'messages' => $validator->messages(),
             ]);
 
+        // Договор с банком (3.2.25) — reCAPTCHA обязательна в т.ч. на
+        // аутентификации. Были на регистрации/восстановлении пароля, но не
+        // на самом логине — добиваем последний пробел.
+        if (reCaptchaVersionThree($request->input('g-recaptcha-response')) == false)
+            return response()->json([
+                'status' => false,
+                'messages' => ['Spam'],
+            ]);
+
         $user = FrontUser::where('email', $request->input('email'))->first();
 
         if ($user && Hash::check($request->input('password'), $user->password) == false) {

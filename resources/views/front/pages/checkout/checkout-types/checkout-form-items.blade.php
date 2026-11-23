@@ -23,6 +23,10 @@
                     это гостевой заказ со своим email, и вошедший покупатель должен его ввести --}}
                {{ $global_user && request()->input('type') != 'without' ? 'readonly' : '' }}>
     </div>
+    {{-- Договор с банком (2.4) — страна покупателя обязана быть среди
+         собранных данных заказа, независимо от способа доставки. Магазин
+         работает только в Молдове, поэтому поле зафиксировано, не выбор. --}}
+    <input type="hidden" name="country" value="MD">
 </div>
 <div class="basket-account-title">{{ ShowLabelById(212) }}</div>
 <div class="form-item">

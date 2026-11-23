@@ -23,8 +23,19 @@
             font-size: 16px;
             text-align: center;
         }
-        .pay-redirect { padding: 24px; }
+        .pay-redirect { padding: 24px; max-width: 420px; }
         .pay-redirect p { margin: 0; }
+        .pay-order-summary {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #ffffff;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        .pay-order-summary__title { font-weight: 600; margin-bottom: 8px; }
+        .pay-order-summary__row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+        .pay-order-summary__row--total { font-weight: 600; border-top: 1px solid #eeeeee; margin-top: 6px; padding-top: 6px; }
         .pay-redirect-spinner {
             width: 32px;
             height: 32px;
@@ -42,6 +53,29 @@
 </head>
 <body>
 <div class="pay-redirect">
+    {{-- Договор с банком (2.3) — показать № заказа, состав, доставку и итог
+         непосредственно перед оплатой, а не просто редиректить на банк. --}}
+    @if(isset($order) && $order->ordersData)
+        <div class="pay-order-summary">
+            <div class="pay-order-summary__title">
+                {{ trans('variables.payment_order_summary_title') }} №{{ $order->id }}
+            </div>
+            @foreach($order->basket as $item)
+                <div class="pay-order-summary__row">
+                    <span>{{ $item->goods_name }} × {{ $item->items_count }}</span>
+                    <span>{{ getDefaultPriceFormat($item->goods_price * $item->items_count) }}</span>
+                </div>
+            @endforeach
+            <div class="pay-order-summary__row">
+                <span>{{ trans('variables.payment_order_summary_delivery') }}</span>
+                <span>{{ getDefaultPriceFormat($order->ordersData->delivery_cost) }}</span>
+            </div>
+            <div class="pay-order-summary__row pay-order-summary__row--total">
+                <span>{{ trans('variables.payment_order_summary_total') }}</span>
+                <span>{{ getDefaultPriceFormat($order->ordersData->amountDue()) }}</span>
+            </div>
+        </div>
+    @endif
     <div class="pay-redirect-spinner" aria-hidden="true"></div>
     <p>{{ trans('variables.payment_redirect_text') }}</p>
 </div>

@@ -46,17 +46,24 @@ class AutoCancelUnpaidOrders extends Command
             ->where('created_at', '<=', $cutoff)
             ->chunkById(100, function ($orders) use (&$cancelled, &$skipped, $paymentStatusService, $hours) {
                 foreach ($orders as $order) {
-                    // Капчур уже заявлен (идёт прямо сейчас или только что
-                    // прошёл) — пусть обычный путь банка сам разрешит
-                    // статус, не перехватываем его отменой в эту же секунду.
-                    $captureInFlight = $order->payments()
+                    // Договор с банком, п.2.7 — капчур теперь откладывается
+                    // до доставки (или до защитной job на 6-дневный
+                    // потолок), поэтому авторизованный заказ может сидеть в
+                    // Pending днями — это НЕ «неоплаченный», банк уже
+                    // заблокировал деньги на карте клиента. Раньше здесь
+                    // проверялся только capture_requested_at (заявка на
+                    // капчур уже отправлена) — этого недостаточно: теперь
+                    // между authorized_at и capture_requested_at может
+                    // пройти несколько дней, и всё это время заказ не
+                    // должен попадать под автоотмену.
+                    $authorizedByBank = $order->payments()
                         ->where('provider', 'victoriabank')
-                        ->whereNotNull('capture_requested_at')
+                        ->whereNotNull('authorized_at')
                         ->exists();
 
-                    if ($captureInFlight) {
+                    if ($authorizedByBank) {
                         $skipped++;
-                        Log::info('AutoCancelUnpaidOrders: пропущен — капчур уже заявлен', ['orders_id' => $order->id]);
+                        Log::info('AutoCancelUnpaidOrders: пропущен — платёж уже авторизован банком', ['orders_id' => $order->id]);
 
                         continue;
                     }
